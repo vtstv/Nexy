@@ -48,8 +48,9 @@ class ChatRepository @Inject constructor(
         chatId: Int, 
         senderId: Int, 
         content: String, 
-        type: MessageType = MessageType.TEXT
-    ): Result<Message> = messageOperations.sendMessage(chatId, senderId, content, type)
+        type: MessageType = MessageType.TEXT,
+        recipientUserId: Int? = null
+    ): Result<Message> = messageOperations.sendMessage(chatId, senderId, content, type, recipientUserId)
     
     suspend fun deleteMessage(messageId: String): Result<Unit> = messageOperations.deleteMessage(messageId)
     

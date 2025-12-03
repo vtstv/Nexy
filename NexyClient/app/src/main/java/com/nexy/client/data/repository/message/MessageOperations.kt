@@ -1,6 +1,7 @@
 package com.nexy.client.data.repository.message
 
 import android.util.Log
+import com.nexy.client.BuildConfig
 import com.nexy.client.data.api.DeleteMessageRequest
 import com.nexy.client.data.api.NexyApiService
 import com.nexy.client.data.local.dao.MessageDao
@@ -8,6 +9,7 @@ import com.nexy.client.data.models.Message
 import com.nexy.client.data.models.MessageStatus
 import com.nexy.client.data.models.MessageType
 import com.nexy.client.data.websocket.NexyWebSocketClient
+import com.nexy.client.e2e.E2EManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -20,7 +22,8 @@ class MessageOperations @Inject constructor(
     private val messageDao: MessageDao,
     private val apiService: NexyApiService,
     private val webSocketClient: NexyWebSocketClient,
-    private val messageMappers: MessageMappers
+    private val messageMappers: MessageMappers,
+    private val e2eManager: E2EManager
 ) {
     
     companion object {
@@ -48,12 +51,25 @@ class MessageOperations @Inject constructor(
                     val messages = response.body()!!
                     Log.d(TAG, "loadMessages: chatId=$chatId, loaded ${messages.size} messages")
                     
+                    // Decrypt messages if needed (only in production)
+                    val decryptedMessages = if (!BuildConfig.DEBUG) {
+                        messages.map { message ->
+                            if (message.encrypted && message.content.startsWith("{\"ciphertext\"")) {
+                                decryptMessage(message)
+                            } else {
+                                message
+                            }
+                        }
+                    } else {
+                        messages
+                    }
+                    
                     // Insert to local database
-                    messages.forEach { message ->
+                    decryptedMessages.forEach { message ->
                         messageDao.insertMessage(messageMappers.modelToEntity(message))
                     }
                     
-                    Result.success(messages)
+                    Result.success(decryptedMessages)
                 } else {
                     Log.e(TAG, "loadMessages failed: code=${response.code()}, message=${response.message()}")
                     Result.failure(Exception("Failed to load messages"))
@@ -65,30 +81,112 @@ class MessageOperations @Inject constructor(
         }
     }
     
+    /**
+     * Decrypt a single message
+     */
+    private fun decryptMessage(message: Message): Message {
+        if (!message.encrypted || message.senderId == 0) {
+            return message
+        }
+        
+        try {
+            // Parse encrypted content from JSON
+            val encryptedData = parseEncryptedContent(message.content)
+            if (encryptedData != null) {
+                val decrypted = e2eManager.decryptMessage(encryptedData, message.senderId)
+                if (decrypted != null) {
+                    Log.d(TAG, "Message ${message.id} decrypted successfully")
+                    return message.copy(
+                        content = decrypted,
+                        encrypted = false // Mark as decrypted for UI
+                    )
+                } else {
+                    Log.w(TAG, "Failed to decrypt message ${message.id}")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error decrypting message ${message.id}", e)
+        }
+        
+        return message // Return original if decryption fails
+    }
+    
+    /**
+     * Parse encrypted content from JSON string
+     */
+    private fun parseEncryptedContent(content: String): com.nexy.client.e2e.EncryptedMessage? {
+        return try {
+            val json = com.google.gson.JsonParser.parseString(content).asJsonObject
+            com.nexy.client.e2e.EncryptedMessage(
+                ciphertext = json.get("ciphertext").asString,
+                iv = json.get("iv").asString,
+                algorithm = json.get("algorithm").asString
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse encrypted content", e)
+            null
+        }
+    }
+    
     suspend fun sendMessage(
         chatId: Int, 
         senderId: Int, 
         content: String, 
-        type: MessageType = MessageType.TEXT
+        type: MessageType = MessageType.TEXT,
+        recipientUserId: Int? = null
     ): Result<Message> {
         return withContext(Dispatchers.IO) {
             try {
                 Log.d(TAG, "Sending message: chatId=$chatId, senderId=$senderId, content='$content'")
                 val messageId = generateMessageId()
+                
+                // E2E Encryption: Only in PRODUCTION and for private chats with recipient
+                val finalContent: String
+                val isEncrypted: Boolean
+                val encryptionAlgorithm: String?
+                
+                if (!BuildConfig.DEBUG && recipientUserId != null && e2eManager.isE2EReady()) {
+                    // PRODUCTION: Encrypt message
+                    Log.d(TAG, "Production build - encrypting message for user $recipientUserId")
+                    val encrypted = e2eManager.encryptMessage(recipientUserId, content)
+                    if (encrypted != null) {
+                        // Store encrypted content in JSON format
+                        finalContent = """{"ciphertext":"${encrypted.ciphertext}","iv":"${encrypted.iv}","algorithm":"${encrypted.algorithm}"}"""
+                        isEncrypted = true
+                        encryptionAlgorithm = encrypted.algorithm
+                        Log.d(TAG, "Message encrypted successfully")
+                    } else {
+                        Log.w(TAG, "E2E encryption failed - sending plain text")
+                        finalContent = content
+                        isEncrypted = false
+                        encryptionAlgorithm = null
+                    }
+                } else {
+                    // DEBUG: Plain text message
+                    if (BuildConfig.DEBUG) {
+                        Log.d(TAG, "Debug build - sending plain text message")
+                    }
+                    finalContent = content
+                    isEncrypted = false
+                    encryptionAlgorithm = null
+                }
+                
                 val message = Message(
                     id = messageId,
                     chatId = chatId,
                     senderId = senderId,
-                    content = content,
+                    content = finalContent,
                     type = type,
-                    status = MessageStatus.SENDING
+                    status = MessageStatus.SENDING,
+                    encrypted = isEncrypted,
+                    encryptionAlgorithm = encryptionAlgorithm
                 )
                 
-                Log.d(TAG, "Inserting message to local DB: ${message.id}")
+                Log.d(TAG, "Inserting message to local DB: ${message.id}, encrypted=$isEncrypted")
                 messageDao.insertMessage(messageMappers.modelToEntity(message))
                 
                 Log.d(TAG, "Sending message via WebSocket with messageId: $messageId")
-                webSocketClient.sendTextMessage(chatId, senderId, content, messageId)
+                webSocketClient.sendTextMessage(chatId, senderId, finalContent, messageId)
                 
                 Log.d(TAG, "Message sent successfully")
                 Result.success(message)

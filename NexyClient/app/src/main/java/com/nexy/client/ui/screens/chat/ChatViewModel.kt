@@ -217,9 +217,17 @@ class ChatViewModel @Inject constructor(
             try {
                 val userId = _uiState.value.currentUserId ?: return@launch
                 
+                // Determine recipient for E2E encryption (only for private chats)
+                val recipientUserId = if (_uiState.value.chatType == ChatType.PRIVATE && !_uiState.value.isSelfChat) {
+                    // Find the other participant (not current user)
+                    _uiState.value.participantIds.firstOrNull { it != userId }
+                } else {
+                    null // No E2E for groups or self-chats
+                }
+                
                 _uiState.value = _uiState.value.copy(messageText = "")
                 
-                chatRepository.sendMessage(chatId, userId, text).fold(
+                chatRepository.sendMessage(chatId, userId, text, recipientUserId = recipientUserId).fold(
                     onSuccess = {
                         _uiState.value = _uiState.value.copy(error = null)
                     },

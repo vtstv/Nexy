@@ -131,4 +131,10 @@ object AppModule {
     fun provideNexyWebSocketClient(gson: Gson): NexyWebSocketClient {
         return NexyWebSocketClient(WS_URL, gson)
     }
+    
+    @Provides
+    @Singleton
+    fun provideE2EApiClient(okHttpClient: OkHttpClient, gson: Gson): com.nexy.client.e2e.E2EApiClient {
+        return com.nexy.client.e2e.E2EApiClient(BASE_URL, okHttpClient, gson)
+    }
 }
