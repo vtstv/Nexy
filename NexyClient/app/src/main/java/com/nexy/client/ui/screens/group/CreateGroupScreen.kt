@@ -260,7 +260,7 @@ fun CreateGroupScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         items(
-                            items = (uiState as CreateGroupUiState.Success).contacts,
+                            items = state.contacts,
                             key = { it.id }
                         ) { contact ->
                             ContactSelectionItem(

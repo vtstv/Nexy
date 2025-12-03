@@ -263,7 +263,22 @@ func (s *GroupService) RemoveMember(ctx context.Context, groupID, requestorID, t
 		}
 	}
 
-	return s.chatRepo.RemoveMember(ctx, groupID, targetUserID)
+	err = s.chatRepo.RemoveMember(ctx, groupID, targetUserID)
+	if err != nil {
+		return err
+	}
+
+	// Check if group is empty
+	members, err := s.chatRepo.GetChatMembers(ctx, groupID)
+	if err != nil {
+		return nil // Ignore error, just don't delete
+	}
+
+	if len(members) == 0 {
+		return s.chatRepo.DeleteChat(ctx, groupID)
+	}
+
+	return nil
 }
 
 func (s *GroupService) AddMember(ctx context.Context, groupID, requestorID, targetUserID int) error {
