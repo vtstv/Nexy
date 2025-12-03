@@ -57,8 +57,8 @@ fun MessageBubble(
         horizontalArrangement = if (isOwnMessage) Arrangement.End else Arrangement.Start,
         verticalAlignment = Alignment.Bottom
     ) {
-        // Avatar for incoming messages (always show like Telegram)
-        if (!isOwnMessage) {
+        // Avatar for incoming messages (only in group chats)
+        if (!isOwnMessage && isGroupChat) {
             val avatarUrl = ServerConfig.getFileUrl(message.sender?.avatarUrl)
             if (avatarUrl != null) {
                 AsyncImage(

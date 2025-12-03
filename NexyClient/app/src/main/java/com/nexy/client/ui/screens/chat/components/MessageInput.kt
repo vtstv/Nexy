@@ -20,11 +20,13 @@ import com.nexy.client.R
 
 import com.nexy.client.data.models.Message
 import androidx.compose.material.icons.automirrored.filled.Reply
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
 
 @Composable
 fun MessageInput(
-    text: String,
-    onTextChange: (String) -> Unit,
+    text: TextFieldValue,
+    onTextChange: (TextFieldValue) -> Unit,
     onSend: () -> Unit,
     onSendFile: (Uri, String) -> Unit,
     showEmojiPicker: Boolean,
@@ -76,7 +78,21 @@ fun MessageInput(
             if (showEmojiPicker) {
                 EmojiPicker(
                     onEmojiSelected = { emoji ->
-                        onTextChange(text + emoji)
+                        val currentText = text.text
+                        val selection = text.selection
+                        
+                        val newText = StringBuilder(currentText)
+                            .insert(selection.start, emoji)
+                            .toString()
+                            
+                        val newCursorPosition = selection.start + emoji.length
+                        
+                        onTextChange(
+                            TextFieldValue(
+                                text = newText,
+                                selection = TextRange(newCursorPosition)
+                            )
+                        )
                     }
                 )
             }
@@ -98,7 +114,7 @@ fun MessageInput(
                         onSend()
                     }
                 },
-                sendEnabled = text.isNotBlank() || selectedFileUri != null
+                sendEnabled = text.text.isNotBlank() || selectedFileUri != null
             )
         }
     }
@@ -225,8 +241,8 @@ private fun EmojiPicker(
 
 @Composable
 private fun InputRow(
-    text: String,
-    onTextChange: (String) -> Unit,
+    text: TextFieldValue,
+    onTextChange: (TextFieldValue) -> Unit,
     showEmojiPicker: Boolean,
     onToggleEmojiPicker: () -> Unit,
     onAttachFile: () -> Unit,

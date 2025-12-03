@@ -2,6 +2,7 @@ package com.nexy.client.ui.screens.chat
 
 import android.content.Context
 import android.net.Uri
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -19,7 +20,7 @@ import javax.inject.Inject
 
 data class ChatUiState(
     val messages: List<Message> = emptyList(),
-    val messageText: String = "",
+    val messageText: TextFieldValue = TextFieldValue(""),
     val isLoading: Boolean = false,
     val error: String? = null,
     val currentUserId: Int? = null,
@@ -168,19 +169,19 @@ class ChatViewModel @Inject constructor(
         }
     }
     
-    fun onMessageTextChange(text: String) {
+    fun onMessageTextChange(text: TextFieldValue) {
         _uiState.value = _uiState.value.copy(messageText = text)
     }
     
     fun sendMessage(replyToId: Int? = null) {
-        val text = _uiState.value.messageText.trim()
+        val text = _uiState.value.messageText.text.trim()
         if (text.isEmpty()) return
         
         viewModelScope.launch {
             try {
                 val userId = _uiState.value.currentUserId ?: return@launch
                 
-                _uiState.value = _uiState.value.copy(messageText = "")
+                _uiState.value = _uiState.value.copy(messageText = TextFieldValue(""))
                 
                 messageOps.sendMessage(
                     chatId = chatId,

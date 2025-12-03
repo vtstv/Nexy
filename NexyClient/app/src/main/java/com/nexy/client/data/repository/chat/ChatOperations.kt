@@ -8,6 +8,7 @@ import com.nexy.client.data.local.dao.ChatDao
 import com.nexy.client.data.local.dao.MessageDao
 import com.nexy.client.data.models.Chat
 import com.nexy.client.data.repository.ChatInfo
+import com.nexy.client.data.websocket.NexyWebSocketClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -24,7 +25,8 @@ class ChatOperations @Inject constructor(
     private val chatMappers: ChatMappers,
     private val chatSyncOperations: ChatSyncOperations,
     private val chatInviteOperations: ChatInviteOperations,
-    private val chatInfoProvider: ChatInfoProvider
+    private val chatInfoProvider: ChatInfoProvider,
+    private val webSocketClient: NexyWebSocketClient
 ) {
     companion object {
         private const val TAG = "ChatOperations"
@@ -45,6 +47,13 @@ class ChatOperations @Inject constructor(
     suspend fun markChatAsRead(chatId: Int) {
         withContext(Dispatchers.IO) {
             chatDao.markChatAsRead(chatId)
+            
+            // Send read receipt to server for the last message
+            val lastMessage = messageDao.getLastMessage(chatId)
+            val currentUserId = tokenManager.getUserId()
+            if (lastMessage != null && currentUserId != null && lastMessage.senderId != currentUserId) {
+                webSocketClient.sendReadReceipt(lastMessage.id, chatId, currentUserId)
+            }
         }
     }
 

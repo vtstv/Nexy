@@ -68,6 +68,7 @@ fun SettingsScreen(
     val notificationVibrationEnabled by viewModel.notificationVibrationEnabled.collectAsState()
     val voiceMessagesEnabled by viewModel.voiceMessagesEnabled.collectAsState()
     val isBackgroundServiceEnabled by viewModel.isBackgroundServiceEnabled.collectAsState()
+    val readReceiptsEnabled by viewModel.readReceiptsEnabled.collectAsState()
     
     var showPinDialog by remember { mutableStateOf(false) }
     var showCacheDialog by remember { mutableStateOf(false) }
@@ -158,6 +159,17 @@ fun SettingsScreen(
                         onThemeStyleChange = { themeViewModel.setThemeStyle(it) },
                         onIncomingColorClick = { showIncomingColorPicker = true },
                         onOutgoingColorClick = { showOutgoingColorPicker = true }
+                    )
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text("Read Receipts") },
+                        supportingContent = { Text("Show when you read messages") },
+                        trailingContent = {
+                            Switch(
+                                checked = readReceiptsEnabled,
+                                onCheckedChange = { viewModel.setReadReceiptsEnabled(it) }
+                            )
+                        }
                     )
                     HorizontalDivider()
                     VoiceMediaSection(

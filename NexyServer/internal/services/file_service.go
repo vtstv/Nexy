@@ -41,10 +41,21 @@ func (s *FileService) UploadFile(ctx context.Context, userID int, fileHeader *mu
 		return nil, fmt.Errorf("file type not allowed")
 	}
 
-	// Create date-based directory structure: YYYY/MM/DD for all files
+	// Determine subfolder based on mime type
+	subfolder := "files"
+	if strings.HasPrefix(mimeType, "image/") {
+		subfolder = "images"
+	} else if strings.HasPrefix(mimeType, "video/") {
+		subfolder = "videos"
+	} else if strings.HasPrefix(mimeType, "audio/") {
+		subfolder = "audio"
+	}
+
+	// Create date-based directory structure: type/YYYY/MM/DD
 	now := time.Now()
 	uploadDir := filepath.Join(
 		s.config.Path,
+		subfolder,
 		fmt.Sprintf("%04d", now.Year()),
 		fmt.Sprintf("%02d", now.Month()),
 		fmt.Sprintf("%02d", now.Day()),

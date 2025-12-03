@@ -141,7 +141,8 @@ class FileOperations @Inject constructor(
                     mediaType = wsMessageType,
                     mediaUrl = fileUrl,
                     caption = fileName,
-                    mimeType = mimeType
+                    mimeType = mimeType,
+                    messageId = messageId
                 )
                 
                 Result.success(message)

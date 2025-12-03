@@ -128,8 +128,8 @@ class NexyWebSocketClient(
         sendMessage(message)
     }
     
-    fun sendMediaMessage(chatId: Int, senderId: Int, mediaType: String, mediaUrl: String, caption: String? = null, mimeType: String? = null) {
-        val messageId = generateMessageId()
+    fun sendMediaMessage(chatId: Int, senderId: Int, mediaType: String, mediaUrl: String, caption: String? = null, mimeType: String? = null, messageId: String? = null) {
+        val msgId = messageId ?: generateMessageId()
         val body = mutableMapOf<String, Any>(
             "message_type" to mediaType,
             "media_url" to mediaUrl,
@@ -143,7 +143,7 @@ class NexyWebSocketClient(
         val message = NexyMessage(
             header = NexyHeader(
                 type = "chat_message",
-                messageId = messageId,
+                messageId = msgId,
                 timestamp = System.currentTimeMillis() / 1000,
                 senderId = senderId,
                 chatId = chatId

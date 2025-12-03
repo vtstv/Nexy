@@ -11,6 +11,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nexy.client.data.local.AuthTokenManager
 import com.nexy.client.data.local.settingsDataStore
+import com.nexy.client.data.repository.UserRepository
+import com.nexy.client.ui.screens.chat.handlers.ChatStateManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,7 +27,9 @@ import javax.inject.Inject
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val tokenManager: AuthTokenManager
+    private val tokenManager: AuthTokenManager,
+    private val userRepository: UserRepository,
+    private val stateManager: ChatStateManager
 ) : ViewModel() {
 
     private val PIN_CODE_KEY = stringPreferencesKey("pin_code")
@@ -72,13 +76,47 @@ class SettingsViewModel @Inject constructor(
     private val _isBackgroundServiceEnabled = MutableStateFlow(true)
     val isBackgroundServiceEnabled: StateFlow<Boolean> = _isBackgroundServiceEnabled.asStateFlow()
 
+    private val _readReceiptsEnabled = MutableStateFlow(true)
+    val readReceiptsEnabled: StateFlow<Boolean> = _readReceiptsEnabled.asStateFlow()
+
     init {
         loadSettings()
         calculateCacheSize()
+        loadUserProfile()
         
         viewModelScope.launch {
             tokenManager.getBackgroundServiceEnabledFlow().collect { enabled ->
                 _isBackgroundServiceEnabled.value = enabled
+            }
+        }
+    }
+
+    private fun loadUserProfile() {
+        viewModelScope.launch {
+            val userId = stateManager.loadCurrentUserId()
+            if (userId != null && userId > 0) {
+                userRepository.getUserById(userId).onSuccess { user ->
+                    _readReceiptsEnabled.value = user.readReceiptsEnabled
+                }
+            }
+        }
+    }
+
+    fun setReadReceiptsEnabled(enabled: Boolean) {
+        _readReceiptsEnabled.value = enabled
+        viewModelScope.launch {
+            val userId = stateManager.loadCurrentUserId()
+            if (userId != null && userId > 0) {
+                userRepository.getUserById(userId).onSuccess { user ->
+                     userRepository.updateProfile(
+                         displayName = user.displayName ?: "",
+                         bio = user.bio ?: "",
+                         avatarUrl = user.avatarUrl,
+                         email = user.email,
+                         password = null,
+                         readReceiptsEnabled = enabled
+                     )
+                }
             }
         }
     }

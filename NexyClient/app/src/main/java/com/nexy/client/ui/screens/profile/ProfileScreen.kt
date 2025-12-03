@@ -79,7 +79,7 @@ fun ProfileScreen(
                 actions = {
                     TextButton(
                         onClick = {
-                            viewModel.updateProfile(displayName, bio, selectedAvatarUri, email, password.takeIf { it.isNotEmpty() }, readReceiptsEnabled)
+                            viewModel.updateProfile(displayName, bio, selectedAvatarUri, email, password.takeIf { it.isNotEmpty() }, uiState.user?.readReceiptsEnabled ?: true)
                         },
                         enabled = !uiState.isSaving
                     ) {
@@ -218,29 +218,6 @@ fun ProfileScreen(
                     singleLine = true,
                     visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
                 )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Read Receipts",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        Text(
-                            text = "If disabled, you won't see when others read your messages, and they won't see when you read theirs.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = readReceiptsEnabled,
-                        onCheckedChange = { readReceiptsEnabled = it }
-                    )
-                }
             }
         }
     }
