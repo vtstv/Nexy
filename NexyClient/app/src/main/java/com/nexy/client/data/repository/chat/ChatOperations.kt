@@ -135,7 +135,7 @@ class ChatOperations @Inject constructor(
                     chatDao.insertChat(finalEntity)
                     Result.success(chat)
                 } else {
-                    Result.failure(Exception("Failed to create saved messages chat"))
+                    Result.failure(Exception("Failed to create Notepad chat"))
                 }
             } catch (e: Exception) {
                 Result.failure(e)

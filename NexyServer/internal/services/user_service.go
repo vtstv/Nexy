@@ -71,7 +71,7 @@ func (s *UserService) UpdateAvatar(ctx context.Context, userID int, avatarURL st
 
 func (s *UserService) GetOrCreatePrivateChat(ctx context.Context, user1ID, user2ID int) (*models.Chat, error) {
 	if user1ID == user2ID {
-		// Handle Self Chat (Saved Messages)
+		// Handle Self Chat (Notepad)
 		chat, err := s.chatRepo.GetSelfChat(ctx, user1ID)
 		if err != nil {
 			return nil, err

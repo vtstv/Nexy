@@ -127,7 +127,7 @@ class ChatListViewModel @Inject constructor(
                                     val name = user?.displayName ?: user?.username ?: "User $otherUserId"
                                     Pair(name, user?.avatarUrl)
                                 } else {
-                                    Pair("Saved Messages", null)
+                                    Pair("Notepad", null)
                                 }
                             }
                             else -> Pair(chat.name ?: "Unknown", chat.avatarUrl)
