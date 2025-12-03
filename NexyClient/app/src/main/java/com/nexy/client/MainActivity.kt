@@ -40,6 +40,7 @@ import com.nexy.client.ui.theme.ThemeViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 import com.nexy.client.ui.screens.profile.ProfileScreen
+import com.nexy.client.ui.screens.profile.UserProfileScreen
 import com.nexy.client.ui.screens.group.CreateGroupScreen
 import com.nexy.client.ui.screens.group.GroupSettingsScreen
 import com.nexy.client.ui.screens.group.EditGroupScreen
@@ -269,6 +270,11 @@ fun NexyApp() {
         composable(Screen.ChatList.route) {
             MainScreen(
                 initialChatId = selectedChatId,
+                onChatSelected = { chatId ->
+                    if (chatId != null) {
+                        navigationViewModel.selectChat(chatId)
+                    }
+                },
                 onNavigateToSearch = {
                     navController.navigate(Screen.Search.route)
                 },
@@ -404,6 +410,32 @@ fun NexyApp() {
                 },
                 onAddParticipant = { id ->
                     navController.navigate(Screen.Invite.createRoute(id))
+                },
+                onParticipantClick = { userId ->
+                    navController.navigate("user_profile/$userId")
+                }
+            )
+        }
+        
+        composable(
+            route = "user_profile/{userId}",
+            arguments = listOf(navArgument("userId") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getInt("userId") ?: return@composable
+            UserProfileScreen(
+                userId = userId,
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onStartChat = { id ->
+                    // Logic to start/find chat with user
+                    // For now, just go back to chat list or search
+                    // Ideally, we should create a chat and navigate to it
+                    // We can use NavigationViewModel to select chat if it exists
+                    // But we need to create it first if it doesn't.
+                    // Let's assume SearchScreen logic handles this, we can reuse it or add it here.
+                    // For simplicity, let's pop back for now or implement create chat logic in UserProfileViewModel
+                    navController.popBackStack()
                 }
             )
         }

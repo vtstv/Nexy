@@ -36,6 +36,7 @@ fun MainScreen(
     onNavigateToEditGroup: (Int) -> Unit = {},
     onNavigateToGroupInfo: (Int) -> Unit = {},
     onLogout: () -> Unit,
+    onChatSelected: (Int?) -> Unit = {},
     initialChatId: Int? = null
 ) {
     var selectedChatId by remember { mutableStateOf(initialChatId) }
@@ -57,9 +58,14 @@ fun MainScreen(
 
     // Update selected chat when initialChatId changes
     LaunchedEffect(initialChatId) {
-        if (initialChatId != null) {
+        if (initialChatId != selectedChatId) {
             selectedChatId = initialChatId
         }
+    }
+    
+    // Notify parent when selection changes
+    LaunchedEffect(selectedChatId) {
+        onChatSelected(selectedChatId)
     }
     
     // Handle Back Press in Single Pane mode

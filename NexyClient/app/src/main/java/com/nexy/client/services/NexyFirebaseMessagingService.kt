@@ -12,18 +12,16 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.nexy.client.MainActivity
 import com.nexy.client.R
+import com.nexy.client.data.local.settingsDataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-
-private val Context.settingsDataStore by preferencesDataStore(name = "app_settings")
 
 class NexyFirebaseMessagingService : FirebaseMessagingService() {
 

@@ -11,8 +11,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import dagger.hilt.android.qualifiers.ApplicationContext
 
-// Use the same name as in SettingsViewModel to access the same preferences
-private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "app_settings")
+// Publicly accessible DataStore
+val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "app_settings")
 
 @Singleton
 class SettingsManager @Inject constructor(

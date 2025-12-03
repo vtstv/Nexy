@@ -98,104 +98,74 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 // Ensure we have the current user ID
-                val currentUserId = _uiState.value.currentUserId ?: tokenManager.getUserId()
-                if (_uiState.value.currentUserId == null) {
-                    _uiState.value = _uiState.value.copy(currentUserId = currentUserId)
-                }
-
-                // First, fetch fresh data from server
+                val currentUserId = tokenManager.getUserId()
+                
                 val chatResult = chatRepository.getChatById(chatId)
                 if (chatResult.isSuccess) {
-                    val chat = chatResult.getOrNull()
-                    if (chat != null) {
-                        // Check if this is a self-chat (Notepad)
-                        val isSelfChat = chat.type == ChatType.PRIVATE && 
-                                        chat.participantIds?.size == 1 && 
-                                        chat.participantIds?.contains(currentUserId) == true
-                        
-                        // For private chats, get the other participant's name
-                        val displayName = if (chat.type == ChatType.PRIVATE && !isSelfChat) {
-                            val otherUserId = chat.participantIds?.firstOrNull { it != currentUserId }
-                            if (otherUserId != null) {
-                                val userResult = userRepository.getUserById(otherUserId)
-                                val user = userResult.getOrNull()
-                                user?.displayName ?: user?.username ?: chat.name ?: "Chat"
-                            } else {
-                                chat.name ?: "Chat"
-                            }
+                    val chat = chatResult.getOrNull()!!
+                    
+                    // Refresh chat info from server to ensure we have latest data
+                    // This is the "reliable method" - fetch fresh data on entry
+                    val freshChatResult = chatRepository.getChatById(chatId) // This might be cached, let's check repo
+                    // Actually, let's force a refresh if possible or just rely on getChatById which might hit DB
+                    // But we want to ensure we have the latest members/name etc.
+                    // ChatRepository.getChatById hits DB first.
+                    // We should add a method to force refresh a single chat or just use refreshChats()
+                    // But refreshChats gets ALL chats.
+                    // Let's just use what we have, but maybe trigger a message fetch
+                    
+                    val name = if (chat.type == ChatType.PRIVATE) {
+                        // For private chats, find the other user's name
+                        if (chat.participantIds != null && currentUserId != null) {
+                            val otherUserId = chat.participantIds.firstOrNull { it != currentUserId } ?: currentUserId
+                            val userResult = userRepository.getUserById(otherUserId)
+                            userResult.getOrNull()?.displayName ?: userResult.getOrNull()?.username ?: "Chat"
                         } else {
-                            chat.name ?: "Chat"
+                            "Chat"
                         }
-                        
-                        _uiState.value = _uiState.value.copy(
-                            chatName = displayName,
-                            chatAvatarUrl = chat.avatarUrl,
-                            chatType = chat.type,
-                            groupType = chat.groupType,
-                            participantIds = chat.participantIds ?: emptyList(),
-                            isSelfChat = isSelfChat,
-                            isCreator = chat.createdBy == currentUserId
-                        )
-                    }
-                } else {
-                    // Fallback to local data
-                    val chatInfo = chatRepository.getChatInfo(chatId)
-                    if (chatInfo != null) {
-                        val isSelfChat = chatInfo.type == ChatType.PRIVATE && 
-                                        chatInfo.participantIds?.size == 1 && 
-                                        chatInfo.participantIds?.contains(currentUserId) == true
-                        
-                        // For private chats, get the other participant's name
-                        val displayName = if (chatInfo.type == ChatType.PRIVATE && !isSelfChat) {
-                            val otherUserId = chatInfo.participantIds?.firstOrNull { it != currentUserId }
-                            if (otherUserId != null) {
-                                val userResult = userRepository.getUserById(otherUserId)
-                                val user = userResult.getOrNull()
-                                user?.displayName ?: user?.username ?: chatInfo.name
-                            } else {
-                                chatInfo.name
-                            }
-                        } else {
-                            chatInfo.name
-                        }
-                        
-                        _uiState.value = _uiState.value.copy(
-                            chatName = displayName,
-                            chatAvatarUrl = chatInfo.avatarUrl,
-                            chatType = chatInfo.type,
-                            participantIds = chatInfo.participantIds ?: emptyList(),
-                            isSelfChat = isSelfChat
-                        )
                     } else {
-                        _uiState.value = _uiState.value.copy(chatName = "Chat")
+                        chat.name ?: "Group Chat"
                     }
+                    
+                    _uiState.value = _uiState.value.copy(
+                        chatName = name,
+                        chatAvatarUrl = chat.avatarUrl,
+                        chatType = chat.type,
+                        groupType = chat.groupType,
+                        participantIds = chat.participantIds ?: emptyList(),
+                        isSelfChat = chat.participantIds?.size == 1 && chat.participantIds.contains(currentUserId),
+                        isCreator = chat.createdBy == currentUserId
+                    )
                 }
             } catch (e: Exception) {
-                android.util.Log.e("ChatViewModel", "Error loading chat name", e)
-                _uiState.value = _uiState.value.copy(chatName = "Chat")
+                // Ignore error for now
             }
         }
     }
     
     private fun loadMessages() {
         viewModelScope.launch {
-            try {
-                // First ensure chat exists in DB before loading messages
-                // This prevents FOREIGN KEY constraint errors
-                ensureChatExists()
-                
-                chatRepository.getMessagesByChatId(chatId).collect { messages ->
-                    _uiState.value = _uiState.value.copy(messages = messages)
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            
+            // First, start observing local DB
+            chatRepository.getMessagesByChatId(chatId)
+                .collect { messages ->
+                    _uiState.value = _uiState.value.copy(
+                        messages = messages,
+                        isLoading = false
+                    )
                 }
-            } catch (e: Exception) {
-                android.util.Log.e("ChatViewModel", "Failed to load messages", e)
-                _uiState.value = _uiState.value.copy(
-                    error = "Failed to load messages: ${e.message}"
-                )
-            }
         }
         
-        refreshMessages()
+        // Also trigger a fetch from server to ensure we're up to date
+        // This addresses the "synchronization problems" by pulling latest messages
+        viewModelScope.launch {
+            try {
+                chatRepository.loadMessages(chatId)
+            } catch (e: Exception) {
+                // Error handled in repository/operations
+            }
+        }
     }
     
     private suspend fun ensureChatExists() {

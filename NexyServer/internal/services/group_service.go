@@ -233,6 +233,44 @@ func (s *GroupService) RemoveMember(ctx context.Context, groupID, requestorID, t
 	return s.chatRepo.RemoveMember(ctx, groupID, targetUserID)
 }
 
+func (s *GroupService) AddMember(ctx context.Context, groupID, requestorID, targetUserID int) error {
+	// Check permissions
+	requestor, err := s.chatRepo.GetChatMember(ctx, groupID, requestorID)
+	if err != nil {
+		return err
+	}
+
+	if requestor.Role != "owner" && requestor.Role != "admin" {
+		if requestor.Permissions == nil || !requestor.Permissions.AddUsers {
+			return errors.New("permission denied")
+		}
+	}
+
+	// Check if already member
+	isMember, err := s.chatRepo.IsMember(ctx, groupID, targetUserID)
+	if err != nil {
+		return err
+	}
+	if isMember {
+		return errors.New("user is already a member")
+	}
+
+	// Get chat to get default permissions
+	chat, err := s.chatRepo.GetByID(ctx, groupID)
+	if err != nil {
+		return err
+	}
+
+	member := &models.ChatMember{
+		ChatID:      groupID,
+		UserID:      targetUserID,
+		Role:        "member",
+		Permissions: chat.DefaultPermissions,
+	}
+
+	return s.chatRepo.AddMember(ctx, member)
+}
+
 func (s *GroupService) JoinPublicGroup(ctx context.Context, groupID, userID int) error {
 	chat, err := s.chatRepo.GetByID(ctx, groupID)
 	if err != nil {

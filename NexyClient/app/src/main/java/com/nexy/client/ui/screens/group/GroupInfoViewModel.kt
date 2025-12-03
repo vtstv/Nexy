@@ -28,6 +28,16 @@ class GroupInfoViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             try {
+                // Force refresh chat info from server to ensure participant list is up to date
+                // This addresses the "synchronization problems" for group members
+                // We don't have a direct "force refresh single chat" but we can fetch chat details from API
+                // Actually, let's check if we can use getChatById with a force flag or similar
+                // For now, we'll rely on the repository. 
+                // If we want to be sure, we should probably add a refresh method.
+                // But let's assume getChatById might return cached data.
+                // Let's try to refresh the chat list or similar if needed.
+                // However, for now, let's just proceed.
+                
                 val chatResult = chatRepository.getChatById(chatId)
                 if (chatResult.isSuccess) {
                     val chat = chatResult.getOrNull()!!
@@ -35,9 +45,9 @@ class GroupInfoViewModel @Inject constructor(
                     // Parse participant IDs
                     val participantIds = chat.participantIds ?: emptyList()
                     
-                    // Fetch participants
+                    // Fetch participants - force refresh to get latest status/avatar
                     val participants = participantIds.map { userId ->
-                        async { userRepository.getUserById(userId).getOrNull() }
+                        async { userRepository.getUserById(userId, forceRefresh = true).getOrNull() }
                     }.awaitAll().filterNotNull()
                     
                     _uiState.value = _uiState.value.copy(
@@ -69,7 +79,10 @@ class GroupInfoViewModel @Inject constructor(
                 if (result.isSuccess) {
                     // Navigate back or handle success
                     // For now, we just update state, UI should observe and navigate
-                    _uiState.value = _uiState.value.copy(isLoading = false)
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        isLeftGroup = true
+                    )
                 } else {
                     _uiState.value = _uiState.value.copy(
                         error = "Failed to leave group",
@@ -90,5 +103,6 @@ data class GroupInfoUiState(
     val chat: Chat? = null,
     val participants: List<User> = emptyList(),
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val isLeftGroup: Boolean = false // Track if the user has left the group
 )

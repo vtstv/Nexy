@@ -33,12 +33,19 @@ fun GroupInfoScreen(
     chatId: Int,
     onNavigateBack: () -> Unit,
     onAddParticipant: (Int) -> Unit,
+    onParticipantClick: (Int) -> Unit,
     viewModel: GroupInfoViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(chatId) {
         viewModel.loadGroupInfo(chatId)
+    }
+
+    LaunchedEffect(uiState.isLeftGroup) {
+        if (uiState.isLeftGroup) {
+            onNavigateBack()
+        }
     }
 
     Scaffold(
@@ -151,7 +158,10 @@ fun GroupInfoScreen(
                 }
 
                 items(uiState.participants) { user ->
-                    ParticipantItem(user = user)
+                    ParticipantItem(
+                        user = user,
+                        onClick = { onParticipantClick(user.id) }
+                    )
                 }
             }
         } else if (uiState.error != null) {
@@ -163,7 +173,7 @@ fun GroupInfoScreen(
 }
 
 @Composable
-fun ParticipantItem(user: User) {
+fun ParticipantItem(user: User, onClick: () -> Unit) {
     ListItem(
         headlineContent = { Text(user.displayName ?: user.username) },
         supportingContent = { 
@@ -196,6 +206,7 @@ fun ParticipantItem(user: User) {
                     }
                 }
             }
-        }
+        },
+        modifier = Modifier.clickable(onClick = onClick)
     )
 }

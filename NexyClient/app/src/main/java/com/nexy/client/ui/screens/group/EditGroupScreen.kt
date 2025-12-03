@@ -24,9 +24,38 @@ fun EditGroupScreen(
     val groupDescription by viewModel.groupDescription.collectAsState()
     val groupUsername by viewModel.groupUsername.collectAsState()
     val isPublic by viewModel.isPublic.collectAsState()
+    val isOwner by viewModel.isOwner.collectAsState()
+    
+    var showDeleteDialog by remember { mutableStateOf(false) }
     
     LaunchedEffect(groupId) {
         viewModel.loadGroup(groupId)
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Group") },
+            text = { Text("Are you sure you want to delete this group? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteGroup(groupId) {
+                            onNavigateBack()
+                        }
+                        showDeleteDialog = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -125,6 +154,24 @@ fun EditGroupScreen(
                             checked = isPublic,
                             onCheckedChange = viewModel::setIsPublic
                         )
+                    }
+                    
+                    if (isOwner) {
+                        Spacer(modifier = Modifier.height(32.dp))
+                        
+                        Button(
+                            onClick = {
+                                showDeleteDialog = true
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Delete, null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Delete Group")
+                        }
                     }
                 }
             }

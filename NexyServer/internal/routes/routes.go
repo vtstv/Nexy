@@ -96,6 +96,7 @@ func (rt *Router) Setup() *mux.Router {
 	chats.HandleFunc("/groups/{id:[0-9]+}", rt.groupController.GetGroup).Methods("GET")
 	chats.HandleFunc("/groups/{id:[0-9]+}", rt.groupController.UpdateGroup).Methods("PUT")
 	chats.HandleFunc("/groups/{id:[0-9]+}/join", rt.groupController.JoinPublicGroup).Methods("POST")
+	chats.HandleFunc("/groups/{id:[0-9]+}/members", rt.groupController.AddMember).Methods("POST")
 	chats.HandleFunc("/groups/{id:[0-9]+}/members", rt.groupController.GetGroupMembers).Methods("GET")
 	chats.HandleFunc("/groups/{id:[0-9]+}/members/{userId:[0-9]+}/role", rt.groupController.UpdateMemberRole).Methods("PUT")
 	chats.HandleFunc("/groups/{id:[0-9]+}/members/{userId:[0-9]+}", rt.groupController.RemoveMember).Methods("DELETE")

@@ -209,6 +209,39 @@ func (c *GroupController) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+type AddMemberRequest struct {
+	UserID int `json:"user_id"`
+}
+
+func (c *GroupController) AddMember(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	groupID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "Invalid group ID", http.StatusBadRequest)
+		return
+	}
+
+	var req AddMemberRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err = c.groupService.AddMember(r.Context(), groupID, userID, req.UserID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 type CreateInviteLinkRequest struct {
 	UsageLimit *int `json:"usage_limit"`
 	ExpiresIn  *int `json:"expires_in"` // Seconds

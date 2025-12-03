@@ -1,6 +1,7 @@
 package com.nexy.client.data.repository.chat
 
 import android.util.Log
+import com.nexy.client.data.api.AddMemberRequest
 import com.nexy.client.data.api.CreateChatRequest
 import com.nexy.client.data.api.CreateGroupChatRequest
 import com.nexy.client.data.api.NexyApiService
@@ -10,6 +11,7 @@ import com.nexy.client.data.local.dao.MessageDao
 import com.nexy.client.data.local.entity.ChatEntity
 import com.nexy.client.data.models.Chat
 import com.nexy.client.data.models.ChatType
+import com.nexy.client.data.models.CreateInviteLinkRequest
 import com.nexy.client.data.models.CreateInviteRequest
 import com.nexy.client.data.models.InviteLink
 import com.nexy.client.data.models.JoinChatResponse
@@ -375,6 +377,60 @@ class ChatOperations @Inject constructor(
                     Result.success(chat)
                 } else {
                     Result.failure(Exception("Failed to create saved messages chat"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
+    suspend fun removeMember(groupId: Int, userId: Int): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.removeMember(groupId, userId)
+                if (response.isSuccessful) {
+                    Result.success(Unit)
+                } else {
+                    Result.failure(Exception("Failed to remove member"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
+    suspend fun addGroupMember(groupId: Int, userId: Int): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.addGroupMember(groupId, AddMemberRequest(userId))
+                if (response.isSuccessful) {
+                    Result.success(Unit)
+                } else {
+                    Result.failure(Exception("Failed to add member"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
+    suspend fun createGroupInviteLink(groupId: Int, usageLimit: Int? = null, expiresIn: Int? = null): Result<InviteLink> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val request = CreateInviteLinkRequest(usageLimit, expiresIn)
+                val response = apiService.createGroupInviteLink(groupId, request)
+                if (response.isSuccessful && response.body() != null) {
+                    val chatInviteLink = response.body()!!
+                    val inviteLink = InviteLink(
+                        code = chatInviteLink.code,
+                        chatId = chatInviteLink.chatId,
+                        createdBy = chatInviteLink.creatorId,
+                        maxUses = chatInviteLink.usageLimit,
+                        expiresAt = null // Ignoring date parsing for now
+                    )
+                    Result.success(inviteLink)
+                } else {
+                    Result.failure(Exception("Failed to create group invite link"))
                 }
             } catch (e: Exception) {
                 Result.failure(e)

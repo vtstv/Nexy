@@ -7,10 +7,10 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nexy.client.data.local.AuthTokenManager
+import com.nexy.client.data.local.settingsDataStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,7 +20,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
 
-private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "app_settings")
+// Removed private extension, using the one from SettingsManager.kt
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(

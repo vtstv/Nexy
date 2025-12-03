@@ -134,13 +134,23 @@ data class CreateInviteLinkRequest(
     val expiresIn: Int? = null
 )
 
-data class JoinByInviteRequest(
-    @SerializedName("invite_code")
-    val inviteCode: String
+data class AddMemberRequest(
+    @SerializedName("user_id")
+    val userId: Int
+)
+
+data class DeleteMessageRequest(
+    @SerializedName("message_id")
+    val messageId: Int
 )
 
 data class UpdateMemberRoleRequest(
     @SerializedName("role")
     val role: String
+)
+
+data class JoinByInviteRequest(
+    @SerializedName("invite_code")
+    val inviteCode: String
 )
 

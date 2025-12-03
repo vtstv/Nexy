@@ -17,9 +17,14 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
+import com.nexy.client.data.local.dao.UserDao
+import com.nexy.client.data.local.entity.UserEntity
+import com.nexy.client.data.models.UserStatus
+
 @Singleton
 class MessageOperations @Inject constructor(
     private val messageDao: MessageDao,
+    private val userDao: UserDao,
     private val apiService: NexyApiService,
     private val webSocketClient: NexyWebSocketClient,
     private val messageMappers: MessageMappers,
@@ -66,6 +71,20 @@ class MessageOperations @Inject constructor(
                     
                     // Insert to local database
                     decryptedMessages.forEach { message ->
+                        // Insert sender if available
+                        message.sender?.let { sender ->
+                            userDao.insertUser(UserEntity(
+                                id = sender.id,
+                                username = sender.username,
+                                email = sender.email,
+                                displayName = sender.displayName,
+                                avatarUrl = sender.avatarUrl,
+                                status = sender.status?.name ?: UserStatus.OFFLINE.name,
+                                bio = sender.bio,
+                                publicKey = sender.publicKey,
+                                createdAt = sender.createdAt
+                            ))
+                        }
                         messageDao.insertMessage(messageMappers.modelToEntity(message))
                     }
                     

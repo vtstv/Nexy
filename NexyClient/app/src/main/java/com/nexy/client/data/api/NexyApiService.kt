@@ -137,6 +137,12 @@ interface NexyApiService {
         @Path("userId") userId: Int
     ): Response<Unit>
     
+    @POST("chats/groups/{groupId}/members")
+    suspend fun addGroupMember(
+        @Path("groupId") groupId: Int,
+        @Body request: AddMemberRequest
+    ): Response<Unit>
+    
     @POST("chats/groups/{groupId}/invites")
     suspend fun createGroupInviteLink(
         @Path("groupId") groupId: Int,
@@ -169,6 +175,11 @@ data class CreateGroupChatRequest(
     val name: String,
     @com.google.gson.annotations.SerializedName("participant_ids")
     val participantIds: List<Int>
+)
+
+data class AddMemberRequest(
+    @com.google.gson.annotations.SerializedName("user_id")
+    val userId: Int
 )
 
 data class DeleteMessageRequest(
