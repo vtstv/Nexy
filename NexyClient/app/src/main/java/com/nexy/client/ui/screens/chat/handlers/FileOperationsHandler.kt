@@ -31,6 +31,13 @@ class FileOperationsHandler @Inject constructor(
         return chatRepository.downloadFile(fileId, context, fileName)
     }
 
+    suspend fun saveFileToDownloads(
+        context: Context,
+        fileName: String
+    ): Result<String> {
+        return chatRepository.saveFileToDownloads(context, fileName)
+    }
+
     fun openFile(context: Context, fileName: String): String? {
         try {
             val file = File(context.getExternalFilesDir(null), fileName)

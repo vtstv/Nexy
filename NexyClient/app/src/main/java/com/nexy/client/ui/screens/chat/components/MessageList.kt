@@ -25,7 +25,8 @@ fun MessageList(
     onReplyMessage: (Message) -> Unit = {},
     onCopyMessage: () -> Unit = {},
     onDownloadFile: (String, String) -> Unit,
-    onOpenFile: (String) -> Unit
+    onOpenFile: (String) -> Unit,
+    onSaveFile: (String) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -52,7 +53,8 @@ fun MessageList(
                 onReply = { onReplyMessage(message) },
                 onCopy = onCopyMessage,
                 onDownloadFile = onDownloadFile,
-                onOpenFile = onOpenFile
+                onOpenFile = onOpenFile,
+                onSaveFile = onSaveFile
             )
         }
     }

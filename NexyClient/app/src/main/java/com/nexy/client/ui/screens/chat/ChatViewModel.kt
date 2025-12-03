@@ -349,4 +349,25 @@ class ChatViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(error = error)
         }
     }
+    
+    fun saveFile(context: Context, fileName: String) {
+        viewModelScope.launch {
+            try {
+                fileOps.saveFileToDownloads(context, fileName).fold(
+                    onSuccess = {
+                        android.widget.Toast.makeText(context, "File saved to Downloads", android.widget.Toast.LENGTH_SHORT).show()
+                    },
+                    onFailure = { error ->
+                        _uiState.value = _uiState.value.copy(
+                            error = error.message ?: "Failed to save file"
+                        )
+                    }
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    error = "Error saving file: ${e.message}"
+                )
+            }
+        }
+    }
 }

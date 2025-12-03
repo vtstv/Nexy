@@ -71,6 +71,11 @@ class ChatRepository @Inject constructor(
     suspend fun uploadFile(context: Context, fileUri: Uri): Result<String> =
         fileOperations.uploadFile(context, fileUri)
     
+    suspend fun saveFileToDownloads(
+        context: Context,
+        fileName: String
+    ): Result<String> = fileOperations.saveFileToDownloads(context, fileName)
+    
     // ===== INVITE/JOIN OPERATIONS =====
     // These remain here as they're not yet extracted to separate modules
     

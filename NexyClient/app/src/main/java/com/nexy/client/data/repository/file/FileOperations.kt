@@ -231,6 +231,50 @@ class FileOperations @Inject constructor(
         }
     }
     
+    suspend fun saveFileToDownloads(context: Context, fileName: String): Result<String> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val sourceFile = File(context.getExternalFilesDir(null), fileName)
+                if (!sourceFile.exists()) {
+                    return@withContext Result.failure(Exception("File not found in cache"))
+                }
+
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    val contentValues = android.content.ContentValues().apply {
+                        put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                        put(android.provider.MediaStore.MediaColumns.MIME_TYPE, getMimeType(fileName))
+                        put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
+                    }
+
+                    val resolver = context.contentResolver
+                    val uri = resolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                        ?: return@withContext Result.failure(Exception("Failed to create download entry"))
+
+                    resolver.openOutputStream(uri)?.use { output ->
+                        java.io.FileInputStream(sourceFile).use { input ->
+                            input.copyTo(output)
+                        }
+                    }
+                } else {
+                    val downloadsDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+                    if (!downloadsDir.exists()) downloadsDir.mkdirs()
+                    val destFile = File(downloadsDir, fileName)
+                    
+                    java.io.FileInputStream(sourceFile).use { input ->
+                        java.io.FileOutputStream(destFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                }
+
+                Result.success("File saved to Downloads")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to save file to downloads", e)
+                Result.failure(e)
+            }
+        }
+    }
+
     private fun getFileName(context: Context, uri: Uri): String? {
         var result: String? = null
         if (uri.scheme == "content") {
@@ -284,5 +328,14 @@ class FileOperations @Inject constructor(
     
     private fun generateMessageId(): String {
         return "${System.currentTimeMillis()}-${(0..999999).random()}"
+    }
+
+    private fun getMimeType(url: String): String {
+        var type: String? = null
+        val extension = android.webkit.MimeTypeMap.getFileExtensionFromUrl(url)
+        if (extension != null) {
+            type = android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
+        }
+        return type ?: "application/octet-stream"
     }
 }

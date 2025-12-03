@@ -43,12 +43,17 @@ fun MessageBubble(
     onReply: () -> Unit = {},
     onCopy: () -> Unit = {},
     onDownloadFile: (String, String) -> Unit = { _, _ -> },
-    onOpenFile: (String) -> Unit = {}
+    onOpenFile: (String) -> Unit = {},
+    onSaveFile: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
+
+    val hasAttachment = message.mediaUrl != null
+    val file = if (hasAttachment) java.io.File(context.getExternalFilesDir(null), message.content) else null
+    val isDownloaded = file?.exists() == true
     
     Row(
         modifier = Modifier
@@ -168,6 +173,7 @@ fun MessageBubble(
                                     message = message,
                                     onDownloadFile = onDownloadFile,
                                     onOpenFile = onOpenFile,
+                                    onSaveFile = onSaveFile,
                                     onLongClick = { showMenu = true }
                                 )
                             } else {
@@ -236,6 +242,40 @@ fun MessageBubble(
                     },
                     leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) }
                 )
+
+                if (hasAttachment) {
+                    if (isDownloaded) {
+                        DropdownMenuItem(
+                            text = { Text("Open File") },
+                            onClick = {
+                                onOpenFile(message.content)
+                                showMenu = false
+                            },
+                            leadingIcon = { Icon(Icons.Default.OpenInNew, contentDescription = null) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Save to Downloads") },
+                            onClick = {
+                                onSaveFile(message.content)
+                                showMenu = false
+                            },
+                            leadingIcon = { Icon(Icons.Default.Save, contentDescription = null) }
+                        )
+                    } else {
+                        DropdownMenuItem(
+                            text = { Text("Download File") },
+                            onClick = {
+                                val fileId = message.mediaUrl?.substringAfterLast("/") ?: ""
+                                if (fileId.isNotEmpty()) {
+                                    onDownloadFile(fileId, message.content)
+                                }
+                                showMenu = false
+                            },
+                            leadingIcon = { Icon(Icons.Default.Download, contentDescription = null) }
+                        )
+                    }
+                }
+
                 if (isOwnMessage) {
                     DropdownMenuItem(
                         text = { Text("Delete") },
@@ -267,6 +307,7 @@ private fun FileAttachment(
     message: Message,
     onDownloadFile: (String, String) -> Unit,
     onOpenFile: (String) -> Unit,
+    onSaveFile: (String) -> Unit,
     onLongClick: () -> Unit
 ) {
     val context = LocalContext.current
@@ -377,6 +418,19 @@ private fun FileAttachment(
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+                
+                // Save button
+                IconButton(
+                    onClick = { onSaveFile(message.content) },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Save,
+                        contentDescription = "Save to Downloads",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             } else {

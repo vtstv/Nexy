@@ -160,6 +160,9 @@ fun ChatScreen(
                         },
                         onOpenFile = { fileName ->
                             viewModel.openFile(context, fileName)
+                        },
+                        onSaveFile = { fileName ->
+                            viewModel.saveFile(context, fileName)
                         }
                     )
                 }
