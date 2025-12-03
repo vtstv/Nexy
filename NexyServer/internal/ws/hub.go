@@ -1,0 +1,291 @@
+package nexy
+
+import (
+	"context"
+	"encoding/json"
+	"log"
+	"sync"
+	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/redis/go-redis/v9"
+)
+
+const (
+	writeWait      = 10 * time.Second
+	pongWait       = 60 * time.Second
+	pingPeriod     = (pongWait * 9) / 10
+	maxMessageSize = 512 * 1024
+)
+
+type Client struct {
+	hub      *Hub
+	conn     *websocket.Conn
+	send     chan []byte
+	userID   int
+	mu       sync.Mutex
+	isClosed bool
+}
+
+type Hub struct {
+	clients     map[int]*Client
+	register    chan *Client
+	unregister  chan *Client
+	broadcast   chan *NexyMessage
+	redis       *redis.Client
+	mu          sync.RWMutex
+	messageRepo MessageRepository
+	chatRepo    ChatRepository
+}
+
+type MessageRepository interface {
+	CreateMessageFromWebSocket(ctx context.Context, messageID string, chatID, senderID int, bodyJSON []byte) error
+}
+
+type ChatRepository interface {
+	IsMember(ctx context.Context, chatID, userID int) (bool, error)
+}
+
+func NewHub(redisClient *redis.Client, messageRepo MessageRepository, chatRepo ChatRepository) *Hub {
+	return &Hub{
+		clients:     make(map[int]*Client),
+		register:    make(chan *Client),
+		unregister:  make(chan *Client),
+		broadcast:   make(chan *NexyMessage, 256),
+		redis:       redisClient,
+		messageRepo: messageRepo,
+		chatRepo:    chatRepo,
+	}
+}
+
+func (h *Hub) Run() {
+	for {
+		select {
+		case client := <-h.register:
+			h.registerClient(client)
+		case client := <-h.unregister:
+			h.unregisterClient(client)
+		case message := <-h.broadcast:
+			h.handleBroadcast(message)
+		}
+	}
+}
+
+func (h *Hub) registerClient(client *Client) {
+	h.mu.Lock()
+	h.clients[client.userID] = client
+	h.mu.Unlock()
+
+	ctx := context.Background()
+	h.redis.Set(ctx, userOnlineKey(client.userID), "1", 0)
+
+	onlineMsg, _ := NewNexyMessage(TypeOnline, client.userID, nil, OnlineBody{UserID: client.userID})
+	h.broadcastToAll(onlineMsg)
+
+	log.Printf("Client connected: user_id=%d", client.userID)
+}
+
+func (h *Hub) unregisterClient(client *Client) {
+	h.mu.Lock()
+	if _, ok := h.clients[client.userID]; ok {
+		delete(h.clients, client.userID)
+		client.closeConnection()
+	}
+	h.mu.Unlock()
+
+	ctx := context.Background()
+	h.redis.Del(ctx, userOnlineKey(client.userID))
+
+	offlineMsg, _ := NewNexyMessage(TypeOffline, client.userID, nil, OnlineBody{UserID: client.userID})
+	h.broadcastToAll(offlineMsg)
+
+	log.Printf("Client disconnected: user_id=%d", client.userID)
+}
+
+func (h *Hub) handleBroadcast(message *NexyMessage) {
+	switch message.Header.Type {
+	case TypeChatMessage:
+		h.handleChatMessage(message)
+	case TypeTyping, TypeDelivered, TypeRead:
+		h.handleStatusMessage(message)
+	case TypeCallOffer, TypeCallAnswer, TypeICECandidate, TypeCallCancel, TypeCallEnd, TypeCallBusy:
+		h.handleSignalingMessage(message)
+	}
+}
+
+func (h *Hub) handleChatMessage(message *NexyMessage) {
+	log.Printf("handleChatMessage called: messageID=%s, senderID=%d, chatID=%v",
+		message.Header.MessageID, message.Header.SenderID, message.Header.ChatID)
+
+	if message.Header.ChatID == nil {
+		log.Printf("handleChatMessage: chatID is nil, skipping")
+		return
+	}
+
+	ctx := context.Background()
+	isMember, err := h.chatRepo.IsMember(ctx, *message.Header.ChatID, message.Header.SenderID)
+	log.Printf("IsMember check: chatID=%d, userID=%d, result=%v, err=%v",
+		*message.Header.ChatID, message.Header.SenderID, isMember, err)
+	if !isMember {
+		log.Printf("handleChatMessage: user %d is not a member of chat %d",
+			message.Header.SenderID, *message.Header.ChatID)
+		return
+	}
+
+	// Save message to database
+	log.Printf("Creating message in DB: messageID=%s, chatID=%d, senderID=%d, body=%s",
+		message.Header.MessageID, *message.Header.ChatID, message.Header.SenderID, string(message.Body))
+	err = h.messageRepo.CreateMessageFromWebSocket(ctx, message.Header.MessageID, *message.Header.ChatID, message.Header.SenderID, message.Body)
+	if err != nil {
+		log.Printf("Failed to save message to DB: %v", err)
+	} else {
+		log.Printf("Message saved successfully to DB: messageID=%s", message.Header.MessageID)
+	}
+
+	h.broadcastToChatMembers(*message.Header.ChatID, message)
+}
+
+func (h *Hub) handleStatusMessage(message *NexyMessage) {
+	if message.Header.RecipientID != nil {
+		h.sendToUser(*message.Header.RecipientID, message)
+	}
+}
+
+func (h *Hub) handleSignalingMessage(message *NexyMessage) {
+	if message.Header.RecipientID != nil {
+		h.sendToUser(*message.Header.RecipientID, message)
+	}
+}
+
+func (h *Hub) sendToUser(userID int, message *NexyMessage) {
+	h.mu.RLock()
+	client, ok := h.clients[userID]
+	h.mu.RUnlock()
+
+	if ok {
+		data, _ := json.Marshal(message)
+		select {
+		case client.send <- data:
+		default:
+			h.unregisterClient(client)
+		}
+	}
+}
+
+func (h *Hub) broadcastToAll(message *NexyMessage) {
+	data, _ := json.Marshal(message)
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for _, client := range h.clients {
+		select {
+		case client.send <- data:
+		default:
+			go h.unregisterClient(client)
+		}
+	}
+}
+
+func (h *Hub) broadcastToChatMembers(chatID int, message *NexyMessage) {
+	data, _ := json.Marshal(message)
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for _, client := range h.clients {
+		ctx := context.Background()
+		isMember, _ := h.chatRepo.IsMember(ctx, chatID, client.userID)
+		if isMember {
+			select {
+			case client.send <- data:
+			default:
+				go h.unregisterClient(client)
+			}
+		}
+	}
+}
+
+func (c *Client) readPump() {
+	defer func() {
+		c.hub.unregister <- c
+	}()
+
+	c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.conn.SetPongHandler(func(string) error {
+		c.conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+
+	c.conn.SetReadLimit(maxMessageSize)
+
+	for {
+		_, data, err := c.conn.ReadMessage()
+		if err != nil {
+			break
+		}
+
+		log.Printf("Received raw WebSocket data from user %d: %s", c.userID, string(data))
+
+		var msg NexyMessage
+		if err := json.Unmarshal(data, &msg); err != nil {
+			log.Printf("Error unmarshaling message: %v", err)
+			continue
+		}
+
+		log.Printf("Parsed message type: %s, messageID: %s", msg.Header.Type, msg.Header.MessageID)
+
+		if msg.Header.Type == TypeHeartbeat {
+			ack, _ := NewNexyMessage(TypeAck, 0, nil, AckBody{MessageID: msg.Header.MessageID, Status: "ok"})
+			ackData, _ := json.Marshal(ack)
+			c.send <- ackData
+			continue
+		}
+
+		msg.Header.SenderID = c.userID
+		log.Printf("Broadcasting message to hub: type=%s, senderID=%d", msg.Header.Type, c.userID)
+		c.hub.broadcast <- &msg
+	}
+}
+
+func (c *Client) writePump() {
+	ticker := time.NewTicker(pingPeriod)
+	defer func() {
+		ticker.Stop()
+		c.closeConnection()
+	}()
+
+	for {
+		select {
+		case message, ok := <-c.send:
+			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if !ok {
+				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+
+			if err := c.conn.WriteMessage(websocket.TextMessage, message); err != nil {
+				return
+			}
+
+		case <-ticker.C:
+			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
+		}
+	}
+}
+
+func (c *Client) closeConnection() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if !c.isClosed {
+		close(c.send)
+		c.conn.Close()
+		c.isClosed = true
+	}
+}
+
+func userOnlineKey(userID int) string {
+	return "user:online:" + string(rune(userID))
+}

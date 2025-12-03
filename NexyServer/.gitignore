@@ -1,0 +1,17 @@
+.env
+uploads/
+*.log
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+.DS_Store
+.idea/
+.vscode/
+
+# Development documentation
+docs/

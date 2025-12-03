@@ -1,0 +1,184 @@
+package com.nexy.client.data.api
+
+import com.nexy.client.data.models.*
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import retrofit2.Response
+import retrofit2.http.*
+
+interface NexyApiService {
+    
+    @POST("auth/register")
+    suspend fun register(@Body request: RegisterRequest): Response<AuthResponse>
+    
+    @POST("auth/login")
+    suspend fun login(@Body request: AuthRequest): Response<AuthResponse>
+    
+    @POST("auth/refresh")
+    suspend fun refreshToken(@Body request: RefreshTokenRequest): Response<AuthResponse>
+    
+    @POST("auth/logout")
+    suspend fun logout(): Response<Unit>
+    
+    @GET("users/me")
+    suspend fun getCurrentUser(): Response<User>
+    
+    @GET("users/{userId}")
+    suspend fun getUserById(@Path("userId") userId: Int): Response<User>
+    
+    @GET("users/search")
+    suspend fun searchUsers(@Query("query") query: String): Response<List<User>>
+    
+    @PUT("users/me")
+    suspend fun updateProfile(@Body request: UpdateProfileRequest): Response<User>
+    
+    @GET("chats")
+    suspend fun getChats(): Response<List<Chat>>
+    
+    @GET("chats/{chatId}")
+    suspend fun getChatById(@Path("chatId") chatId: Int): Response<Chat>
+    
+    @POST("chats")
+    suspend fun createChat(@Body chat: Chat): Response<Chat>
+    
+    // Message history - server uses query params instead of path
+    @GET("messages/history")
+    suspend fun getMessages(
+        @Query("chat_id") chatId: Int,
+        @Query("limit") limit: Int = 50,
+        @Query("offset") offset: Int = 0
+    ): Response<List<Message>>
+    
+    @POST("messages/delete")
+    suspend fun deleteMessage(@Body request: DeleteMessageRequest): Response<Unit>
+    
+    // Invite endpoints - server uses POST with body instead of path params
+    @POST("invites")
+    suspend fun createInviteLink(@Body request: CreateInviteRequest): Response<InviteLink>
+    
+    @POST("invites/validate")
+    suspend fun validateInviteCode(@Body request: ValidateInviteRequest): Response<InviteLink>
+    
+    @POST("invites/use")
+    suspend fun useInviteCode(@Body request: UseInviteRequest): Response<JoinChatResponse>
+    
+    @GET("invites")
+    suspend fun getMyInvites(): Response<List<InviteLink>>
+    
+    // File upload - server expects /files/upload path
+    @Multipart
+    @POST("files/upload")
+    suspend fun uploadFile(
+        @Part file: MultipartBody.Part,
+        @Part("type") type: RequestBody
+    ): Response<UploadResponse>
+    
+    @GET("files/{fileId}")
+    @Streaming
+    suspend fun downloadFile(@Path("fileId") fileId: String): Response<okhttp3.ResponseBody>
+    
+    // Contact endpoints
+    @POST("contacts")
+    suspend fun addContact(@Body request: AddContactRequest): Response<Unit>
+    
+    @GET("contacts")
+    suspend fun getContacts(): Response<List<ContactWithUser>>
+    
+    @GET("contacts/status")
+    suspend fun checkContactStatus(@Query("user_id") userId: Int): Response<ContactStatusResponse>
+    
+    @PUT("contacts/{contactId}")
+    suspend fun updateContactStatus(
+        @Path("contactId") contactId: Int,
+        @Body request: UpdateContactStatusRequest
+    ): Response<Unit>
+    
+    @DELETE("contacts/{contactUserId}")
+    suspend fun deleteContact(@Path("contactUserId") contactUserId: Int): Response<Unit>
+    
+    // Chat creation endpoint
+    @POST("chats/create")
+    suspend fun createPrivateChat(@Body request: CreateChatRequest): Response<Chat>
+    
+    @POST("chats/group/create")
+    suspend fun createGroupChat(@Body request: CreateGroupChatRequest): Response<Chat>
+    
+    @DELETE("chats/{chatId}")
+    suspend fun deleteChat(@Path("chatId") chatId: Int): Response<Unit>
+    
+    @DELETE("chats/{chatId}/messages")
+    suspend fun clearChatMessages(@Path("chatId") chatId: Int): Response<Unit>
+    
+    @POST("chats/groups")
+    suspend fun createGroup(@Body request: CreateGroupRequest): Response<Chat>
+    
+    @GET("chats/groups/{groupId}")
+    suspend fun getGroup(@Path("groupId") groupId: Int): Response<Chat>
+    
+    @PUT("chats/groups/{groupId}")
+    suspend fun updateGroup(
+        @Path("groupId") groupId: Int,
+        @Body request: UpdateGroupRequest
+    ): Response<Chat>
+    
+    @GET("chats/groups/{groupId}/members")
+    suspend fun getGroupMembers(@Path("groupId") groupId: Int): Response<List<ChatMember>>
+    
+    @PUT("chats/groups/{groupId}/members/{userId}/role")
+    suspend fun updateMemberRole(
+        @Path("groupId") groupId: Int,
+        @Path("userId") userId: Int,
+        @Body request: UpdateMemberRoleRequest
+    ): Response<Unit>
+    
+    @DELETE("chats/groups/{groupId}/members/{userId}")
+    suspend fun removeMember(
+        @Path("groupId") groupId: Int,
+        @Path("userId") userId: Int
+    ): Response<Unit>
+    
+    @POST("chats/groups/{groupId}/invites")
+    suspend fun createGroupInviteLink(
+        @Path("groupId") groupId: Int,
+        @Body request: CreateInviteLinkRequest
+    ): Response<ChatInviteLink>
+    
+    @POST("chats/groups/{groupId}/join")
+    suspend fun joinPublicGroup(@Path("groupId") groupId: Int): Response<Unit>
+    
+    @POST("chats/groups/@{username}")
+    suspend fun joinGroupByUsername(@Path("username") username: String): Response<Chat>
+    
+    @GET("chats/groups/search")
+    suspend fun searchPublicGroups(
+        @Query("q") query: String,
+        @Query("limit") limit: Int = 20
+    ): Response<List<Chat>>
+    
+    @POST("chats/groups/join")
+    suspend fun joinGroupByInvite(@Body request: JoinByInviteRequest): Response<Chat>
+}
+
+data class CreateChatRequest(
+    @com.google.gson.annotations.SerializedName("recipient_id")
+    val recipientId: Int
+)
+
+data class CreateGroupChatRequest(
+    @com.google.gson.annotations.SerializedName("name")
+    val name: String,
+    @com.google.gson.annotations.SerializedName("participant_ids")
+    val participantIds: List<Int>
+)
+
+data class DeleteMessageRequest(
+    @com.google.gson.annotations.SerializedName("message_id")
+    val messageId: String
+)
+
+data class UploadResponse(
+    @com.google.gson.annotations.SerializedName("thumbnailUrl")
+    val thumbnailUrl: String? = null,
+    @com.google.gson.annotations.SerializedName("url")
+    val url: String
+)

@@ -1,0 +1,40 @@
+<resources>
+    <string name="app_name">Nexy</string>
+    <string name="email">Email</string>
+    <string name="password">Пароль</string>
+    <string name="login">Войти</string>
+    <string name="register">Регистрация</string>
+    <string name="remember_me">Запомнить меня</string>
+    <string name="dont_have_account">Нет аккаунта? Зарегистрироваться</string>
+    <string name="already_have_account">Есть аккаунт? Войти</string>
+    <string name="username">Имя пользователя</string>
+    <string name="display_name">Отображаемое имя</string>
+    <string name="confirm_password">Подтвердите пароль</string>
+    
+    <string name="chats">Чаты</string>
+    <string name="search">Поиск</string>
+    <string name="my_profile">Мой профиль</string>
+    <string name="new_group">Новая группа</string>
+    <string name="contacts">Контакты</string>
+    <string name="settings">Настройки</string>
+    <string name="logout">Выйти</string>
+    <string name="logout_confirmation">Вы уверены, что хотите выйти?</string>
+    <string name="cancel">Отмена</string>
+    
+    <string name="theme">Тема</string>
+    <string name="dark_theme">Тёмная тема</string>
+    <string name="light_theme">Светлая тема</string>
+    <string name="theme_style">Стиль</string>
+    <string name="style_pink">Розовый</string>
+    <string name="style_blue">Синий</string>
+    <string name="style_green">Зелёный</string>
+    
+    <string name="message_placeholder">Сообщение</string>
+    <string name="send">Отправить</string>
+    <string name="attach_file">Прикрепить файл</string>
+    <string name="add_emoji">Добавить эмодзи</string>
+    
+    <string name="no_chats">Нет чатов</string>
+    <string name="start_conversation">Начать общение</string>
+    <string name="select_chat">Выберите чат для начала общения</string>
+</resources>

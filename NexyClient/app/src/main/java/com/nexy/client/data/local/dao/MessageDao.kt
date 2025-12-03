@@ -1,0 +1,44 @@
+package com.nexy.client.data.local.dao
+
+import androidx.room.*
+import com.nexy.client.data.local.entity.MessageEntity
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface MessageDao {
+    @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp ASC")
+    fun getMessagesByChatId(chatId: Int): Flow<List<MessageEntity>>
+    
+    @Query("SELECT * FROM messages WHERE id = :messageId")
+    suspend fun getMessageById(messageId: String): MessageEntity?
+    
+    @Query("SELECT * FROM messages WHERE chatId = :chatId AND isSyncedToServer = 0")
+    suspend fun getUnsyncedMessages(chatId: Int): List<MessageEntity>
+    
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMessage(message: MessageEntity)
+    
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMessages(messages: List<MessageEntity>)
+    
+    @Update
+    suspend fun updateMessage(message: MessageEntity)
+    
+    @Query("UPDATE messages SET status = :status WHERE id = :messageId")
+    suspend fun updateMessageStatus(messageId: String, status: String)
+    
+    @Query("UPDATE messages SET isSyncedToServer = 1 WHERE id = :messageId")
+    suspend fun markMessageAsSynced(messageId: String)
+    
+    @Delete
+    suspend fun deleteMessage(message: MessageEntity)
+    
+    @Query("DELETE FROM messages WHERE id = :messageId")
+    suspend fun deleteMessage(messageId: String)
+    
+    @Query("DELETE FROM messages WHERE chatId = :chatId")
+    suspend fun deleteMessagesByChatId(chatId: Int)
+    
+    @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp DESC LIMIT 1")
+    suspend fun getLastMessage(chatId: Int): MessageEntity?
+}

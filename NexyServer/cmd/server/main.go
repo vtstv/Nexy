@@ -1,0 +1,100 @@
+/*
+ * © 2025 Murr | https://github.com/vtstv
+ */
+package main
+
+import (
+	"log"
+	"net/http"
+
+	"github.com/vtstv/nexy/internal/config"
+	"github.com/vtstv/nexy/internal/controllers"
+	"github.com/vtstv/nexy/internal/database"
+	"github.com/vtstv/nexy/internal/middleware"
+	"github.com/vtstv/nexy/internal/repositories"
+	"github.com/vtstv/nexy/internal/routes"
+	"github.com/vtstv/nexy/internal/services"
+	nexy "github.com/vtstv/nexy/internal/ws"
+)
+
+func main() {
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	db, err := database.NewDB(&cfg.Database)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer db.Close()
+
+	redisClient, err := database.NewRedisClient(&cfg.Redis)
+	if err != nil {
+		log.Fatalf("Failed to connect to Redis: %v", err)
+	}
+	defer redisClient.Close()
+
+	userRepo := repositories.NewUserRepository(db)
+	refreshTokenRepo := repositories.NewRefreshTokenRepository(db)
+	inviteRepo := repositories.NewInviteRepository(db)
+	messageRepo := repositories.NewMessageRepository(db)
+	chatRepo := repositories.NewChatRepository(db)
+	fileRepo := repositories.NewFileRepository(db)
+	e2eRepo := repositories.NewE2ERepository(db)
+	contactRepo := repositories.NewContactRepository(db.DB)
+
+	authService := services.NewAuthService(userRepo, refreshTokenRepo, &cfg.JWT)
+	userService := services.NewUserService(userRepo, chatRepo)
+	groupService := services.NewGroupService(chatRepo, userRepo)
+	inviteService := services.NewInviteService(inviteRepo)
+	messageService := services.NewMessageService(messageRepo, chatRepo)
+	fileService := services.NewFileService(fileRepo, &cfg.Upload)
+	qrService := services.NewQRService()
+	e2eService := services.NewE2EService(e2eRepo)
+	contactService := services.NewContactService(contactRepo, userRepo)
+
+	authController := controllers.NewAuthController(authService)
+	userController := controllers.NewUserController(userService, qrService)
+	groupController := controllers.NewGroupController(groupService)
+	inviteController := controllers.NewInviteController(inviteService)
+	messageController := controllers.NewMessageController(messageService)
+	fileController := controllers.NewFileController(fileService)
+	e2eController := controllers.NewE2EController(e2eService)
+	contactController := controllers.NewContactController(contactService)
+
+	nexyChatRepo := nexy.NewNexyChatRepo(chatRepo)
+	hub := nexy.NewHub(redisClient.Client, messageRepo, nexyChatRepo)
+	go hub.Run()
+
+	wsHandler := nexy.NewWSHandler(hub)
+	wsController := controllers.NewWSController(wsHandler, authService)
+
+	authMiddleware := middleware.NewAuthMiddleware(authService)
+	corsMiddleware := middleware.NewCORSMiddleware(&cfg.CORS)
+	rateLimiter := middleware.NewRateLimiter(&cfg.RateLimit)
+
+	router := routes.NewRouter(
+		authController,
+		userController,
+		groupController,
+		inviteController,
+		messageController,
+		fileController,
+		wsController,
+		e2eController,
+		contactController,
+		authMiddleware,
+		corsMiddleware,
+		rateLimiter,
+	)
+
+	r := router.Setup()
+
+	addr := ":" + cfg.Server.Port
+	log.Printf("Server starting on %s", addr)
+
+	if err := http.ListenAndServe(addr, r); err != nil {
+		log.Fatalf("Server failed to start: %v", err)
+	}
+}

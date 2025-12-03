@@ -1,0 +1,45 @@
+# General
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.cache
+
+# Logs
+*.log
+logs/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+*.iml
+.idea/
+.vscode/
+*.code-workspace
+
+# Build artifacts
+build/
+dist/
+target/
+out/
+
+# Dependencies
+node_modules/
+vendor/
+NexyClient/generate-keystore.ps1
+NexyClient/build-prod-apk.ps1
