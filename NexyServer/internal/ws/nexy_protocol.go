@@ -77,10 +77,10 @@ type OnlineBody struct {
 }
 
 type ChatCreatedBody struct {
-	ChatID          int    `json:"chat_id"`
-	ChatType        string `json:"chat_type"`
-	ParticipantIDs  []int  `json:"participant_ids"`
-	CreatedBy       int    `json:"created_by"`
+	ChatID         int    `json:"chat_id"`
+	ChatType       string `json:"chat_type"`
+	ParticipantIDs []int  `json:"participant_ids"`
+	CreatedBy      int    `json:"created_by"`
 }
 
 type AckBody struct {

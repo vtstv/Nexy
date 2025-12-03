@@ -156,7 +156,7 @@ func (h *Hub) handleChatMessage(message *NexyMessage) {
 
 			log.Printf("Created new private chat: chatID=%d", newChat.ID)
 			message.Header.ChatID = &newChat.ID
-			
+
 			// Notify both participants about the new chat
 			chatCreatedBody := ChatCreatedBody{
 				ChatID:         newChat.ID,
@@ -164,7 +164,7 @@ func (h *Hub) handleChatMessage(message *NexyMessage) {
 				ParticipantIDs: newChat.ParticipantIds,
 				CreatedBy:      message.Header.SenderID,
 			}
-			
+
 			chatCreatedMsg, _ := NewNexyMessage(TypeChatCreated, message.Header.SenderID, nil, chatCreatedBody)
 			log.Printf("Notifying users about new chat: %d and %d", message.Header.SenderID, *message.Header.RecipientID)
 			h.sendToUser(message.Header.SenderID, chatCreatedMsg)
