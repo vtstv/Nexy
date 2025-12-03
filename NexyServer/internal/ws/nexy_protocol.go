@@ -13,6 +13,7 @@ type MessageType string
 
 const (
 	TypeChatMessage  MessageType = "chat_message"
+	TypeChatCreated  MessageType = "chat_created"
 	TypeTyping       MessageType = "typing"
 	TypeDelivered    MessageType = "delivered"
 	TypeRead         MessageType = "read"
@@ -73,6 +74,13 @@ type ReadBody struct {
 
 type OnlineBody struct {
 	UserID int `json:"user_id"`
+}
+
+type ChatCreatedBody struct {
+	ChatID          int    `json:"chat_id"`
+	ChatType        string `json:"chat_type"`
+	ParticipantIDs  []int  `json:"participant_ids"`
+	CreatedBy       int    `json:"created_by"`
 }
 
 type AckBody struct {

@@ -1,6 +1,7 @@
 package com.nexy.client.data.websocket
 
 import android.util.Log
+import com.nexy.client.data.local.dao.ChatDao
 import com.nexy.client.data.local.dao.MessageDao
 import com.nexy.client.data.models.Message
 import com.nexy.client.data.models.MessageStatus
@@ -18,6 +19,7 @@ import javax.inject.Singleton
 @Singleton
 class WebSocketMessageHandler @Inject constructor(
     private val messageDao: MessageDao,
+    private val chatDao: ChatDao,
     private val messageMappers: MessageMappers,
     private val notificationHelper: NotificationHelper
 ) {
@@ -32,6 +34,7 @@ class WebSocketMessageHandler @Inject constructor(
             try {
                 when (nexyMessage.header.type) {
                     "chat_message" -> handleChatMessage(nexyMessage)
+                    "chat_created" -> handleChatCreated(nexyMessage)
                     "ack" -> handleAck(nexyMessage)
                     "read" -> handleReadReceipt(nexyMessage)
                     else -> Log.d(TAG, "Ignoring message type: ${nexyMessage.header.type}")
@@ -82,6 +85,46 @@ class WebSocketMessageHandler @Inject constructor(
             
         } else {
             Log.d(TAG, "Message already exists, skipping")
+        }
+    }
+    
+    private suspend fun handleChatCreated(nexyMessage: NexyMessage) {
+        val body = nexyMessage.body ?: return
+        
+        val chatId = (body["chat_id"] as? Double)?.toInt() ?: return
+        val chatType = body["chat_type"] as? String ?: "private"
+        val participantIds = (body["participant_ids"] as? List<*>)?.mapNotNull { 
+            (it as? Double)?.toInt() 
+        } ?: return
+        val createdBy = (body["created_by"] as? Double)?.toInt() ?: return
+        
+        Log.d(TAG, "Received chat_created: chatId=$chatId, type=$chatType, participants=$participantIds")
+        
+        // Check if chat already exists
+        val existingChat = chatDao.getChatById(chatId)
+        if (existingChat == null) {
+            // Create new chat in local database using ChatEntity
+            val currentTime = System.currentTimeMillis()
+            val chatEntity = com.nexy.client.data.local.entity.ChatEntity(
+                id = chatId,
+                type = chatType,
+                name = "", // Will be populated when we fetch user details
+                avatarUrl = null,
+                participantIds = participantIds.joinToString(","),
+                lastMessageId = null,
+                unreadCount = 0,
+                createdAt = currentTime,
+                updatedAt = currentTime,
+                muted = false
+            )
+            
+            chatDao.insertChat(chatEntity)
+            Log.d(TAG, "New chat created locally: $chatId")
+            
+            // Show notification
+            notificationHelper.showNotification("New Chat", "You have a new message", chatId)
+        } else {
+            Log.d(TAG, "Chat already exists locally: $chatId")
         }
     }
     

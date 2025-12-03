@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	"github.com/vtstv/nexy/internal/models"
 	"github.com/vtstv/nexy/internal/repositories"
 )
 
@@ -55,4 +56,59 @@ func NewNexyChatRepo(repo *repositories.ChatRepository) *NexyChatRepo {
 
 func (r *NexyChatRepo) IsMember(ctx context.Context, chatID, userID int) (bool, error) {
 	return r.repo.IsMember(ctx, chatID, userID)
+}
+
+func (r *NexyChatRepo) GetPrivateChatBetween(ctx context.Context, user1ID, user2ID int) (*Chat, error) {
+	chat, err := r.repo.GetPrivateChatBetween(ctx, user1ID, user2ID)
+	if err != nil || chat == nil {
+		return nil, err
+	}
+
+	return &Chat{
+		ID:             chat.ID,
+		Type:           chat.Type,
+		Name:           chat.Name,
+		ParticipantIds: chat.ParticipantIds,
+	}, nil
+}
+
+func (r *NexyChatRepo) CreatePrivateChat(ctx context.Context, user1ID, user2ID int) (*Chat, error) {
+	// Create chat using models
+	chat := &models.Chat{
+		Type:      "private",
+		Name:      "",
+		CreatedBy: &user1ID,
+	}
+
+	if err := r.repo.Create(ctx, chat); err != nil {
+		return nil, err
+	}
+
+	// Add both users as members
+	member1 := &models.ChatMember{
+		ChatID: chat.ID,
+		UserID: user1ID,
+		Role:   "admin",
+	}
+
+	member2 := &models.ChatMember{
+		ChatID: chat.ID,
+		UserID: user2ID,
+		Role:   "admin",
+	}
+
+	if err := r.repo.AddMember(ctx, member1); err != nil {
+		return nil, err
+	}
+
+	if err := r.repo.AddMember(ctx, member2); err != nil {
+		return nil, err
+	}
+
+	return &Chat{
+		ID:             chat.ID,
+		Type:           chat.Type,
+		Name:           chat.Name,
+		ParticipantIds: []int{user1ID, user2ID},
+	}, nil
 }

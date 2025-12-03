@@ -44,6 +44,15 @@ type MessageRepository interface {
 
 type ChatRepository interface {
 	IsMember(ctx context.Context, chatID, userID int) (bool, error)
+	GetPrivateChatBetween(ctx context.Context, user1ID, user2ID int) (*Chat, error)
+	CreatePrivateChat(ctx context.Context, user1ID, user2ID int) (*Chat, error)
+}
+
+type Chat struct {
+	ID             int    `json:"id"`
+	Type           string `json:"type"`
+	Name           string `json:"name"`
+	ParticipantIds []int  `json:"participant_ids"`
 }
 
 func NewHub(redisClient *redis.Client, messageRepo MessageRepository, chatRepo ChatRepository) *Hub {
@@ -114,15 +123,60 @@ func (h *Hub) handleBroadcast(message *NexyMessage) {
 }
 
 func (h *Hub) handleChatMessage(message *NexyMessage) {
-	log.Printf("handleChatMessage called: messageID=%s, senderID=%d, chatID=%v",
-		message.Header.MessageID, message.Header.SenderID, message.Header.ChatID)
+	log.Printf("handleChatMessage called: messageID=%s, senderID=%d, chatID=%v, recipientID=%v",
+		message.Header.MessageID, message.Header.SenderID, message.Header.ChatID, message.Header.RecipientID)
+
+	ctx := context.Background()
+
+	// If chatID is nil but recipientID is provided, find or create private chat
+	if message.Header.ChatID == nil && message.Header.RecipientID != nil {
+		log.Printf("No chatID provided, checking for private chat between %d and %d",
+			message.Header.SenderID, *message.Header.RecipientID)
+
+		// Try to find existing private chat
+		existingChat, err := h.chatRepo.GetPrivateChatBetween(ctx, message.Header.SenderID, *message.Header.RecipientID)
+		if err != nil {
+			log.Printf("Error checking for existing chat: %v", err)
+		}
+
+		if existingChat != nil {
+			// Use existing chat
+			log.Printf("Found existing private chat: chatID=%d", existingChat.ID)
+			message.Header.ChatID = &existingChat.ID
+		} else {
+			// Create new private chat
+			log.Printf("Creating new private chat between users %d and %d",
+				message.Header.SenderID, *message.Header.RecipientID)
+
+			newChat, err := h.chatRepo.CreatePrivateChat(ctx, message.Header.SenderID, *message.Header.RecipientID)
+			if err != nil {
+				log.Printf("Failed to create private chat: %v", err)
+				return
+			}
+
+			log.Printf("Created new private chat: chatID=%d", newChat.ID)
+			message.Header.ChatID = &newChat.ID
+			
+			// Notify both participants about the new chat
+			chatCreatedBody := ChatCreatedBody{
+				ChatID:         newChat.ID,
+				ChatType:       newChat.Type,
+				ParticipantIDs: newChat.ParticipantIds,
+				CreatedBy:      message.Header.SenderID,
+			}
+			
+			chatCreatedMsg, _ := NewNexyMessage(TypeChatCreated, message.Header.SenderID, nil, chatCreatedBody)
+			log.Printf("Notifying users about new chat: %d and %d", message.Header.SenderID, *message.Header.RecipientID)
+			h.sendToUser(message.Header.SenderID, chatCreatedMsg)
+			h.sendToUser(*message.Header.RecipientID, chatCreatedMsg)
+		}
+	}
 
 	if message.Header.ChatID == nil {
-		log.Printf("handleChatMessage: chatID is nil, skipping")
+		log.Printf("handleChatMessage: chatID is nil after resolution, skipping")
 		return
 	}
 
-	ctx := context.Background()
 	isMember, err := h.chatRepo.IsMember(ctx, *message.Header.ChatID, message.Header.SenderID)
 	log.Printf("IsMember check: chatID=%d, userID=%d, result=%v, err=%v",
 		*message.Header.ChatID, message.Header.SenderID, isMember, err)

@@ -10,6 +10,7 @@ import com.nexy.client.data.models.Message
 import com.nexy.client.data.models.ChatType
 import com.nexy.client.data.models.GroupType
 import com.nexy.client.data.repository.ChatRepository
+import com.nexy.client.data.repository.UserRepository
 import com.nexy.client.data.webrtc.WebRTCClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -33,6 +34,7 @@ data class ChatUiState(
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
+    private val userRepository: UserRepository,
     private val tokenManager: AuthTokenManager,
     private val webRTCClient: WebRTCClient,
     private val savedStateHandle: SavedStateHandle
@@ -110,8 +112,22 @@ class ChatViewModel @Inject constructor(
                                         chat.participantIds?.size == 1 && 
                                         chat.participantIds?.contains(currentUserId) == true
                         
+                        // For private chats, get the other participant's name
+                        val displayName = if (chat.type == ChatType.PRIVATE && !isSelfChat) {
+                            val otherUserId = chat.participantIds?.firstOrNull { it != currentUserId }
+                            if (otherUserId != null) {
+                                val userResult = userRepository.getUserById(otherUserId)
+                                val user = userResult.getOrNull()
+                                user?.displayName ?: user?.username ?: chat.name ?: "Chat"
+                            } else {
+                                chat.name ?: "Chat"
+                            }
+                        } else {
+                            chat.name ?: "Chat"
+                        }
+                        
                         _uiState.value = _uiState.value.copy(
-                            chatName = chat.name ?: "Chat",
+                            chatName = displayName,
                             chatAvatarUrl = chat.avatarUrl,
                             chatType = chat.type,
                             groupType = chat.groupType,
@@ -127,8 +143,22 @@ class ChatViewModel @Inject constructor(
                                         chatInfo.participantIds?.size == 1 && 
                                         chatInfo.participantIds?.contains(currentUserId) == true
                         
+                        // For private chats, get the other participant's name
+                        val displayName = if (chatInfo.type == ChatType.PRIVATE && !isSelfChat) {
+                            val otherUserId = chatInfo.participantIds?.firstOrNull { it != currentUserId }
+                            if (otherUserId != null) {
+                                val userResult = userRepository.getUserById(otherUserId)
+                                val user = userResult.getOrNull()
+                                user?.displayName ?: user?.username ?: chatInfo.name
+                            } else {
+                                chatInfo.name
+                            }
+                        } else {
+                            chatInfo.name
+                        }
+                        
                         _uiState.value = _uiState.value.copy(
-                            chatName = chatInfo.name,
+                            chatName = displayName,
                             chatAvatarUrl = chatInfo.avatarUrl,
                             chatType = chatInfo.type,
                             participantIds = chatInfo.participantIds ?: emptyList(),

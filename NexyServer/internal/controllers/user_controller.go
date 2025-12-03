@@ -166,12 +166,15 @@ func (c *UserController) CreatePrivateChat(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	log.Printf("CreatePrivateChat: user1ID=%d, user2ID=%d", userID, req.RecipientID)
 	chat, err := c.userService.GetOrCreatePrivateChat(r.Context(), userID, req.RecipientID)
 	if err != nil {
+		log.Printf("CreatePrivateChat ERROR: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	log.Printf("CreatePrivateChat SUCCESS: chatID=%d, participants=%v", chat.ID, chat.ParticipantIds)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(chat)
 }

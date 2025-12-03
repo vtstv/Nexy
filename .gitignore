@@ -43,3 +43,5 @@ node_modules/
 vendor/
 NexyClient/generate-keystore.ps1
 NexyClient/build-prod-apk.ps1
+NexyClient/install-app.ps1
+docs/

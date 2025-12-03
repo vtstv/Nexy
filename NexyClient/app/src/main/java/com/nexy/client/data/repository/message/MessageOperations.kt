@@ -185,8 +185,8 @@ class MessageOperations @Inject constructor(
                 Log.d(TAG, "Inserting message to local DB: ${message.id}, encrypted=$isEncrypted")
                 messageDao.insertMessage(messageMappers.modelToEntity(message))
                 
-                Log.d(TAG, "Sending message via WebSocket with messageId: $messageId")
-                webSocketClient.sendTextMessage(chatId, senderId, finalContent, messageId)
+                Log.d(TAG, "Sending message via WebSocket with messageId: $messageId, recipientUserId: $recipientUserId")
+                webSocketClient.sendTextMessage(chatId, senderId, finalContent, messageId, recipientUserId)
                 
                 Log.d(TAG, "Message sent successfully")
                 Result.success(message)
