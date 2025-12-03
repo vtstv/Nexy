@@ -20,10 +20,10 @@ class E2ESessionManager(private val cryptoManager: E2ECryptoManager) {
     }
     
     /**
-     * Зашифровать сообщение для получателя
-     * @param recipientUserId ID получателя
-     * @param plaintext текст сообщения
-     * @return зашифрованное сообщение с IV
+     * Encrypt message for recipient
+     * @param recipientUserId recipient ID
+     * @param plaintext message text
+     * @return encrypted message with IV
      */
     fun encryptMessage(recipientUserId: Int, plaintext: String): EncryptedMessage {
         val secretKey = generateSessionKey(recipientUserId)
@@ -46,10 +46,10 @@ class E2ESessionManager(private val cryptoManager: E2ECryptoManager) {
     }
     
     /**
-     * Расшифровать сообщение от отправителя
-     * @param encrypted зашифрованное сообщение
-     * @param senderUserId ID отправителя
-     * @return расшифрованный текст
+     * Decrypt message from sender
+     * @param encrypted encrypted message
+     * @param senderUserId sender ID
+     * @return decrypted text
      */
     fun decryptMessage(encrypted: EncryptedMessage, senderUserId: Int): String {
         val secretKey = generateSessionKey(senderUserId)
@@ -66,9 +66,9 @@ class E2ESessionManager(private val cryptoManager: E2ECryptoManager) {
     }
     
     /**
-     * Генерация session key для пользователя
-     * Упрощенная версия: используем производную от identity key
-     * В production: использовать Signal Protocol's Double Ratchet
+     * Generate session key for user
+     * Simplified version: use derivative from identity key
+     * In production: use Signal Protocol's Double Ratchet
      */
     private fun generateSessionKey(userId: Int): SecretKeySpec {
         val identityKey = cryptoManager.getIdentityPublicKey()
@@ -81,7 +81,7 @@ class E2ESessionManager(private val cryptoManager: E2ECryptoManager) {
     }
     
     /**
-     * Проверить, может ли быть расшифровано сообщение
+     * Check if message can be decrypted
      */
     fun canDecrypt(encrypted: EncryptedMessage): Boolean {
         return try {
