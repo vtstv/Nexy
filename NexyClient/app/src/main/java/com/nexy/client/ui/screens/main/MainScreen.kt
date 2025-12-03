@@ -34,6 +34,7 @@ fun MainScreen(
     onNavigateToSettings: () -> Unit = {},
     onNavigateToGroupSettings: (Int) -> Unit = {},
     onNavigateToEditGroup: (Int) -> Unit = {},
+    onNavigateToGroupInfo: (Int) -> Unit = {},
     onLogout: () -> Unit,
     initialChatId: Int? = null
 ) {
@@ -110,6 +111,7 @@ fun MainScreen(
                             onNavigateToGroupSettings = { chatId -> 
                                 showGroupSettingsDialog = chatId
                             },
+                            onNavigateToGroupInfo = onNavigateToGroupInfo,
                             showBackButton = false
                         )
                     }
@@ -137,7 +139,8 @@ fun MainScreen(
                     onNavigateBack = { selectedChatId = null },
                     onNavigateToGroupSettings = { chatId -> 
                         showGroupSettingsDialog = chatId
-                    }
+                    },
+                    onNavigateToGroupInfo = onNavigateToGroupInfo
                 )
             } else {
                 ChatListScreen(

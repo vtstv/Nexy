@@ -1,9 +1,13 @@
 package com.nexy.client.data.repository.message
 
 import com.nexy.client.data.local.entity.MessageEntity
+import com.nexy.client.data.local.entity.UserEntity
+import com.nexy.client.data.local.models.MessageWithSender
 import com.nexy.client.data.models.Message
 import com.nexy.client.data.models.MessageStatus
 import com.nexy.client.data.models.MessageType
+import com.nexy.client.data.models.User
+import com.nexy.client.data.models.UserStatus
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -39,6 +43,25 @@ class MessageMappers @Inject constructor() {
         isEdited = false,
         encrypted = false,
         encryptionAlgorithm = null
+    )
+
+    fun messageWithSenderToModel(messageWithSender: MessageWithSender): Message {
+        val message = entityToModel(messageWithSender.message)
+        return message.copy(
+            sender = messageWithSender.sender?.toModel()
+        )
+    }
+
+    private fun UserEntity.toModel() = User(
+        id = id,
+        username = username,
+        email = email,
+        displayName = displayName,
+        avatarUrl = avatarUrl,
+        status = UserStatus.valueOf(status),
+        bio = bio,
+        publicKey = publicKey,
+        createdAt = createdAt
     )
 
     private fun parseTimestamp(timestamp: String?): Long {

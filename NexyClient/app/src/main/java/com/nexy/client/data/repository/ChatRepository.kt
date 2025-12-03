@@ -81,6 +81,10 @@ class ChatRepository @Inject constructor(
     suspend fun joinByInviteCode(code: String): Result<JoinChatResponse> {
         return chatOperations.joinByInviteCode(code)
     }
+    
+    suspend fun leaveGroup(chatId: Int): Result<Unit> {
+        return chatOperations.leaveGroup(chatId)
+    }
 }
 
 // ChatInfo data class for UI

@@ -66,6 +66,10 @@ import kotlinx.coroutines.launch
 import com.nexy.client.utils.BiometricHelper
 import com.nexy.client.services.KeepAliveService
 
+import com.nexy.client.ui.screens.group.GroupInfoScreen
+
+import com.nexy.client.ui.screens.group.InviteMembersScreen
+
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
 
@@ -277,6 +281,9 @@ fun NexyApp() {
                 onNavigateToEditGroup = { groupId ->
                     navController.navigate(Screen.EditGroup.createRoute(groupId))
                 },
+                onNavigateToGroupInfo = { chatId ->
+                    navController.navigate(Screen.GroupInfo.createRoute(chatId))
+                },
                 onLogout = {
                     authViewModel.logout(clearCredentials = false)
                     navController.navigate(Screen.Login.route) {
@@ -314,6 +321,19 @@ fun NexyApp() {
                 },
                 onChatCreated = { chatId ->
                     navigationViewModel.selectChat(chatId)
+                    navController.popBackStack()
+                }
+            )
+        }
+        
+        composable(
+            route = Screen.Invite.route,
+            arguments = listOf(navArgument("chatId") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val chatId = backStackEntry.arguments?.getInt("chatId") ?: return@composable
+            InviteMembersScreen(
+                chatId = chatId,
+                onNavigateBack = {
                     navController.popBackStack()
                 }
             )
@@ -368,6 +388,22 @@ fun NexyApp() {
                 groupId = groupId,
                 onNavigateBack = {
                     navController.popBackStack()
+                }
+            )
+        }
+        
+        composable(
+            route = Screen.GroupInfo.route,
+            arguments = listOf(navArgument("chatId") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val chatId = backStackEntry.arguments?.getInt("chatId") ?: return@composable
+            GroupInfoScreen(
+                chatId = chatId,
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onAddParticipant = { id ->
+                    navController.navigate(Screen.Invite.createRoute(id))
                 }
             )
         }

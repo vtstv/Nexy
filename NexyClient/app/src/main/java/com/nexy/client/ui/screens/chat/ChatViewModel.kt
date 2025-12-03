@@ -28,7 +28,8 @@ data class ChatUiState(
     val chatType: ChatType = ChatType.PRIVATE,
     val groupType: GroupType? = null,
     val participantIds: List<Int> = emptyList(),
-    val isSelfChat: Boolean = false
+    val isSelfChat: Boolean = false,
+    val isCreator: Boolean = false
 )
 
 @HiltViewModel
@@ -132,7 +133,8 @@ class ChatViewModel @Inject constructor(
                             chatType = chat.type,
                             groupType = chat.groupType,
                             participantIds = chat.participantIds ?: emptyList(),
-                            isSelfChat = isSelfChat
+                            isSelfChat = isSelfChat,
+                            isCreator = chat.createdBy == currentUserId
                         )
                     }
                 } else {

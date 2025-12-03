@@ -322,6 +322,29 @@ class ChatOperations @Inject constructor(
         }
     }
 
+    suspend fun leaveGroup(chatId: Int): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val currentUserId = tokenManager.getUserId()
+                if (currentUserId == null) {
+                    return@withContext Result.failure(Exception("User not logged in"))
+                }
+                
+                val response = apiService.removeMember(chatId, currentUserId)
+                if (response.isSuccessful) {
+                    // Remove chat from local DB
+                    chatDao.deleteChatById(chatId)
+                    messageDao.deleteMessagesByChatId(chatId)
+                    Result.success(Unit)
+                } else {
+                    Result.failure(Exception("Failed to leave group: ${response.code()}"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
     suspend fun getOrCreateSavedMessages(): Result<Chat> {
         return withContext(Dispatchers.IO) {
             try {

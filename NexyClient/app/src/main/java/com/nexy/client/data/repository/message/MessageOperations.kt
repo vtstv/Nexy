@@ -32,7 +32,7 @@ class MessageOperations @Inject constructor(
     
     fun getMessagesByChatId(chatId: Int): Flow<List<Message>> {
         return messageDao.getMessagesByChatId(chatId).map { entities ->
-            entities.map { entity -> messageMappers.entityToModel(entity) }
+            entities.map { entity -> messageMappers.messageWithSenderToModel(entity) }
         }
     }
     

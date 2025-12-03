@@ -23,6 +23,7 @@ fun ChatScreen(
     chatId: Int,
     onNavigateBack: () -> Unit,
     onNavigateToGroupSettings: ((Int) -> Unit)? = null,
+    onNavigateToGroupInfo: ((Int) -> Unit)? = null,
     viewModel: ChatViewModel = hiltViewModel(key = "chat_$chatId"),
     themeViewModel: ThemeViewModel = hiltViewModel(),
     showBackButton: Boolean = true
@@ -76,13 +77,20 @@ fun ChatScreen(
                 chatName = uiState.chatName,
                 chatAvatarUrl = uiState.chatAvatarUrl,
                 chatType = uiState.chatType,
+                isCreator = uiState.isCreator,
                 onNavigateBack = onNavigateBack,
                 onClearChat = viewModel::clearChat,
                 onDeleteChat = {
                     viewModel.deleteChat()
                     onNavigateBack()
                 },
-                onChatInfoClick = { showChatInfoDialog = true },
+                onChatInfoClick = { 
+                    if (uiState.chatType == ChatType.GROUP && onNavigateToGroupInfo != null) {
+                        onNavigateToGroupInfo(chatId)
+                    } else {
+                        showChatInfoDialog = true 
+                    }
+                },
                 onCallClick = if (uiState.chatType == ChatType.PRIVATE && !uiState.isSelfChat) {
                     { viewModel.startCall() }
                 } else null,

@@ -2,12 +2,14 @@ package com.nexy.client.data.local.dao
 
 import androidx.room.*
 import com.nexy.client.data.local.entity.MessageEntity
+import com.nexy.client.data.local.models.MessageWithSender
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MessageDao {
+    @Transaction
     @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp ASC")
-    fun getMessagesByChatId(chatId: Int): Flow<List<MessageEntity>>
+    fun getMessagesByChatId(chatId: Int): Flow<List<MessageWithSender>>
     
     @Query("SELECT * FROM messages WHERE id = :messageId")
     suspend fun getMessageById(messageId: String): MessageEntity?

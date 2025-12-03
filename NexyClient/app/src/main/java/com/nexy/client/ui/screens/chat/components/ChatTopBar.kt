@@ -27,6 +27,7 @@ fun ChatTopBar(
     chatName: String,
     chatAvatarUrl: String? = null,
     chatType: ChatType = ChatType.PRIVATE,
+    isCreator: Boolean = false,
     onNavigateBack: () -> Unit,
     onClearChat: () -> Unit,
     onDeleteChat: () -> Unit,
@@ -135,20 +136,24 @@ fun ChatTopBar(
                         onChatInfoClick()
                     }
                 )
-                DropdownMenuItem(
-                    text = { Text("Clear chat") },
-                    onClick = {
-                        showMenu = false
-                        showClearDialog = true
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text("Delete chat") },
-                    onClick = {
-                        showMenu = false
-                        showDeleteDialog = true
-                    }
-                )
+                
+                // Only show Clear/Delete for private chats or if user is creator of group
+                if (chatType == ChatType.PRIVATE || isCreator) {
+                    DropdownMenuItem(
+                        text = { Text("Clear chat") },
+                        onClick = {
+                            showMenu = false
+                            showClearDialog = true
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Delete chat") },
+                        onClick = {
+                            showMenu = false
+                            showDeleteDialog = true
+                        }
+                    )
+                }
             }
         }
     )
