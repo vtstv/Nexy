@@ -38,13 +38,13 @@ fun MessageBubble(
         horizontalAlignment = if (isOwnMessage) Alignment.End else Alignment.Start
     ) {
         // Show sender info for incoming messages in group chats
-        if (isGroupChat && !isOwnMessage && message.sender != null) {
+        if (isGroupChat && !isOwnMessage) {
             Row(
                 modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Small avatar
-                if (message.sender.avatarUrl != null) {
+                if (message.sender?.avatarUrl != null) {
                     AsyncImage(
                         model = message.sender.avatarUrl,
                         contentDescription = "Sender avatar",
@@ -60,8 +60,8 @@ fun MessageBubble(
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
-                                text = (message.sender.displayName?.firstOrNull()?.uppercaseChar()
-                                    ?: message.sender.username.firstOrNull()?.uppercaseChar()
+                                text = (message.sender?.displayName?.firstOrNull()?.uppercaseChar()
+                                    ?: message.sender?.username?.firstOrNull()?.uppercaseChar()
                                     ?: '?').toString(),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -73,7 +73,7 @@ fun MessageBubble(
                 Spacer(modifier = Modifier.width(6.dp))
                 
                 Text(
-                    text = message.sender.displayName ?: message.sender.username,
+                    text = message.sender?.displayName ?: message.sender?.username ?: "User ${message.senderId}",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary
                 )

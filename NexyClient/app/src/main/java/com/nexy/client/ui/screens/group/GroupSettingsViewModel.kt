@@ -113,6 +113,18 @@ class GroupSettingsViewModel @Inject constructor(
         }
     }
     
+    fun transferOwnership(groupId: Int, newOwnerId: Int) {
+        viewModelScope.launch {
+            try {
+                val response = apiService.transferOwnership(groupId, com.nexy.client.data.api.TransferOwnershipRequest(newOwnerId))
+                if (response.isSuccessful) {
+                    loadGroupSettings(groupId)
+                }
+            } catch (e: Exception) {
+            }
+        }
+    }
+    
     fun createInviteLink(groupId: Int) {
         viewModelScope.launch {
             try {

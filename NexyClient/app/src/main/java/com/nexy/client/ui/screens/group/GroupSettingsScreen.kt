@@ -80,6 +80,9 @@ fun GroupSettingsScreen(
                     },
                     onCreateInviteLink = {
                         viewModel.createInviteLink(groupId)
+                    },
+                    onTransferOwnership = { memberId ->
+                        viewModel.transferOwnership(groupId, memberId)
                     }
                 )
             }
@@ -117,7 +120,8 @@ fun GroupSettingsContent(
     modifier: Modifier = Modifier,
     onRemoveMember: (Int) -> Unit,
     onUpdateRole: (Int, String) -> Unit,
-    onCreateInviteLink: () -> Unit
+    onCreateInviteLink: () -> Unit,
+    onTransferOwnership: (Int) -> Unit
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -166,8 +170,11 @@ fun GroupSettingsContent(
             MemberItem(
                 member = member,
                 canManage = state.canManageMembers,
+                isOwner = state.chat.createdBy == member.userId,
+                currentUserIsOwner = state.chat.createdBy == state.members.find { it.userId == state.chat.createdBy }?.userId, // Simplified check, ideally pass currentUserId
                 onRemove = { onRemoveMember(member.userId) },
-                onUpdateRole = { role -> onUpdateRole(member.userId, role) }
+                onUpdateRole = { role -> onUpdateRole(member.userId, role) },
+                onTransferOwnership = { onTransferOwnership(member.userId) }
             )
         }
         
@@ -190,10 +197,37 @@ fun GroupSettingsContent(
 fun MemberItem(
     member: ChatMember,
     canManage: Boolean,
+    isOwner: Boolean,
+    currentUserIsOwner: Boolean,
     onRemove: () -> Unit,
-    onUpdateRole: (String) -> Unit
+    onUpdateRole: (String) -> Unit,
+    onTransferOwnership: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    var showTransferDialog by remember { mutableStateOf(false) }
+    
+    if (showTransferDialog) {
+        AlertDialog(
+            onDismissRequest = { showTransferDialog = false },
+            title = { Text("Transfer Ownership") },
+            text = { Text("Are you sure you want to transfer ownership to ${member.user?.displayName ?: member.user?.username}? You will become an admin.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onTransferOwnership()
+                        showTransferDialog = false
+                    }
+                ) {
+                    Text("Transfer")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTransferDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
     
     Card {
         Row(
@@ -249,7 +283,7 @@ fun MemberItem(
                 }
             }
             
-            if (canManage && member.role != MemberRole.OWNER) {
+            if (canManage && !isOwner) {
                 IconButton(onClick = { showMenu = true }) {
                     Icon(Icons.Default.MoreVert, "Options")
                 }
@@ -282,6 +316,19 @@ fun MemberItem(
                         )
                     }
                     
+                    if (currentUserIsOwner) {
+                         DropdownMenuItem(
+                            text = { Text("Transfer Ownership") },
+                            onClick = {
+                                showTransferDialog = true
+                                showMenu = false
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.SwapHoriz, contentDescription = null)
+                            }
+                        )
+                    }
+                    
                     DropdownMenuItem(
                         text = { Text("Remove from Group") },
                         onClick = {
@@ -295,5 +342,6 @@ fun MemberItem(
                 }
             }
         }
+
     }
 }

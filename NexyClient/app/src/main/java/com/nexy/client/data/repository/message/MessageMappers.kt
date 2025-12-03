@@ -47,9 +47,13 @@ class MessageMappers @Inject constructor() {
 
     fun messageWithSenderToModel(messageWithSender: MessageWithSender): Message {
         val message = entityToModel(messageWithSender.message)
-        return message.copy(
-            sender = messageWithSender.sender?.toModel()
-        )
+        // If sender is available in relation, use it.
+        // If not, we might want to try to fetch it or it might be null (e.g. system message)
+        return if (messageWithSender.sender != null) {
+            message.copy(sender = messageWithSender.sender.toModel())
+        } else {
+            message
+        }
     }
 
     private fun UserEntity.toModel() = User(

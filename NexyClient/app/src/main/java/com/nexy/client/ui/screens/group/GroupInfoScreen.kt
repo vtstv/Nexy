@@ -175,8 +175,6 @@ fun GroupInfoScreen(
                     ParticipantItem(
                         user = user,
                         isOwner = uiState.chat?.createdBy == uiState.currentUserId,
-                        canTransferOwnership = uiState.chat?.createdBy == uiState.currentUserId && user.id != uiState.currentUserId,
-                        onTransferOwnership = { viewModel.transferOwnership(user.id) },
                         onClick = { onParticipantClick(user.id) }
                     )
                 }
@@ -193,16 +191,14 @@ fun GroupInfoScreen(
 fun ParticipantItem(
     user: User,
     isOwner: Boolean = false,
-    canTransferOwnership: Boolean = false,
-    onTransferOwnership: () -> Unit = {},
     onClick: () -> Unit
 ) {
-    var showTransferDialog by remember { mutableStateOf(false) }
-    
     ListItem(
         headlineContent = { Text(user.displayName ?: user.username) },
         supportingContent = { 
-            if (user.status != null) {
+            if (isOwner) {
+                Text("Owner", color = MaterialTheme.colorScheme.primary)
+            } else if (user.status != null) {
                 Text(user.status.name.lowercase().replaceFirstChar { it.uppercase() })
             }
         },
@@ -220,46 +216,18 @@ fun ParticipantItem(
                 Surface(
                     modifier = Modifier.size(40.dp),
                     shape = CircleShape,
-                    color = MaterialTheme.colorScheme.secondaryContainer
+                    color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
-                            text = (user.displayName?.firstOrNull() ?: user.username.firstOrNull() ?: '?').toString().uppercase(),
+                            text = (user.displayName?.firstOrNull() ?: user.username.firstOrNull())?.toString() ?: "?",
                             style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
                 }
             }
         },
-        trailingContent = if (canTransferOwnership) {
-            {
-                IconButton(onClick = { showTransferDialog = true }) {
-                    Icon(Icons.Default.Person, contentDescription = "Transfer Ownership")
-                }
-            }
-        } else null,
         modifier = Modifier.clickable(onClick = onClick)
     )
-    
-    if (showTransferDialog) {
-        AlertDialog(
-            onDismissRequest = { showTransferDialog = false },
-            title = { Text("Transfer Ownership") },
-            text = { Text("Are you sure you want to transfer group ownership to ${user.displayName ?: user.username}? You will become an admin.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showTransferDialog = false
-                    onTransferOwnership()
-                }) {
-                    Text("Transfer")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showTransferDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
 }
