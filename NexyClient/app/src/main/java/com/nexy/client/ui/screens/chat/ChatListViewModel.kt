@@ -198,18 +198,25 @@ class ChatListViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(isLoading = false)
                     _refreshTrigger.value = System.currentTimeMillis()
                     
-                    // Sync latest messages for each chat
-                    // This ensures that if we missed messages while offline, we fetch them now.
-                    // We fetch 20 to cover a reasonable "offline" gap.
+                    // Smart Sync: Only fetch messages if we are missing the last one
                     chats.forEach { chat ->
                         launch {
                             try {
                                 if (chat.lastMessage != null) {
-                                    chatRepository.loadMessages(chat.id, limit = 20, offset = 0)
-                                    _refreshTrigger.value = System.currentTimeMillis()
+                                    // Check if we have this message locally
+                                    val lastMsg = chatRepository.getLastMessageForChat(chat.id)
+                                    
+                                    // If local last message is different from server's, or we don't have one, fetch!
+                                    if (lastMsg == null || lastMsg.id != chat.lastMessage.id) {
+                                        android.util.Log.d("ChatListViewModel", "Syncing chat ${chat.id}: Local=${lastMsg?.id}, Server=${chat.lastMessage.id}")
+                                        chatRepository.loadMessages(chat.id, limit = 20, offset = 0)
+                                        _refreshTrigger.value = System.currentTimeMillis()
+                                    } else {
+                                        android.util.Log.d("ChatListViewModel", "Chat ${chat.id} is up to date")
+                                    }
                                 }
                             } catch (e: Exception) {
-                                android.util.Log.e("ChatListViewModel", "Failed to load messages for chat ${chat.id}", e)
+                                android.util.Log.e("ChatListViewModel", "Failed to sync chat ${chat.id}", e)
                             }
                         }
                     }

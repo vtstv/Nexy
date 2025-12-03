@@ -10,6 +10,7 @@ import com.nexy.client.data.models.nexy.NexyMessage
 import com.nexy.client.data.api.NexyApiService
 import com.nexy.client.data.repository.chat.ChatMappers
 import com.nexy.client.data.repository.message.MessageMappers
+import com.nexy.client.data.local.SettingsManager
 import com.nexy.client.utils.NotificationHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,7 +26,8 @@ class WebSocketMessageHandler @Inject constructor(
     private val messageMappers: MessageMappers,
     private val chatMappers: ChatMappers,
     private val apiService: NexyApiService,
-    private val notificationHelper: NotificationHelper
+    private val notificationHelper: NotificationHelper,
+    private val settingsManager: SettingsManager
 ) {
     companion object {
         private const val TAG = "WSMessageHandler"
@@ -140,10 +142,21 @@ class WebSocketMessageHandler @Inject constructor(
             // In a real app, we'd check if the chat is currently open/visible to avoid spamming
             // For now, we'll just show it.
             // We might want to fetch the sender name, but for now we'll use "New Message"
-            notificationHelper.showNotification("New Message", message.content, message.chatId)
+            if (settingsManager.isPushNotificationsEnabled()) {
+                notificationHelper.showNotification("New Message", message.content, message.chatId)
+            }
             
         } else {
-            Log.d(TAG, "Message already exists, skipping")
+            Log.d(TAG, "Message already exists, updating status")
+            // If message exists (e.g. we sent it and it was in SENDING state), update it
+            // If we are the sender, receiving it back means it's SENT/DELIVERED to server
+            val updatedStatus = if (message.senderId == existingMessage.senderId) {
+                MessageStatus.SENT // Confirmed by server
+            } else {
+                MessageStatus.DELIVERED // Received from someone else
+            }
+            
+            messageDao.updateMessageStatus(message.id, updatedStatus.name)
         }
     }
     
@@ -181,7 +194,9 @@ class WebSocketMessageHandler @Inject constructor(
             Log.d(TAG, "New chat created locally: $chatId")
             
             // Show notification
-            notificationHelper.showNotification("New Chat", "You have a new message", chatId)
+            if (settingsManager.isPushNotificationsEnabled()) {
+                notificationHelper.showNotification("New Chat", "You have a new message", chatId)
+            }
         } else {
             Log.d(TAG, "Chat already exists locally: $chatId")
         }
