@@ -270,10 +270,9 @@ private fun FileAttachment(
     onLongClick: () -> Unit
 ) {
     val context = LocalContext.current
-    val isDownloaded = remember(message.content) {
-        val file = java.io.File(context.getExternalFilesDir(null), message.content)
-        file.exists()
-    }
+    // Check file existence on every composition to update state when download finishes
+    val file = java.io.File(context.getExternalFilesDir(null), message.content)
+    val isDownloaded = file.exists()
     
     val isImage = message.mediaType?.startsWith("image/") == true
     val isVideo = message.mediaType?.startsWith("video/") == true

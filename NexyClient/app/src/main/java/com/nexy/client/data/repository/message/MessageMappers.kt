@@ -74,6 +74,7 @@ class MessageMappers @Inject constructor() {
         return try {
             if (timestamp == null) return System.currentTimeMillis()
             val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault())
+            sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
             val withoutMillis = timestamp.substringBefore('.')
             sdf.parse(withoutMillis)?.time ?: System.currentTimeMillis()
         } catch (e: Exception) {
