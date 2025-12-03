@@ -41,20 +41,20 @@ fun MessageBubble(
         horizontalArrangement = if (isOwnMessage) Arrangement.End else Arrangement.Start,
         verticalAlignment = Alignment.Bottom
     ) {
-        // Avatar for incoming messages (always show like Telegram)
-        if (!isOwnMessage) {
+        // Avatar for incoming messages 
+        if (isGroupChat && !isOwnMessage) {
             val avatarUrl = ServerConfig.getFileUrl(message.sender?.avatarUrl)
             if (avatarUrl != null) {
                 AsyncImage(
                     model = avatarUrl,
                     contentDescription = "Sender avatar",
                     modifier = Modifier
-                        .size(32.dp)
+                        .size(60.dp)
                         .clip(CircleShape)
                 )
             } else {
                 Surface(
-                    modifier = Modifier.size(32.dp),
+                    modifier = Modifier.size(60.dp),
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.primaryContainer
                 ) {
