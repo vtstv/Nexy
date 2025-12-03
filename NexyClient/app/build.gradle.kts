@@ -68,7 +68,7 @@ android {
             dimension = "environment"
             applicationIdSuffix = ".dev"
             versionNameSuffix = "-dev"
-            buildConfigField("String", "SERVER_IP", "\"localhost\"")
+            buildConfigField("String", "SERVER_IP", "\"192.168.0.2\"")
             buildConfigField("String", "SERVER_PORT", "\"8080\"")
             buildConfigField("String", "WS_PROTOCOL", "\"ws\"")
             buildConfigField("String", "HTTP_PROTOCOL", "\"http\"")
