@@ -245,15 +245,25 @@ func (h *Hub) broadcastToChatMembers(chatID int, message *NexyMessage) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
+	log.Printf("Broadcasting message to chat %d members. Total connected clients: %d", chatID, len(h.clients))
+
 	for _, client := range h.clients {
 		ctx := context.Background()
-		isMember, _ := h.chatRepo.IsMember(ctx, chatID, client.userID)
+		isMember, err := h.chatRepo.IsMember(ctx, chatID, client.userID)
+		if err != nil {
+			log.Printf("Error checking membership for user %d in chat %d: %v", client.userID, chatID, err)
+			continue
+		}
 		if isMember {
+			log.Printf("Sending message to member user %d", client.userID)
 			select {
 			case client.send <- data:
 			default:
+				log.Printf("Client %d send channel full, unregistering", client.userID)
 				go h.unregisterClient(client)
 			}
+		} else {
+			// log.Printf("User %d is NOT a member of chat %d", client.userID, chatID)
 		}
 	}
 }

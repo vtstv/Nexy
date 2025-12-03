@@ -103,7 +103,10 @@ class NexyWebSocketClient(
                 chatId = chatId,
                 recipientId = recipientId
             ),
-            body = mapOf("content" to content)
+            body = mapOf(
+                "content" to content,
+                "message_type" to "text"
+            )
         )
         
         sendMessage(message)

@@ -118,8 +118,17 @@ class ChatListViewModel @Inject constructor(
                     for (chat in chats) {
                         val (displayName, avatarUrl) = when (chat.type) {
                             ChatType.PRIVATE -> {
-                                val chatInfo = chatRepository.getChatInfo(chat.id)
-                                Pair(chatInfo?.name ?: "Unknown", chatInfo?.avatarUrl)
+                                val currentUserId = tokenManager.getUserId()
+                                val otherUserId = chat.participantIds?.firstOrNull { it != currentUserId }
+                                
+                                if (otherUserId != null) {
+                                    val userResult = userRepository.getUserById(otherUserId)
+                                    val user = userResult.getOrNull()
+                                    val name = user?.displayName ?: user?.username ?: "User $otherUserId"
+                                    Pair(name, user?.avatarUrl)
+                                } else {
+                                    Pair("Saved Messages", null)
+                                }
                             }
                             else -> Pair(chat.name ?: "Unknown", chat.avatarUrl)
                         }

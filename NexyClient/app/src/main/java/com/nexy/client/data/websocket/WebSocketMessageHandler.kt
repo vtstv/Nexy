@@ -7,6 +7,8 @@ import com.nexy.client.data.models.Message
 import com.nexy.client.data.models.MessageStatus
 import com.nexy.client.data.models.MessageType
 import com.nexy.client.data.models.nexy.NexyMessage
+import com.nexy.client.data.api.NexyApiService
+import com.nexy.client.data.repository.chat.ChatMappers
 import com.nexy.client.data.repository.message.MessageMappers
 import com.nexy.client.utils.NotificationHelper
 import kotlinx.coroutines.CoroutineScope
@@ -21,6 +23,8 @@ class WebSocketMessageHandler @Inject constructor(
     private val messageDao: MessageDao,
     private val chatDao: ChatDao,
     private val messageMappers: MessageMappers,
+    private val chatMappers: ChatMappers,
+    private val apiService: NexyApiService,
     private val notificationHelper: NotificationHelper
 ) {
     companion object {
@@ -72,10 +76,65 @@ class WebSocketMessageHandler @Inject constructor(
         
         Log.d(TAG, "Saving incoming message to DB: chatId=${message.chatId}, messageId=${message.id}, content=${message.content}")
         
+        // Ensure chat exists locally
+        val existingChat = chatDao.getChatById(message.chatId)
+        if (existingChat == null) {
+            Log.d(TAG, "Chat ${message.chatId} missing locally, fetching from API")
+            var chatInserted = false
+            try {
+                val response = apiService.getChatById(message.chatId)
+                if (response.isSuccessful && response.body() != null) {
+                    val chat = response.body()!!
+                    chatDao.insertChat(chatMappers.modelToEntity(chat))
+                    Log.d(TAG, "Chat ${message.chatId} fetched and inserted")
+                    chatInserted = true
+                } else {
+                    Log.e(TAG, "Failed to fetch chat ${message.chatId}: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching chat ${message.chatId}", e)
+            }
+            
+            if (!chatInserted) {
+                Log.w(TAG, "Inserting placeholder chat for ${message.chatId} to save message")
+                // Insert placeholder so message can be saved
+                val placeholderChat = com.nexy.client.data.local.entity.ChatEntity(
+                    id = message.chatId,
+                    type = "private", // Assume private
+                    name = "New Chat",
+                    avatarUrl = null,
+                    participantIds = message.senderId.toString(), // At least we know the sender
+                    lastMessageId = null,
+                    unreadCount = 0,
+                    createdAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis(),
+                    muted = false
+                )
+                try {
+                    chatDao.insertChat(placeholderChat)
+                    Log.d(TAG, "Placeholder chat inserted")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to insert placeholder chat", e)
+                }
+            }
+        }
+
         val existingMessage = messageDao.getMessageById(message.id)
         if (existingMessage == null) {
             messageDao.insertMessage(messageMappers.modelToEntity(message))
             Log.d(TAG, "Message saved successfully")
+            
+            // Update chat's last message and timestamp
+            try {
+                chatDao.updateLastMessage(
+                    chatId = message.chatId,
+                    messageId = message.id,
+                    timestamp = System.currentTimeMillis()
+                )
+                Log.d(TAG, "Updated chat ${message.chatId} with last message ${message.id}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to update chat last message", e)
+            }
             
             // Show notification for new messages
             // In a real app, we'd check if the chat is currently open/visible to avoid spamming
