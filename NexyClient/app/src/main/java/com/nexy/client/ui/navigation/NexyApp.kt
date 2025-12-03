@@ -208,6 +208,12 @@ fun NexyApp() {
                 onNavigateBack = {
                     navController.popBackStack()
                 },
+                onGroupLeft = {
+                    // Navigate back to ChatList and clear back stack to avoid returning to the left group
+                    navController.navigate(Screen.ChatList.route) {
+                        popUpTo(Screen.ChatList.route) { inclusive = true }
+                    }
+                },
                 onAddParticipant = { id ->
                     navController.navigate(Screen.Invite.createRoute(id))
                 },

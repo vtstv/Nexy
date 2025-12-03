@@ -2,18 +2,26 @@ package com.nexy.client.ui.screens.settings
 
 import android.media.RingtoneManager
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -24,6 +32,14 @@ import com.nexy.client.ui.screens.settings.components.*
 import com.nexy.client.ui.screens.settings.components.dialogs.CacheSettingsDialog
 import com.nexy.client.ui.screens.settings.components.dialogs.PinSetupDialog
 
+private enum class SettingsCategory {
+    MAIN,
+    CHAT,
+    NOTIFICATIONS,
+    SECURITY,
+    STORAGE
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -32,6 +48,8 @@ fun SettingsScreen(
     themeViewModel: ThemeViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    
+    var currentCategory by remember { mutableStateOf(SettingsCategory.MAIN) }
     
     val pinCode by viewModel.pinCode.collectAsState()
     val isBiometricEnabled by viewModel.isBiometricEnabled.collectAsState()
@@ -69,12 +87,32 @@ fun SettingsScreen(
         BiometricManager.from(context).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS
     }
 
+    BackHandler(enabled = currentCategory != SettingsCategory.MAIN) {
+        currentCategory = SettingsCategory.MAIN
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.settings)) },
+                title = { 
+                    Text(
+                        text = when (currentCategory) {
+                            SettingsCategory.MAIN -> stringResource(R.string.settings)
+                            SettingsCategory.CHAT -> "Chat Settings"
+                            SettingsCategory.NOTIFICATIONS -> "Notifications"
+                            SettingsCategory.SECURITY -> "Security"
+                            SettingsCategory.STORAGE -> "Storage & Data"
+                        }
+                    ) 
+                },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = {
+                        if (currentCategory == SettingsCategory.MAIN) {
+                            onNavigateBack()
+                        } else {
+                            currentCategory = SettingsCategory.MAIN
+                        }
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 }
@@ -87,65 +125,86 @@ fun SettingsScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
         ) {
-            ChatSettingsSection(
-                fontScale = fontScale,
-                themeStyle = themeStyle,
-                incomingTextColor = incomingTextColor,
-                outgoingTextColor = outgoingTextColor,
-                onFontScaleChange = { themeViewModel.setFontScale(it) },
-                onThemeStyleChange = { themeViewModel.setThemeStyle(it) },
-                onIncomingColorClick = { showIncomingColorPicker = true },
-                onOutgoingColorClick = { showOutgoingColorPicker = true }
-            )
-
-            HorizontalDivider()
-
-            NotificationsSection(
-                pushNotificationsEnabled = pushNotificationsEnabled,
-                notificationSoundEnabled = notificationSoundEnabled,
-                notificationSoundUri = notificationSoundUri,
-                notificationVibrationEnabled = notificationVibrationEnabled,
-                isBackgroundServiceEnabled = isBackgroundServiceEnabled,
-                onPushNotificationsChange = { viewModel.setPushNotificationsEnabled(it) },
-                onNotificationSoundChange = { viewModel.setNotificationSoundEnabled(it) },
-                onNotificationVibrationChange = { viewModel.setNotificationVibrationEnabled(it) },
-                onBackgroundServiceChange = { viewModel.setBackgroundServiceEnabled(it) },
-                ringtoneLauncher = ringtoneLauncher
-            )
-
-            HorizontalDivider()
-            
-            VoiceMediaSection(
-                voiceMessagesEnabled = voiceMessagesEnabled,
-                onVoiceMessagesChange = { viewModel.setVoiceMessagesEnabled(it) }
-            )
-
-            HorizontalDivider()
-
-            SecuritySection(
-                pinCode = pinCode,
-                isBiometricEnabled = isBiometricEnabled,
-                canAuthenticate = canAuthenticate,
-                onPinToggle = { enabled ->
-                    if (enabled) {
-                        showPinDialog = true
-                    } else {
-                        viewModel.setPinCode(null)
-                        viewModel.setBiometricEnabled(false)
-                    }
-                },
-                onBiometricToggle = { viewModel.setBiometricEnabled(it) }
-            )
-            
-            HorizontalDivider()
-            
-            StorageSection(
-                cacheSize = cacheSize,
-                cacheMaxSize = cacheMaxSize,
-                cacheMaxAge = cacheMaxAge,
-                onClearCache = { viewModel.clearCache() },
-                onCacheSettingsClick = { showCacheDialog = true }
-            )
+            when (currentCategory) {
+                SettingsCategory.MAIN -> {
+                    SettingsCategoryItem(
+                        icon = Icons.Default.Email,
+                        title = "Chat Settings",
+                        onClick = { currentCategory = SettingsCategory.CHAT }
+                    )
+                    SettingsCategoryItem(
+                        icon = Icons.Default.Notifications,
+                        title = "Notifications",
+                        onClick = { currentCategory = SettingsCategory.NOTIFICATIONS }
+                    )
+                    SettingsCategoryItem(
+                        icon = Icons.Default.Lock,
+                        title = "Security",
+                        onClick = { currentCategory = SettingsCategory.SECURITY }
+                    )
+                    SettingsCategoryItem(
+                        icon = Icons.Default.Info,
+                        title = "Storage & Data",
+                        onClick = { currentCategory = SettingsCategory.STORAGE }
+                    )
+                }
+                SettingsCategory.CHAT -> {
+                    ChatSettingsSection(
+                        fontScale = fontScale,
+                        themeStyle = themeStyle,
+                        incomingTextColor = incomingTextColor,
+                        outgoingTextColor = outgoingTextColor,
+                        onFontScaleChange = { themeViewModel.setFontScale(it) },
+                        onThemeStyleChange = { themeViewModel.setThemeStyle(it) },
+                        onIncomingColorClick = { showIncomingColorPicker = true },
+                        onOutgoingColorClick = { showOutgoingColorPicker = true }
+                    )
+                    HorizontalDivider()
+                    VoiceMediaSection(
+                        voiceMessagesEnabled = voiceMessagesEnabled,
+                        onVoiceMessagesChange = { viewModel.setVoiceMessagesEnabled(it) }
+                    )
+                }
+                SettingsCategory.NOTIFICATIONS -> {
+                    NotificationsSection(
+                        pushNotificationsEnabled = pushNotificationsEnabled,
+                        notificationSoundEnabled = notificationSoundEnabled,
+                        notificationSoundUri = notificationSoundUri,
+                        notificationVibrationEnabled = notificationVibrationEnabled,
+                        isBackgroundServiceEnabled = isBackgroundServiceEnabled,
+                        onPushNotificationsChange = { viewModel.setPushNotificationsEnabled(it) },
+                        onNotificationSoundChange = { viewModel.setNotificationSoundEnabled(it) },
+                        onNotificationVibrationChange = { viewModel.setNotificationVibrationEnabled(it) },
+                        onBackgroundServiceChange = { viewModel.setBackgroundServiceEnabled(it) },
+                        ringtoneLauncher = ringtoneLauncher
+                    )
+                }
+                SettingsCategory.SECURITY -> {
+                    SecuritySection(
+                        pinCode = pinCode,
+                        isBiometricEnabled = isBiometricEnabled,
+                        canAuthenticate = canAuthenticate,
+                        onPinToggle = { enabled ->
+                            if (enabled) {
+                                showPinDialog = true
+                            } else {
+                                viewModel.setPinCode(null)
+                                viewModel.setBiometricEnabled(false)
+                            }
+                        },
+                        onBiometricToggle = { viewModel.setBiometricEnabled(it) }
+                    )
+                }
+                SettingsCategory.STORAGE -> {
+                    StorageSection(
+                        cacheSize = cacheSize,
+                        cacheMaxSize = cacheMaxSize,
+                        cacheMaxAge = cacheMaxAge,
+                        onClearCache = { viewModel.clearCache() },
+                        onCacheSettingsClick = { showCacheDialog = true }
+                    )
+                }
+            }
         }
     }
     
@@ -191,3 +250,19 @@ fun SettingsScreen(
         )
     }
 }
+
+@Composable
+private fun SettingsCategoryItem(
+    icon: ImageVector,
+    title: String,
+    onClick: () -> Unit
+) {
+    ListItem(
+        headlineContent = { Text(title) },
+        leadingContent = { Icon(icon, contentDescription = null) },
+        trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+        modifier = Modifier.clickable(onClick = onClick)
+    )
+    HorizontalDivider()
+}
+

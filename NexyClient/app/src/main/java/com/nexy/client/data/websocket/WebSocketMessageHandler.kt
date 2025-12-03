@@ -3,6 +3,7 @@ package com.nexy.client.data.websocket
 import android.util.Log
 import com.nexy.client.data.local.dao.ChatDao
 import com.nexy.client.data.local.dao.MessageDao
+import com.nexy.client.data.models.ChatType
 import com.nexy.client.data.models.Message
 import com.nexy.client.data.models.MessageStatus
 import com.nexy.client.data.models.MessageType
@@ -175,41 +176,37 @@ class WebSocketMessageHandler @Inject constructor(
         val body = nexyMessage.body ?: return
         
         val chatId = (body["chat_id"] as? Double)?.toInt() ?: return
-        val chatType = body["chat_type"] as? String ?: "private"
-        val participantIds = (body["participant_ids"] as? List<*>)?.mapNotNull { 
-            (it as? Double)?.toInt() 
-        } ?: return
-        val createdBy = (body["created_by"] as? Double)?.toInt() ?: return
         
-        Log.d(TAG, "Received chat_created: chatId=$chatId, type=$chatType, participants=$participantIds")
+        Log.d(TAG, "Received chat_created: chatId=$chatId")
         
-        // Check if chat already exists
-        val existingChat = chatDao.getChatById(chatId)
-        if (existingChat == null) {
-            // Create new chat in local database using ChatEntity
-            val currentTime = System.currentTimeMillis()
-            val chatEntity = com.nexy.client.data.local.entity.ChatEntity(
-                id = chatId,
-                type = chatType,
-                name = "", // Will be populated when we fetch user details
-                avatarUrl = null,
-                participantIds = participantIds.joinToString(","),
-                lastMessageId = null,
-                unreadCount = 0,
-                createdAt = currentTime,
-                updatedAt = currentTime,
-                muted = false
-            )
-            
-            chatDao.insertChat(chatEntity)
-            Log.d(TAG, "New chat created locally: $chatId")
-            
-            // Show notification
-            if (settingsManager.isPushNotificationsEnabled()) {
-                notificationHelper.showNotification("New Chat", "You have a new message", chatId)
+        // Fetch full chat details from API to ensure we have name, avatar, etc.
+        try {
+            val response = apiService.getChatById(chatId)
+            if (response.isSuccessful && response.body() != null) {
+                val chat = response.body()!!
+                chatDao.insertChat(chatMappers.modelToEntity(chat))
+                
+                // Also fetch participants for avatars
+                chat.participantIds?.forEach { userId ->
+                    try {
+                        userRepository.getUserById(userId)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to fetch participant $userId", e)
+                    }
+                }
+                
+                Log.d(TAG, "New chat fetched and inserted: $chatId")
+                
+                if (settingsManager.isPushNotificationsEnabled()) {
+                    val title = if (chat.type == ChatType.GROUP) "New Group" else "New Chat"
+                    val content = if (!chat.name.isNullOrEmpty()) "You were added to ${chat.name}" else "You have a new chat"
+                    notificationHelper.showNotification(title, content, chatId)
+                }
+            } else {
+                Log.e(TAG, "Failed to fetch chat details for $chatId")
             }
-        } else {
-            Log.d(TAG, "Chat already exists locally: $chatId")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching chat details for $chatId", e)
         }
     }
     
