@@ -10,6 +10,9 @@ import com.nexy.client.data.local.entity.ChatEntity
 import com.nexy.client.data.models.Chat
 import com.nexy.client.data.repository.UserRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -69,6 +72,31 @@ class ChatSyncOperations @Inject constructor(
                         chatDao.insertChats(inserts)
                     }
                     
+                    // Pre-fetch participants for private chats to ensure names are available
+                    // We do this after updating chats so the UI can show the list immediately, 
+                    // even if names are temporarily missing (though they will update as users are fetched)
+                    try {
+                        val participantIds = chats
+                            .filter { it.type == com.nexy.client.data.models.ChatType.PRIVATE }
+                            .flatMap { it.participantIds ?: emptyList() }
+                            .toSet()
+                        
+                        // Use supervisorScope to fetch users in parallel
+                        supervisorScope {
+                            participantIds.map { userId ->
+                                async {
+                                    try {
+                                        userRepository.getUserById(userId)
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Failed to fetch participant $userId", e)
+                                    }
+                                }
+                            }.awaitAll()
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error pre-fetching participants", e)
+                    }
+
                     Result.success(chats)
                 } else {
                     Result.failure(Exception("Failed to fetch chats"))

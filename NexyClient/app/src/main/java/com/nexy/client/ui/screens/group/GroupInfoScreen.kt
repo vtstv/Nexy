@@ -30,6 +30,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.nexy.client.data.models.GroupType
 import com.nexy.client.data.models.User
+import com.nexy.client.ServerConfig
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,7 +86,7 @@ fun GroupInfoScreen(
                     ) {
                         if (uiState.chat?.avatarUrl != null) {
                             AsyncImage(
-                                model = uiState.chat?.avatarUrl,
+                                model = ServerConfig.getFileUrl(uiState.chat?.avatarUrl),
                                 contentDescription = "Group Avatar",
                                 modifier = Modifier
                                     .size(100.dp)

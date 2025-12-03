@@ -26,7 +26,9 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.automirrored.filled.Reply
+import com.nexy.client.data.models.MessageStatus
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -34,6 +36,7 @@ fun MessageBubble(
     message: Message, 
     isOwnMessage: Boolean,
     isGroupChat: Boolean = false,
+    repliedMessage: Message? = null,
     fontScale: Float = 1.0f,
     textColor: Long = 0L,
     onDelete: () -> Unit = {},
@@ -62,12 +65,12 @@ fun MessageBubble(
                     model = avatarUrl,
                     contentDescription = "Sender avatar",
                     modifier = Modifier
-                        .size(32.dp)
+                        .size(96.dp)
                         .clip(CircleShape)
                 )
             } else {
                 Surface(
-                    modifier = Modifier.size(32.dp),
+                    modifier = Modifier.size(96.dp),
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.primaryContainer
                 ) {
@@ -107,6 +110,47 @@ fun MessageBubble(
                 Column(
                     modifier = Modifier.padding(8.dp)
                 ) {
+                    // Reply Context
+                    if (repliedMessage != null) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                            shape = RoundedCornerShape(4.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 4.dp)
+                                .clickable { /* Scroll to message? */ }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .padding(4.dp)
+                                    .height(IntrinsicSize.Min)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(2.dp)
+                                        .fillMaxHeight()
+                                        .background(MaterialTheme.colorScheme.primary)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Column {
+                                    Text(
+                                        text = repliedMessage.sender?.displayName ?: repliedMessage.sender?.username ?: "User",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = if (repliedMessage.mediaUrl != null) "Photo" else repliedMessage.content,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     // Sender Name inside bubble (only for groups)
                     if (isGroupChat && !isOwnMessage) {
                         Text(
@@ -139,12 +183,34 @@ fun MessageBubble(
                         
                         Spacer(modifier = Modifier.width(8.dp))
 
-                        // Timestamp
-                        Text(
-                            text = formatTimestamp(message.timestamp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        )
+                        // Timestamp & Status
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = formatTimestamp(message.timestamp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            )
+                            
+                            if (isOwnMessage) {
+                                Spacer(modifier = Modifier.width(4.dp))
+                                val status = message.status ?: MessageStatus.SENT
+                                val icon = when (status) {
+                                    MessageStatus.READ, MessageStatus.DELIVERED -> Icons.Default.DoneAll
+                                    else -> Icons.Default.Done
+                                }
+                                val tint = if (status == MessageStatus.READ) 
+                                    MaterialTheme.colorScheme.primary 
+                                else 
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = status.name,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = tint
+                                )
+                            }
+                        }
                     }
                 }
             }

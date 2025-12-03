@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
+	"github.com/vtstv/nexy/internal/models"
 )
 
 const (
@@ -36,6 +37,7 @@ type Hub struct {
 	mu          sync.RWMutex
 	messageRepo MessageRepository
 	chatRepo    ChatRepository
+	userRepo    UserRepository
 }
 
 type MessageRepository interface {
@@ -48,6 +50,10 @@ type ChatRepository interface {
 	CreatePrivateChat(ctx context.Context, user1ID, user2ID int) (*Chat, error)
 }
 
+type UserRepository interface {
+	GetByID(ctx context.Context, id int) (*models.User, error)
+}
+
 type Chat struct {
 	ID             int    `json:"id"`
 	Type           string `json:"type"`
@@ -55,7 +61,7 @@ type Chat struct {
 	ParticipantIds []int  `json:"participant_ids"`
 }
 
-func NewHub(redisClient *redis.Client, messageRepo MessageRepository, chatRepo ChatRepository) *Hub {
+func NewHub(redisClient *redis.Client, messageRepo MessageRepository, chatRepo ChatRepository, userRepo UserRepository) *Hub {
 	return &Hub{
 		clients:     make(map[int]*Client),
 		register:    make(chan *Client),
@@ -64,6 +70,7 @@ func NewHub(redisClient *redis.Client, messageRepo MessageRepository, chatRepo C
 		redis:       redisClient,
 		messageRepo: messageRepo,
 		chatRepo:    chatRepo,
+		userRepo:    userRepo,
 	}
 }
 
@@ -200,6 +207,31 @@ func (h *Hub) handleChatMessage(message *NexyMessage) {
 }
 
 func (h *Hub) handleStatusMessage(message *NexyMessage) {
+	if message.Header.Type == TypeRead && message.Header.RecipientID != nil {
+		ctx := context.Background()
+
+		// Check Sender (Reader)
+		sender, err := h.userRepo.GetByID(ctx, message.Header.SenderID)
+		if err != nil {
+			log.Printf("Error getting sender for read receipt check: %v", err)
+			return
+		}
+
+		// Check Recipient (Original Sender)
+		recipient, err := h.userRepo.GetByID(ctx, *message.Header.RecipientID)
+		if err != nil {
+			log.Printf("Error getting recipient for read receipt check: %v", err)
+			return
+		}
+
+		// If either has disabled read receipts, do not send
+		if !sender.ReadReceiptsEnabled || !recipient.ReadReceiptsEnabled {
+			log.Printf("Read receipt suppressed: Sender(%v)=%v, Recipient(%v)=%v",
+				sender.ID, sender.ReadReceiptsEnabled, recipient.ID, recipient.ReadReceiptsEnabled)
+			return
+		}
+	}
+
 	if message.Header.RecipientID != nil {
 		h.sendToUser(*message.Header.RecipientID, message)
 	}

@@ -64,7 +64,7 @@ func main() {
 	contactController := controllers.NewContactController(contactService)
 
 	nexyChatRepo := nexy.NewNexyChatRepo(chatRepo)
-	hub := nexy.NewHub(redisClient.Client, messageRepo, nexyChatRepo)
+	hub := nexy.NewHub(redisClient.Client, messageRepo, nexyChatRepo, userRepo)
 	go hub.Run()
 
 	wsHandler := nexy.NewWSHandler(hub)

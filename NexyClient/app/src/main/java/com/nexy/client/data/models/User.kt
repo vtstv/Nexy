@@ -23,6 +23,9 @@ data class User(
     
     @SerializedName("bio")
     val bio: String? = null,
+
+    @SerializedName("read_receipts_enabled")
+    val readReceiptsEnabled: Boolean = true,
     
     @SerializedName("public_key")
     val publicKey: String? = null,

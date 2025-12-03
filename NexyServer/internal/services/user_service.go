@@ -36,7 +36,7 @@ func (s *UserService) SearchUsers(ctx context.Context, query string, limit int) 
 	return s.userRepo.Search(ctx, query, limit)
 }
 
-func (s *UserService) UpdateProfile(ctx context.Context, userID int, displayName, bio, avatarURL, email, password string) (*models.User, error) {
+func (s *UserService) UpdateProfile(ctx context.Context, userID int, displayName, bio, avatarURL, email, password string, readReceiptsEnabled *bool) (*models.User, error) {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -56,6 +56,9 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID int, displayName
 			return nil, fmt.Errorf("failed to hash password: %w", err)
 		}
 		user.PasswordHash = string(hashedPassword)
+	}
+	if readReceiptsEnabled != nil {
+		user.ReadReceiptsEnabled = *readReceiptsEnabled
 	}
 
 	if err := s.userRepo.Update(ctx, user); err != nil {

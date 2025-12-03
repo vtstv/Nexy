@@ -60,7 +60,7 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    fun updateProfile(displayName: String, bio: String, avatarUri: Uri?, email: String?, password: String?) {
+    fun updateProfile(displayName: String, bio: String, avatarUri: Uri?, email: String?, password: String?, readReceiptsEnabled: Boolean) {
         viewModelScope.launch {
             android.util.Log.d("ProfileViewModel", "updateProfile: starting. displayName=$displayName, hasAvatar=${avatarUri != null}")
             val currentUser = _uiState.value.user
@@ -93,7 +93,7 @@ class ProfileViewModel @Inject constructor(
             }
 
             // Update profile with new data
-            userRepository.updateProfile(displayName, bio, avatarUrl, email, password).fold(
+            userRepository.updateProfile(displayName, bio, avatarUrl, email, password, readReceiptsEnabled).fold(
                 onSuccess = { updatedUser ->
                     _uiState.value = _uiState.value.copy(
                         user = updatedUser,
