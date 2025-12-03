@@ -23,7 +23,8 @@ class MessageOperationsHandler @Inject constructor(
         text: String,
         chatType: ChatType,
         isSelfChat: Boolean,
-        participantIds: List<Int>
+        participantIds: List<Int>,
+        replyToId: Int? = null
     ): Result<Message> {
         val recipientUserId = if (chatType == ChatType.PRIVATE && !isSelfChat) {
             participantIds.firstOrNull { it != userId }
@@ -31,7 +32,7 @@ class MessageOperationsHandler @Inject constructor(
             null
         }
         
-        return chatRepository.sendMessage(chatId, userId, text, recipientUserId = recipientUserId)
+        return chatRepository.sendMessage(chatId, userId, text, recipientUserId = recipientUserId, replyToId = replyToId)
     }
 
     suspend fun deleteMessage(messageId: String): Result<Unit> {

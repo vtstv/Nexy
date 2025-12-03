@@ -17,6 +17,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 
 import com.nexy.client.ui.theme.ThemeViewModel
 
+import com.nexy.client.data.models.Message
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
@@ -38,6 +40,7 @@ fun ChatScreen(
     val hasScrolledToBottom = remember { mutableStateOf(false) }
     var showEmojiPicker by remember { mutableStateOf(false) }
     var showChatInfoDialog by remember { mutableStateOf(false) }
+    var replyToMessage by remember { mutableStateOf<Message?>(null) }
     
     // Show error as snackbar
     LaunchedEffect(uiState.error) {
@@ -151,6 +154,7 @@ fun ChatScreen(
                         incomingTextColor = incomingTextColor,
                         outgoingTextColor = outgoingTextColor,
                         onDeleteMessage = viewModel::deleteMessage,
+                        onReplyMessage = { message -> replyToMessage = message },
                         onDownloadFile = { fileId, fileName ->
                             viewModel.downloadFile(context, fileId, fileName)
                         },
@@ -163,12 +167,17 @@ fun ChatScreen(
                 MessageInput(
                     text = uiState.messageText,
                     onTextChange = viewModel::onMessageTextChange,
-                    onSend = viewModel::sendMessage,
+                    onSend = {
+                        viewModel.sendMessage(replyToId = replyToMessage?.serverId)
+                        replyToMessage = null
+                    },
                     onSendFile = { fileUri, fileName ->
                         viewModel.sendFileMessage(context, fileUri, fileName)
                     },
                     showEmojiPicker = showEmojiPicker,
-                    onToggleEmojiPicker = { showEmojiPicker = !showEmojiPicker }
+                    onToggleEmojiPicker = { showEmojiPicker = !showEmojiPicker },
+                    replyToMessage = replyToMessage,
+                    onCancelReply = { replyToMessage = null }
                 )
             }
         }

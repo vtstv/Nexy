@@ -152,11 +152,12 @@ class MessageOperations @Inject constructor(
         senderId: Int, 
         content: String, 
         type: MessageType = MessageType.TEXT,
-        recipientUserId: Int? = null
+        recipientUserId: Int? = null,
+        replyToId: Int? = null
     ): Result<Message> {
         return withContext(Dispatchers.IO) {
             try {
-                Log.d(TAG, "Sending message: chatId=$chatId, senderId=$senderId, content='$content'")
+                Log.d(TAG, "Sending message: chatId=$chatId, senderId=$senderId, content='$content', replyToId=$replyToId")
                 val messageId = generateMessageId()
                 
                 // E2E Encryption: Only in PRODUCTION and for private chats with recipient
@@ -198,14 +199,15 @@ class MessageOperations @Inject constructor(
                     type = type,
                     status = MessageStatus.SENDING,
                     encrypted = isEncrypted,
-                    encryptionAlgorithm = encryptionAlgorithm
+                    encryptionAlgorithm = encryptionAlgorithm,
+                    replyToId = replyToId
                 )
                 
                 Log.d(TAG, "Inserting message to local DB: ${message.id}, encrypted=$isEncrypted")
                 messageDao.insertMessage(messageMappers.modelToEntity(message))
                 
                 Log.d(TAG, "Sending message via WebSocket with messageId: $messageId, recipientUserId: $recipientUserId")
-                webSocketClient.sendTextMessage(chatId, senderId, finalContent, messageId, recipientUserId)
+                webSocketClient.sendTextMessage(chatId, senderId, finalContent, messageId, recipientUserId, replyToId)
                 
                 Log.d(TAG, "Message sent successfully")
                 Result.success(message)

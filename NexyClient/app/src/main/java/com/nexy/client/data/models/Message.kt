@@ -6,6 +6,9 @@ data class Message(
     @SerializedName("message_id")  // Server uses message_id field
     val id: String,
     
+    @SerializedName("id") // Server database ID
+    val serverId: Int? = null,
+    
     @SerializedName("chat_id")  // Changed to snake_case and Int type
     val chatId: Int,
     

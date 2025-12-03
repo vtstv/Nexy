@@ -20,6 +20,13 @@ import com.nexy.client.ServerConfig
 
 import androidx.compose.ui.graphics.Color
 
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material.icons.automirrored.filled.Reply
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MessageBubble(
     message: Message, 
@@ -28,11 +35,15 @@ fun MessageBubble(
     fontScale: Float = 1.0f,
     textColor: Long = 0L,
     onDelete: () -> Unit = {},
+    onReply: () -> Unit = {},
+    onCopy: () -> Unit = {},
     onDownloadFile: (String, String) -> Unit = { _, _ -> },
     onOpenFile: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
     
     Row(
         modifier = Modifier
@@ -41,20 +52,20 @@ fun MessageBubble(
         horizontalArrangement = if (isOwnMessage) Arrangement.End else Arrangement.Start,
         verticalAlignment = Alignment.Bottom
     ) {
-        // Avatar for incoming messages 
-        if (isGroupChat && !isOwnMessage) {
+        // Avatar for incoming messages (always show like Telegram)
+        if (!isOwnMessage) {
             val avatarUrl = ServerConfig.getFileUrl(message.sender?.avatarUrl)
             if (avatarUrl != null) {
                 AsyncImage(
                     model = avatarUrl,
                     contentDescription = "Sender avatar",
                     modifier = Modifier
-                        .size(60.dp)
+                        .size(32.dp)
                         .clip(CircleShape)
                 )
             } else {
                 Surface(
-                    modifier = Modifier.size(60.dp),
+                    modifier = Modifier.size(32.dp),
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.primaryContainer
                 ) {
@@ -72,73 +83,100 @@ fun MessageBubble(
             Spacer(modifier = Modifier.width(8.dp))
         }
 
-        Surface(
-            shape = if (isOwnMessage) {
-                RoundedCornerShape(16.dp, 16.dp, 0.dp, 16.dp)
-            } else {
-                RoundedCornerShape(16.dp, 16.dp, 16.dp, 0.dp)
-            },
-            color = if (isOwnMessage) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            },
-            modifier = Modifier.widthIn(max = 300.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(8.dp)
-            ) {
-                // Sender Name inside bubble (only for groups)
-                if (isGroupChat && !isOwnMessage) {
-                    Text(
-                        text = message.sender?.displayName ?: message.sender?.username ?: "User ${message.senderId}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(bottom = 4.dp)
+        Box {
+            Surface(
+                shape = if (isOwnMessage) {
+                    RoundedCornerShape(16.dp, 16.dp, 0.dp, 16.dp)
+                } else {
+                    RoundedCornerShape(16.dp, 16.dp, 16.dp, 0.dp)
+                },
+                color = if (isOwnMessage) {
+                    MaterialTheme.colorScheme.primaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant
+                },
+                modifier = Modifier
+                    .widthIn(max = 300.dp)
+                    .combinedClickable(
+                        onClick = { showMenu = true },
+                        onLongClick = { showMenu = true }
                     )
-                }
-
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Column(modifier = Modifier.weight(1f, fill = false)) {
-                        if (message.mediaUrl != null) {
-                            FileAttachment(
-                                message = message,
-                                onDownloadFile = onDownloadFile,
-                                onOpenFile = onOpenFile
-                            )
-                        } else {
-                            Text(
-                                text = message.content,
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontSize = MaterialTheme.typography.bodyMedium.fontSize * fontScale
-                                ),
-                                color = if (textColor != 0L) Color(textColor) else Color.Unspecified
-                            )
-                        }
+            ) {
+                Column(
+                    modifier = Modifier.padding(8.dp)
+                ) {
+                    // Sender Name inside bubble (only for groups)
+                    if (isGroupChat && !isOwnMessage) {
+                        Text(
+                            text = message.sender?.displayName ?: message.sender?.username ?: "User ${message.senderId}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
                     }
-                    
-                    Spacer(modifier = Modifier.width(8.dp))
 
-                    // Timestamp and Delete button
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Column(modifier = Modifier.weight(1f, fill = false)) {
+                            if (message.mediaUrl != null) {
+                                FileAttachment(
+                                    message = message,
+                                    onDownloadFile = onDownloadFile,
+                                    onOpenFile = onOpenFile,
+                                    onLongClick = { showMenu = true }
+                                )
+                            } else {
+                                Text(
+                                    text = message.content,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontSize = MaterialTheme.typography.bodyMedium.fontSize * fontScale
+                                    ),
+                                    color = if (textColor != 0L) Color(textColor) else Color.Unspecified
+                                )
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Timestamp
                         Text(
                             text = formatTimestamp(message.timestamp),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
-                        
-                        if (isOwnMessage) {
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = "Delete",
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clickable { showDeleteDialog = true },
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                            )
-                        }
                     }
+                }
+            }
+
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Reply") },
+                    onClick = {
+                        onReply()
+                        showMenu = false
+                    },
+                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.Reply, contentDescription = null) }
+                )
+                DropdownMenuItem(
+                    text = { Text("Copy") },
+                    onClick = {
+                        clipboardManager.setText(AnnotatedString(message.content))
+                        onCopy()
+                        showMenu = false
+                    },
+                    leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) }
+                )
+                if (isOwnMessage) {
+                    DropdownMenuItem(
+                        text = { Text("Delete") },
+                        onClick = {
+                            showDeleteDialog = true
+                            showMenu = false
+                        },
+                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) }
+                    )
                 }
             }
         }
@@ -155,11 +193,13 @@ fun MessageBubble(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun FileAttachment(
     message: Message,
     onDownloadFile: (String, String) -> Unit,
-    onOpenFile: (String) -> Unit
+    onOpenFile: (String) -> Unit,
+    onLongClick: () -> Unit
 ) {
     val context = LocalContext.current
     val isDownloaded = remember(message.content) {
@@ -171,16 +211,19 @@ private fun FileAttachment(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .padding(bottom = 4.dp)
-            .clickable {
-                if (isDownloaded) {
-                    onOpenFile(message.content)
-                } else {
-                    val fileId = message.mediaUrl?.substringAfterLast("/") ?: ""
-                    if (fileId.isNotEmpty()) {
-                        onDownloadFile(fileId, message.content)
+            .combinedClickable(
+                onClick = {
+                    if (isDownloaded) {
+                        onOpenFile(message.content)
+                    } else {
+                        val fileId = message.mediaUrl?.substringAfterLast("/") ?: ""
+                        if (fileId.isNotEmpty()) {
+                            onDownloadFile(fileId, message.content)
+                        }
                     }
-                }
-            }
+                },
+                onLongClick = onLongClick
+            )
     ) {
         Icon(
             Icons.Default.AttachFile,

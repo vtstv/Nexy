@@ -16,6 +16,7 @@ class MessageMappers @Inject constructor() {
 
     fun modelToEntity(message: Message) = MessageEntity(
         id = message.id,
+        serverId = message.serverId,
         chatId = message.chatId,
         senderId = message.senderId,
         content = message.content,
@@ -30,6 +31,7 @@ class MessageMappers @Inject constructor() {
 
     fun entityToModel(entity: MessageEntity) = Message(
         id = entity.id,
+        serverId = entity.serverId,
         chatId = entity.chatId,
         senderId = entity.senderId,
         content = entity.content,

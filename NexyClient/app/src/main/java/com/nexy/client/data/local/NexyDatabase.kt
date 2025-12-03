@@ -15,7 +15,7 @@ import com.nexy.client.data.local.entity.UserEntity
         MessageEntity::class,
         ChatEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class NexyDatabase : RoomDatabase() {

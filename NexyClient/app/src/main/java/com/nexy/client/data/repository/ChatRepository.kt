@@ -49,8 +49,9 @@ class ChatRepository @Inject constructor(
         senderId: Int, 
         content: String, 
         type: MessageType = MessageType.TEXT,
-        recipientUserId: Int? = null
-    ): Result<Message> = messageOperations.sendMessage(chatId, senderId, content, type, recipientUserId)
+        recipientUserId: Int? = null,
+        replyToId: Int? = null
+    ): Result<Message> = messageOperations.sendMessage(chatId, senderId, content, type, recipientUserId, replyToId)
     
     suspend fun deleteMessage(messageId: String): Result<Unit> = messageOperations.deleteMessage(messageId)
     
@@ -66,6 +67,9 @@ class ChatRepository @Inject constructor(
     
     suspend fun downloadFile(fileId: String, context: Context, fileName: String): Result<Uri> =
         fileOperations.downloadFile(fileId, context, fileName)
+    
+    suspend fun uploadFile(context: Context, fileUri: Uri): Result<String> =
+        fileOperations.uploadFile(context, fileUri)
     
     // ===== INVITE/JOIN OPERATIONS =====
     // These remain here as they're not yet extracted to separate modules

@@ -109,7 +109,10 @@ data class CreateGroupRequest(
     val username: String? = null,
     
     @SerializedName("members")
-    val members: List<Int>? = null
+    val members: List<Int>? = null,
+
+    @SerializedName("avatar_url")
+    val avatarUrl: String? = null
 )
 
 data class UpdateGroupRequest(

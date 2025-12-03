@@ -18,6 +18,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.nexy.client.R
 
+import com.nexy.client.data.models.Message
+import androidx.compose.material.icons.automirrored.filled.Reply
+
 @Composable
 fun MessageInput(
     text: String,
@@ -25,7 +28,9 @@ fun MessageInput(
     onSend: () -> Unit,
     onSendFile: (Uri, String) -> Unit,
     showEmojiPicker: Boolean,
-    onToggleEmojiPicker: () -> Unit
+    onToggleEmojiPicker: () -> Unit,
+    replyToMessage: Message? = null,
+    onCancelReply: () -> Unit = {}
 ) {
     var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
     var selectedFileName by remember { mutableStateOf<String?>(null) }
@@ -51,6 +56,13 @@ fun MessageInput(
     
     Surface(tonalElevation = 3.dp) {
         Column {
+            replyToMessage?.let { message ->
+                ReplyPreview(
+                    message = message,
+                    onCancel = onCancelReply
+                )
+            }
+
             selectedFileUri?.let { uri ->
                 FilePreview(
                     fileName = selectedFileName ?: "File",
@@ -88,6 +100,45 @@ fun MessageInput(
                 },
                 sendEnabled = text.isNotBlank() || selectedFileUri != null
             )
+        }
+    }
+}
+
+@Composable
+private fun ReplyPreview(
+    message: Message,
+    onCancel: () -> Unit
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.AutoMirrored.Filled.Reply,
+                contentDescription = "Reply",
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Replying to ${message.sender?.displayName ?: "User"}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = message.content,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            IconButton(onClick = onCancel) {
+                Icon(Icons.Default.Close, "Cancel reply")
+            }
         }
     }
 }

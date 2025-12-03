@@ -21,6 +21,8 @@ fun MessageList(
     incomingTextColor: Long = 0L,
     outgoingTextColor: Long = 0L,
     onDeleteMessage: (String) -> Unit,
+    onReplyMessage: (Message) -> Unit = {},
+    onCopyMessage: () -> Unit = {},
     onDownloadFile: (String, String) -> Unit,
     onOpenFile: (String) -> Unit
 ) {
@@ -39,6 +41,8 @@ fun MessageList(
                 fontScale = fontScale,
                 textColor = if (message.senderId == currentUserId) outgoingTextColor else incomingTextColor,
                 onDelete = { onDeleteMessage(message.id) },
+                onReply = { onReplyMessage(message) },
+                onCopy = onCopyMessage,
                 onDownloadFile = onDownloadFile,
                 onOpenFile = onOpenFile
             )

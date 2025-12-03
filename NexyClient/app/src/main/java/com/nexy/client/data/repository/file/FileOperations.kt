@@ -169,90 +169,50 @@ class FileOperations @Inject constructor(
         }
     }
     
-    suspend fun uploadFile(context: Context, fileUri: Uri, type: String): Result<String> {
+    suspend fun uploadFile(context: Context, fileUri: Uri): Result<String> {
         return withContext(Dispatchers.IO) {
             try {
-                var mimeType = context.contentResolver.getType(fileUri)
-                val fileNameFromUri = getFileName(context, fileUri)
+                val fileName = getFileName(context, fileUri) ?: "upload_${System.currentTimeMillis()}"
+                Log.d(TAG, "Uploading file: fileName=$fileName")
                 
-                Log.d(TAG, "uploadFile: uri=$fileUri, mimeType=$mimeType, fileName=$fileNameFromUri")
+                // Get MIME type
+                val mimeType = context.contentResolver.getType(fileUri) ?: "application/octet-stream"
                 
-                // Try to guess mime type from extension if null or generic
-                if (mimeType == null || mimeType == "application/octet-stream") {
-                    val extension = fileNameFromUri?.substringAfterLast('.', "")?.lowercase()
-                    if (!extension.isNullOrEmpty()) {
-                        val newMimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
-                        if (newMimeType != null) {
-                            mimeType = newMimeType
-                            Log.d(TAG, "uploadFile: guessed mimeType=$mimeType from extension=$extension")
-                        }
-                    }
-                }
-                
-                // Fallback
-                if (mimeType == null) mimeType = "image/jpeg"
-                
-                val extension = when {
-                    mimeType!!.contains("png") -> "png"
-                    mimeType!!.contains("gif") -> "gif"
-                    mimeType!!.contains("webp") -> "webp"
-                    else -> "jpg"
-                }
-                
-                val fileName = "avatar_${System.currentTimeMillis()}.$extension"
+                // Create temp file from URI
                 val inputStream = context.contentResolver.openInputStream(fileUri)
                     ?: return@withContext Result.failure(Exception("Cannot open file"))
                 
-                var tempFile = File(context.cacheDir, fileName)
+                val tempFile = File(context.cacheDir, fileName)
                 FileOutputStream(tempFile).use { output ->
                     inputStream.copyTo(output)
                 }
                 inputStream.close()
                 
-                // Check file size and compress if needed
+                // Check file size (10MB limit)
                 if (tempFile.length() > MAX_FILE_SIZE) {
-                    if (mimeType!!.startsWith("image/")) {
-                        val compressed = compressImage(tempFile, MAX_FILE_SIZE)
-                        if (compressed != null) {
-                            tempFile.delete()
-                            tempFile = compressed
-                        } else {
-                            tempFile.delete()
-                            return@withContext Result.failure(Exception("File too large (>10MB) and cannot be compressed"))
-                        }
-                    } else {
-                        tempFile.delete()
-                        return@withContext Result.failure(Exception("File size exceeds 10MB limit"))
-                    }
+                    tempFile.delete()
+                    return@withContext Result.failure(Exception("File size exceeds 10MB limit"))
                 }
                 
-                val requestBody = tempFile.asRequestBody(mimeType!!.toMediaTypeOrNull())
-                val multipartBody = MultipartBody.Part.createFormData("file", tempFile.name, requestBody)
-                val typeBody = type.toRequestBody("text/plain".toMediaTypeOrNull())
+                // Create multipart request
+                val requestBody = tempFile.asRequestBody(mimeType.toMediaTypeOrNull())
+                val multipartBody = MultipartBody.Part.createFormData("file", fileName, requestBody)
+                val typeBody = "image".toRequestBody("text/plain".toMediaTypeOrNull())
                 
-                Log.d(TAG, "uploadFile: calling apiService.uploadFile...")
-                val response = apiService.uploadFile(multipartBody, typeBody)
-                Log.d(TAG, "uploadFile: api call finished. code=${response.code()}, isSuccessful=${response.isSuccessful}")
+                // Upload file to server
+                val uploadResponse = apiService.uploadFile(multipartBody, typeBody)
                 
+                // Clean up temp file
                 tempFile.delete()
                 
-                if (response.isSuccessful) {
-                    val body = response.body()
-                    Log.d(TAG, "uploadFile: response body type=${body?.javaClass?.name}, body=$body")
-                    if (body != null) {
-                        Log.d(TAG, "uploadFile: success. url=${body.url}, thumbnailUrl=${body.thumbnailUrl}")
-                        Result.success(body.url)
-                    } else {
-                        Log.e(TAG, "Upload failed: body is null despite 200 OK")
-                        Result.failure(Exception("Server returned empty response"))
-                    }
+                if (uploadResponse.isSuccessful && uploadResponse.body() != null) {
+                    val fileUrl = uploadResponse.body()!!.url
+                    Result.success(fileUrl)
                 } else {
-                    val errorBody = response.errorBody()?.string() ?: "Unknown error"
-                    Log.e(TAG, "Upload failed: ${response.code()} - $errorBody")
-                    Result.failure(Exception("Failed to upload file: $errorBody"))
+                    Result.failure(Exception("Upload failed: ${uploadResponse.message()}"))
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Upload exception", e)
+                Log.e(TAG, "Upload failed", e)
                 Result.failure(e)
             }
         }

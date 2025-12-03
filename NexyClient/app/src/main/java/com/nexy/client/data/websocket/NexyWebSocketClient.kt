@@ -100,9 +100,19 @@ class NexyWebSocketClient(
         messageCallback = callback
     }
     
-    fun sendTextMessage(chatId: Int, senderId: Int, content: String, messageId: String? = null, recipientId: Int? = null) {
-        Log.d(TAG, "Sending text message: chatId=$chatId, senderId=$senderId, content='$content', recipientId=$recipientId")
+    fun sendTextMessage(chatId: Int, senderId: Int, content: String, messageId: String? = null, recipientId: Int? = null, replyToId: Int? = null) {
+        Log.d(TAG, "Sending text message: chatId=$chatId, senderId=$senderId, content='$content', recipientId=$recipientId, replyToId=$replyToId")
         val msgId = messageId ?: generateMessageId()
+        
+        val body = mutableMapOf<String, Any>(
+            "content" to content,
+            "message_type" to "text"
+        )
+        
+        if (replyToId != null) {
+            body["reply_to_id"] = replyToId
+        }
+        
         val message = NexyMessage(
             header = NexyHeader(
                 type = "chat_message",
@@ -112,10 +122,7 @@ class NexyWebSocketClient(
                 chatId = chatId,
                 recipientId = recipientId
             ),
-            body = mapOf(
-                "content" to content,
-                "message_type" to "text"
-            )
+            body = body
         )
         
         sendMessage(message)

@@ -24,7 +24,7 @@ func NewGroupService(chatRepo *repositories.ChatRepository, userRepo *repositori
 	}
 }
 
-func (s *GroupService) CreateGroup(ctx context.Context, name, description, groupType, username string, creatorID int, initialMembers []int) (*models.Chat, error) {
+func (s *GroupService) CreateGroup(ctx context.Context, name, description, groupType, username string, creatorID int, initialMembers []int, avatarURL string) (*models.Chat, error) {
 	if groupType != "private_group" && groupType != "public_group" {
 		return nil, errors.New("invalid group type: must be 'private_group' or 'public_group'")
 	}
@@ -34,6 +34,7 @@ func (s *GroupService) CreateGroup(ctx context.Context, name, description, group
 		GroupType:   groupType,
 		Name:        name,
 		Description: description,
+		AvatarURL:   avatarURL,
 		CreatedBy:   &creatorID,
 		DefaultPermissions: &models.ChatPermissions{
 			SendMessages: true,

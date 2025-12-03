@@ -29,6 +29,7 @@ type CreateGroupRequest struct {
 	Type        string `json:"type"` // "private" or "public"
 	Username    string `json:"username"`
 	Members     []int  `json:"members"`
+	AvatarURL   string `json:"avatar_url"`
 }
 
 func (c *GroupController) CreateGroup(w http.ResponseWriter, r *http.Request) {
@@ -45,9 +46,9 @@ func (c *GroupController) CreateGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Printf("CreateGroup request: name=%s, type=%s, username=%s, members=%v\n", req.Name, req.Type, req.Username, req.Members)
+	fmt.Printf("CreateGroup request: name=%s, type=%s, username=%s, members=%v, avatar=%s\n", req.Name, req.Type, req.Username, req.Members, req.AvatarURL)
 
-	group, err := c.groupService.CreateGroup(r.Context(), req.Name, req.Description, req.Type, req.Username, userID, req.Members)
+	group, err := c.groupService.CreateGroup(r.Context(), req.Name, req.Description, req.Type, req.Username, userID, req.Members, req.AvatarURL)
 	if err != nil {
 		fmt.Printf("Error creating group: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

@@ -1,10 +1,13 @@
 package com.nexy.client.ui.screens.group
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nexy.client.data.api.NexyApiService
 import com.nexy.client.data.models.ContactWithUser
 import com.nexy.client.data.models.CreateGroupRequest
+import com.nexy.client.data.repository.ChatRepository
 import com.nexy.client.data.repository.ContactRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,6 +19,7 @@ import javax.inject.Inject
 @HiltViewModel
 class CreateGroupViewModel @Inject constructor(
     private val contactRepository: ContactRepository,
+    private val chatRepository: ChatRepository,
     private val apiService: NexyApiService
 ) : ViewModel() {
 
@@ -37,6 +41,9 @@ class CreateGroupViewModel @Inject constructor(
     private val _selectedMembers = MutableStateFlow<Set<Int>>(emptySet())
     val selectedMembers: StateFlow<Set<Int>> = _selectedMembers.asStateFlow()
 
+    private val _groupAvatarUri = MutableStateFlow<Uri?>(null)
+    val groupAvatarUri: StateFlow<Uri?> = _groupAvatarUri.asStateFlow()
+
     init {
         loadContacts()
     }
@@ -55,6 +62,10 @@ class CreateGroupViewModel @Inject constructor(
     
     fun setIsPublic(isPublic: Boolean) {
         _isPublic.value = isPublic
+    }
+
+    fun setGroupAvatar(uri: Uri?) {
+        _groupAvatarUri.value = uri
     }
 
     fun toggleMemberSelection(userId: Int) {
@@ -87,7 +98,7 @@ class CreateGroupViewModel @Inject constructor(
         }
     }
 
-    fun createGroup(onSuccess: (Int) -> Unit) {
+    fun createGroup(context: Context, onSuccess: (Int) -> Unit) {
         val name = _groupName.value.trim()
         val memberIds = _selectedMembers.value.toList()
 
@@ -103,51 +114,43 @@ class CreateGroupViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.value = CreateGroupUiState.Creating
+            
             try {
-                val response = apiService.createGroup(
-                    CreateGroupRequest(
-                        name = name,
-                        description = _groupDescription.value.ifBlank { null },
-                        type = if (_isPublic.value) "public_group" else "private_group",
-                        username = if (_isPublic.value) _groupUsername.value else null,
-                        members = memberIds.ifEmpty { null }
-                    )
-                )
+                var avatarUrl: String? = null
+                val avatarUri = _groupAvatarUri.value
                 
-                if (response.isSuccessful) {
-                    response.body()?.let { chat ->
-                        onSuccess(chat.id)
-                    }
-                } else {
-                    val errorMsg = when {
-                        response.code() == 400 -> "Invalid group data"
-                        response.code() == 409 -> "Username already taken"
-                        response.errorBody()?.string()?.contains("duplicate key") == true -> "Username already exists"
-                        else -> "Failed to create group: ${response.message()}"
-                    }
-                    contactRepository.getContacts().fold(
-                        onSuccess = { contacts ->
-                            _uiState.value = CreateGroupUiState.Error(errorMsg)
+                if (avatarUri != null) {
+                    chatRepository.uploadFile(context, avatarUri).fold(
+                        onSuccess = { url ->
+                            avatarUrl = url
                         },
-                        onFailure = {
-                            _uiState.value = CreateGroupUiState.Error(errorMsg)
+                        onFailure = { error ->
+                            _uiState.value = CreateGroupUiState.Error("Failed to upload avatar: ${error.message}")
+                            return@launch
                         }
                     )
                 }
-            } catch (e: Exception) {
-                val errorMsg = when {
-                    e.message?.contains("duplicate", ignoreCase = true) == true -> "Username already exists"
-                    e.message?.contains("network", ignoreCase = true) == true -> "Network error. Please check your connection"
-                    else -> e.message ?: "Failed to create group"
-                }
-                contactRepository.getContacts().fold(
-                    onSuccess = { contacts ->
-                        _uiState.value = CreateGroupUiState.Error(errorMsg)
-                    },
-                    onFailure = {
-                        _uiState.value = CreateGroupUiState.Error(errorMsg)
-                    }
+
+                val request = CreateGroupRequest(
+                    name = name,
+                    description = _groupDescription.value.takeIf { it.isNotBlank() },
+                    type = if (_isPublic.value) "public_group" else "private_group",
+                    username = if (_isPublic.value) _groupUsername.value else null,
+                    members = memberIds,
+                    avatarUrl = avatarUrl
                 )
+                
+                val response = apiService.createGroup(request)
+                if (response.isSuccessful && response.body() != null) {
+                    val chat = response.body()!!
+                    onSuccess(chat.id)
+                } else {
+                    _uiState.value = CreateGroupUiState.Error(
+                        response.errorBody()?.string() ?: "Failed to create group"
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.value = CreateGroupUiState.Error(e.message ?: "Unknown error")
             }
         }
     }

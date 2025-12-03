@@ -20,6 +20,7 @@ import androidx.room.Index
 data class MessageEntity(
     @PrimaryKey
     val id: String,
+    val serverId: Int? = null,
     val chatId: Int,  // Changed from String to Int
     val senderId: Int,  // Changed from String to Int
     val content: String,

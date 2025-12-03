@@ -1,17 +1,27 @@
 package com.nexy.client.ui.screens.group
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.nexy.client.data.models.ContactWithUser
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -24,6 +34,15 @@ fun CreateGroupScreen(
     val uiState by viewModel.uiState.collectAsState()
     val groupName by viewModel.groupName.collectAsState()
     val selectedMembers by viewModel.selectedMembers.collectAsState()
+    val groupAvatarUri by viewModel.groupAvatarUri.collectAsState()
+    
+    val context = LocalContext.current
+    
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        viewModel.setGroupAvatar(uri)
+    }
 
     Scaffold(
         topBar = {
@@ -38,7 +57,7 @@ fun CreateGroupScreen(
                     if (uiState is CreateGroupUiState.Success || uiState is CreateGroupUiState.Error) {
                         TextButton(
                             onClick = {
-                                viewModel.createGroup { chatId ->
+                                viewModel.createGroup(context) { chatId ->
                                     onGroupCreated(chatId)
                                 }
                             },
@@ -118,6 +137,44 @@ fun CreateGroupScreen(
                         .fillMaxSize()
                         .padding(padding)
                 ) {
+                    // Avatar Picker
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(100.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .clickable {
+                                    photoPickerLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    )
+                                }
+                                .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (groupAvatarUri != null) {
+                                AsyncImage(
+                                    model = groupAvatarUri,
+                                    contentDescription = "Group Avatar",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.AddAPhoto,
+                                    contentDescription = "Add Photo",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
+                        }
+                    }
+
                     OutlinedTextField(
                         value = groupName,
                         onValueChange = { viewModel.setGroupName(it) },
@@ -126,7 +183,7 @@ fun CreateGroupScreen(
                         leadingIcon = { Icon(Icons.Default.Group, null) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
+                            .padding(horizontal = 16.dp),
                         singleLine = true
                     )
                     
@@ -137,7 +194,7 @@ fun CreateGroupScreen(
                         placeholder = { Text("Enter group description") },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
                         minLines = 2,
                         maxLines = 3
                     )
@@ -198,57 +255,53 @@ fun CreateGroupScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-
+                    
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         items(
-                            items = state.contacts,
-                            key = { it.contactUserId }
+                            items = (uiState as CreateGroupUiState.Success).contacts,
+                            key = { it.id }
                         ) { contact ->
                             ContactSelectionItem(
                                 contact = contact,
-                                isSelected = selectedMembers.contains(contact.contactUserId),
-                                onToggle = { viewModel.toggleMemberSelection(contact.contactUserId) }
+                                isSelected = selectedMembers.contains(contact.contactUser.id),
+                                onToggle = { viewModel.toggleMemberSelection(contact.contactUser.id) }
                             )
-                            HorizontalDivider()
                         }
                     }
                 }
             }
-
+            
             is CreateGroupUiState.Error -> {
-                Column(
+                // Show error but keep form visible if possible? 
+                // For now, just show error screen or snackbar
+                // But since we handle error in actions, we might want to show the form again
+                // Let's just show the error message
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(padding)
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
                 ) {
-                    // Show error snackbar
-                    Snackbar(
-                        modifier = Modifier.padding(16.dp),
-                        action = {
-                            TextButton(onClick = { viewModel.loadContacts() }) {
-                                Text("Retry")
-                            }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.Error,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            text = state.message,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Button(onClick = { viewModel.loadContacts() }) {
+                            Text("Retry")
                         }
-                    ) {
-                        Text(state.message)
                     }
-
-                    Spacer(Modifier.height(16.dp))
-
-                    // Still show the form for retry
-                    OutlinedTextField(
-                        value = groupName,
-                        onValueChange = { viewModel.setGroupName(it) },
-                        label = { Text("Group Name") },
-                        placeholder = { Text("Enter group name") },
-                        leadingIcon = { Icon(Icons.Default.Group, null) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        singleLine = true
-                    )
                 }
             }
         }
@@ -256,46 +309,45 @@ fun CreateGroupScreen(
 }
 
 @Composable
-private fun ContactSelectionItem(
+fun ContactSelectionItem(
     contact: ContactWithUser,
     isSelected: Boolean,
     onToggle: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onToggle)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Checkbox(
-            checked = isSelected,
-            onCheckedChange = { onToggle() }
-        )
-
-        Spacer(Modifier.width(16.dp))
-
-        Icon(
-            Icons.Default.AccountCircle,
-            contentDescription = null,
-            modifier = Modifier.size(40.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
-
-        Spacer(Modifier.width(16.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = contact.contactUser.displayName?.ifBlank { contact.contactUser.username } ?: contact.contactUser.username,
-                style = MaterialTheme.typography.bodyLarge
-            )
-            if (contact.contactUser.displayName?.isNotBlank() == true) {
-                Text(
-                    text = "@${contact.contactUser.username}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline
+    ListItem(
+        headlineContent = { Text(contact.contactUser.displayName ?: contact.contactUser.username) },
+        supportingContent = { Text("@${contact.contactUser.username}") },
+        leadingContent = {
+            if (contact.contactUser.avatarUrl != null) {
+                AsyncImage(
+                    model = contact.contactUser.avatarUrl,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
                 )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = (contact.contactUser.displayName ?: contact.contactUser.username).take(1).uppercase(),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
             }
-        }
-    }
+        },
+        trailingContent = {
+            Checkbox(
+                checked = isSelected,
+                onCheckedChange = { onToggle() }
+            )
+        },
+        modifier = Modifier.clickable { onToggle() }
+    )
 }

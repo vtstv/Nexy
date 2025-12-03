@@ -105,7 +105,9 @@ object AppModule {
             context,
             NexyDatabase::class.java,
             "nexy_database"
-        ).build()
+        )
+        .fallbackToDestructiveMigration()
+        .build()
     }
     
     @Provides

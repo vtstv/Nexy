@@ -172,7 +172,7 @@ class ChatViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(messageText = text)
     }
     
-    fun sendMessage() {
+    fun sendMessage(replyToId: Int? = null) {
         val text = _uiState.value.messageText.trim()
         if (text.isEmpty()) return
         
@@ -188,7 +188,8 @@ class ChatViewModel @Inject constructor(
                     text = text,
                     chatType = _uiState.value.chatType,
                     isSelfChat = _uiState.value.isSelfChat,
-                    participantIds = _uiState.value.participantIds
+                    participantIds = _uiState.value.participantIds,
+                    replyToId = replyToId
                 ).fold(
                     onSuccess = {
                         _uiState.value = _uiState.value.copy(error = null)
