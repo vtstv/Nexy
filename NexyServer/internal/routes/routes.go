@@ -100,6 +100,7 @@ func (rt *Router) Setup() *mux.Router {
 	chats.HandleFunc("/groups/{id:[0-9]+}/members", rt.groupController.GetGroupMembers).Methods("GET")
 	chats.HandleFunc("/groups/{id:[0-9]+}/members/{userId:[0-9]+}/role", rt.groupController.UpdateMemberRole).Methods("PUT")
 	chats.HandleFunc("/groups/{id:[0-9]+}/members/{userId:[0-9]+}", rt.groupController.RemoveMember).Methods("DELETE")
+	chats.HandleFunc("/groups/{id:[0-9]+}/transfer-ownership", rt.groupController.TransferOwnership).Methods("POST")
 	chats.HandleFunc("/groups/{id:[0-9]+}/invites", rt.groupController.CreateInviteLink).Methods("POST")
 	chats.HandleFunc("/groups/@{username}", rt.groupController.JoinGroupByUsername).Methods("POST")
 

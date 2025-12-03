@@ -161,4 +161,10 @@ class ChatOperations @Inject constructor(
     
     suspend fun createGroupInviteLink(groupId: Int, usageLimit: Int? = null, expiresIn: Int? = null) =
         chatInviteOperations.createGroupInviteLink(groupId, usageLimit, expiresIn)
+    
+    suspend fun joinPublicGroup(groupId: Int) =
+        chatInviteOperations.joinPublicGroup(groupId)
+    
+    suspend fun transferOwnership(groupId: Int, newOwnerId: Int) =
+        chatInviteOperations.transferOwnership(groupId, newOwnerId)
 }

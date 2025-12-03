@@ -16,6 +16,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.nexy.client.data.models.GroupType
 import com.nexy.client.data.models.User
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -133,18 +137,27 @@ fun GroupInfoScreen(
                 // Actions
                 item {
                     Column(modifier = Modifier.fillMaxWidth()) {
-                        ListItem(
-                            headlineContent = { Text("Add Participants") },
-                            leadingContent = { Icon(Icons.Default.Add, contentDescription = null) },
-                            modifier = Modifier.clickable { onAddParticipant(chatId) }
-                        )
-                        Divider()
-                        ListItem(
-                            headlineContent = { Text("Leave Group", color = MaterialTheme.colorScheme.error) },
-                            leadingContent = { Icon(Icons.Default.ExitToApp, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-                            modifier = Modifier.clickable { viewModel.leaveGroup() }
-                        )
-                        Divider()
+                        if (uiState.isMember) {
+                            ListItem(
+                                headlineContent = { Text("Add Participants") },
+                                leadingContent = { Icon(Icons.Default.Add, contentDescription = null) },
+                                modifier = Modifier.clickable { onAddParticipant(chatId) }
+                            )
+                            Divider()
+                            ListItem(
+                                headlineContent = { Text("Leave Group", color = MaterialTheme.colorScheme.error) },
+                                leadingContent = { Icon(Icons.Default.ExitToApp, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                                modifier = Modifier.clickable { viewModel.leaveGroup() }
+                            )
+                            Divider()
+                        } else if (uiState.chat?.groupType == GroupType.PUBLIC_GROUP) {
+                            ListItem(
+                                headlineContent = { Text("Join Group", color = MaterialTheme.colorScheme.primary) },
+                                leadingContent = { Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                                modifier = Modifier.clickable { viewModel.joinGroup() }
+                            )
+                            Divider()
+                        }
                     }
                 }
 
@@ -160,6 +173,9 @@ fun GroupInfoScreen(
                 items(uiState.participants) { user ->
                     ParticipantItem(
                         user = user,
+                        isOwner = uiState.chat?.createdBy == uiState.currentUserId,
+                        canTransferOwnership = uiState.chat?.createdBy == uiState.currentUserId && user.id != uiState.currentUserId,
+                        onTransferOwnership = { viewModel.transferOwnership(user.id) },
                         onClick = { onParticipantClick(user.id) }
                     )
                 }
@@ -173,7 +189,15 @@ fun GroupInfoScreen(
 }
 
 @Composable
-fun ParticipantItem(user: User, onClick: () -> Unit) {
+fun ParticipantItem(
+    user: User,
+    isOwner: Boolean = false,
+    canTransferOwnership: Boolean = false,
+    onTransferOwnership: () -> Unit = {},
+    onClick: () -> Unit
+) {
+    var showTransferDialog by remember { mutableStateOf(false) }
+    
     ListItem(
         headlineContent = { Text(user.displayName ?: user.username) },
         supportingContent = { 
@@ -207,6 +231,34 @@ fun ParticipantItem(user: User, onClick: () -> Unit) {
                 }
             }
         },
+        trailingContent = if (canTransferOwnership) {
+            {
+                IconButton(onClick = { showTransferDialog = true }) {
+                    Icon(Icons.Default.Person, contentDescription = "Transfer Ownership")
+                }
+            }
+        } else null,
         modifier = Modifier.clickable(onClick = onClick)
     )
+    
+    if (showTransferDialog) {
+        AlertDialog(
+            onDismissRequest = { showTransferDialog = false },
+            title = { Text("Transfer Ownership") },
+            text = { Text("Are you sure you want to transfer group ownership to ${user.displayName ?: user.username}? You will become an admin.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showTransferDialog = false
+                    onTransferOwnership()
+                }) {
+                    Text("Transfer")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTransferDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }

@@ -31,6 +31,7 @@ logs/
 .idea/
 .vscode/
 *.code-workspace
+.github/copilot-instructions.md
 
 # Build artifacts
 build/

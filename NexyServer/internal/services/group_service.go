@@ -205,7 +205,6 @@ func (s *GroupService) GetGroupMembers(ctx context.Context, groupID, userID int)
 }
 
 func (s *GroupService) UpdateMemberRole(ctx context.Context, groupID, requestorID, targetUserID int, role string) error {
-	// Check permissions
 	requestor, err := s.chatRepo.GetChatMember(ctx, groupID, requestorID)
 	if err != nil {
 		return err
@@ -216,6 +215,39 @@ func (s *GroupService) UpdateMemberRole(ctx context.Context, groupID, requestorI
 	}
 
 	return s.chatRepo.UpdateMemberRole(ctx, groupID, targetUserID, role)
+}
+
+func (s *GroupService) TransferOwnership(ctx context.Context, groupID, currentOwnerID, newOwnerID int) error {
+	currentOwner, err := s.chatRepo.GetChatMember(ctx, groupID, currentOwnerID)
+	if err != nil {
+		return err
+	}
+
+	if currentOwner.Role != "owner" {
+		return errors.New("permission denied: only owner can transfer ownership")
+	}
+
+	_, err = s.chatRepo.GetChatMember(ctx, groupID, newOwnerID)
+	if err != nil {
+		return errors.New("new owner is not a member of the group")
+	}
+
+	if err := s.chatRepo.UpdateMemberRole(ctx, groupID, currentOwnerID, "admin"); err != nil {
+		return err
+	}
+
+	if err := s.chatRepo.UpdateMemberRole(ctx, groupID, newOwnerID, "owner"); err != nil {
+		s.chatRepo.UpdateMemberRole(ctx, groupID, currentOwnerID, "owner")
+		return err
+	}
+
+	chat, err := s.chatRepo.GetByID(ctx, groupID)
+	if err == nil {
+		chat.CreatedBy = &newOwnerID
+		s.chatRepo.UpdateChat(ctx, chat)
+	}
+
+	return nil
 }
 
 func (s *GroupService) RemoveMember(ctx context.Context, groupID, requestorID, targetUserID int) error {

@@ -28,24 +28,13 @@ class GroupInfoViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             try {
-                // Force refresh chat info from server to ensure participant list is up to date
-                // This addresses the "synchronization problems" for group members
-                // We don't have a direct "force refresh single chat" but we can fetch chat details from API
-                // Actually, let's check if we can use getChatById with a force flag or similar
-                // For now, we'll rely on the repository. 
-                // If we want to be sure, we should probably add a refresh method.
-                // But let's assume getChatById might return cached data.
-                // Let's try to refresh the chat list or similar if needed.
-                // However, for now, let's just proceed.
-                
                 val chatResult = chatRepository.getChatById(chatId)
                 if (chatResult.isSuccess) {
                     val chat = chatResult.getOrNull()!!
-                    
-                    // Parse participant IDs
+                    val currentUserId = getCurrentUserId()
                     val participantIds = chat.participantIds ?: emptyList()
+                    val isMember = currentUserId != null && participantIds.contains(currentUserId)
                     
-                    // Fetch participants - force refresh to get latest status/avatar
                     val participants = participantIds.map { userId ->
                         async { userRepository.getUserById(userId, forceRefresh = true).getOrNull() }
                     }.awaitAll().filterNotNull()
@@ -53,6 +42,8 @@ class GroupInfoViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(
                         chat = chat,
                         participants = participants,
+                        currentUserId = currentUserId,
+                        isMember = isMember,
                         isLoading = false
                     )
                 } else {
@@ -77,8 +68,6 @@ class GroupInfoViewModel @Inject constructor(
             try {
                 val result = chatRepository.leaveGroup(chat.id)
                 if (result.isSuccess) {
-                    // Navigate back or handle success
-                    // For now, we just update state, UI should observe and navigate
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         isLeftGroup = true
@@ -97,12 +86,64 @@ class GroupInfoViewModel @Inject constructor(
             }
         }
     }
+
+    fun joinGroup() {
+        val chat = uiState.value.chat ?: return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            try {
+                val result = chatRepository.joinPublicGroup(chat.id)
+                if (result.isSuccess) {
+                    loadGroupInfo(chat.id)
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        error = "Failed to join group",
+                        isLoading = false
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    error = e.message ?: "Unknown error",
+                    isLoading = false
+                )
+            }
+        }
+    }
+    
+    fun transferOwnership(newOwnerId: Int) {
+        val chat = uiState.value.chat ?: return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            try {
+                val result = chatRepository.transferOwnership(chat.id, newOwnerId)
+                if (result.isSuccess) {
+                    loadGroupInfo(chat.id)
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        error = "Failed to transfer ownership",
+                        isLoading = false
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    error = e.message ?: "Unknown error",
+                    isLoading = false
+                )
+            }
+        }
+    }
+
+    private suspend fun getCurrentUserId(): Int? {
+        return userRepository.getCurrentUser().getOrNull()?.id
+    }
 }
 
 data class GroupInfoUiState(
     val chat: Chat? = null,
     val participants: List<User> = emptyList(),
+    val currentUserId: Int? = null,
+    val isMember: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null,
-    val isLeftGroup: Boolean = false // Track if the user has left the group
+    val isLeftGroup: Boolean = false
 )

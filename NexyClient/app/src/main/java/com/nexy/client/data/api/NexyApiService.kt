@@ -149,6 +149,12 @@ interface NexyApiService {
         @Body request: CreateInviteLinkRequest
     ): Response<ChatInviteLink>
     
+    @POST("chats/groups/{groupId}/transfer-ownership")
+    suspend fun transferOwnership(
+        @Path("groupId") groupId: Int,
+        @Body request: TransferOwnershipRequest
+    ): Response<Unit>
+    
     @POST("chats/groups/{groupId}/join")
     suspend fun joinPublicGroup(@Path("groupId") groupId: Int): Response<Unit>
     
@@ -180,6 +186,11 @@ data class CreateGroupChatRequest(
 data class AddMemberRequest(
     @com.google.gson.annotations.SerializedName("user_id")
     val userId: Int
+)
+
+data class TransferOwnershipRequest(
+    @com.google.gson.annotations.SerializedName("new_owner_id")
+    val newOwnerId: Int
 )
 
 data class DeleteMessageRequest(

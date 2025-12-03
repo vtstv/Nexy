@@ -91,6 +91,14 @@ class ChatRepository @Inject constructor(
     suspend fun addGroupMember(groupId: Int, userId: Int): Result<Unit> = chatOperations.addGroupMember(groupId, userId)
 
     suspend fun createGroupInviteLink(groupId: Int): Result<InviteLink> = chatOperations.createGroupInviteLink(groupId)
+    
+    suspend fun joinPublicGroup(groupId: Int): Result<Unit> {
+        return chatOperations.joinPublicGroup(groupId)
+    }
+    
+    suspend fun transferOwnership(groupId: Int, newOwnerId: Int): Result<Unit> {
+        return chatOperations.transferOwnership(groupId, newOwnerId)
+    }
 }
 
 // ChatInfo data class for UI

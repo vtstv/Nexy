@@ -142,4 +142,35 @@ class ChatInviteOperations @Inject constructor(
             }
         }
     }
+    
+    suspend fun joinPublicGroup(groupId: Int): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.joinPublicGroup(groupId)
+                if (response.isSuccessful) {
+                    Result.success(Unit)
+                } else {
+                    Result.failure(Exception("Failed to join group"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+    
+    suspend fun transferOwnership(groupId: Int, newOwnerId: Int): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val request = com.nexy.client.data.api.TransferOwnershipRequest(newOwnerId)
+                val response = apiService.transferOwnership(groupId, request)
+                if (response.isSuccessful) {
+                    Result.success(Unit)
+                } else {
+                    Result.failure(Exception("Failed to transfer ownership"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
 }
