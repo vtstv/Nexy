@@ -36,6 +36,7 @@ import com.nexy.client.data.models.User
 fun GroupInfoScreen(
     chatId: Int,
     onNavigateBack: () -> Unit,
+    onGroupLeft: () -> Unit = {},
     onAddParticipant: (Int) -> Unit,
     onParticipantClick: (Int) -> Unit,
     viewModel: GroupInfoViewModel = hiltViewModel()
@@ -48,7 +49,7 @@ fun GroupInfoScreen(
 
     LaunchedEffect(uiState.isLeftGroup) {
         if (uiState.isLeftGroup) {
-            onNavigateBack()
+            onGroupLeft()
         }
     }
 

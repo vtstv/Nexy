@@ -11,6 +11,7 @@ import com.nexy.client.data.api.NexyApiService
 import com.nexy.client.data.repository.chat.ChatMappers
 import com.nexy.client.data.repository.message.MessageMappers
 import com.nexy.client.data.local.SettingsManager
+import com.nexy.client.data.repository.UserRepository
 import com.nexy.client.utils.NotificationHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,7 +28,8 @@ class WebSocketMessageHandler @Inject constructor(
     private val chatMappers: ChatMappers,
     private val apiService: NexyApiService,
     private val notificationHelper: NotificationHelper,
-    private val settingsManager: SettingsManager
+    private val settingsManager: SettingsManager,
+    private val userRepository: UserRepository
 ) {
     companion object {
         private const val TAG = "WSMessageHandler"
@@ -77,6 +79,15 @@ class WebSocketMessageHandler @Inject constructor(
         )
         
         Log.d(TAG, "Saving incoming message to DB: chatId=${message.chatId}, messageId=${message.id}, content=${message.content}")
+        
+        // Ensure sender exists locally for avatar display
+        if (message.senderId != 0) {
+            try {
+                userRepository.getUserById(message.senderId)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to fetch sender ${message.senderId}", e)
+            }
+        }
         
         // Ensure chat exists locally
         val existingChat = chatDao.getChatById(message.chatId)

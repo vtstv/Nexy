@@ -8,6 +8,7 @@ import com.nexy.client.data.api.NexyApiService
 import com.nexy.client.data.local.dao.ChatDao
 import com.nexy.client.data.local.entity.ChatEntity
 import com.nexy.client.data.models.Chat
+import com.nexy.client.data.repository.UserRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -17,7 +18,8 @@ import javax.inject.Singleton
 class ChatSyncOperations @Inject constructor(
     private val apiService: NexyApiService,
     private val chatDao: ChatDao,
-    private val chatMappers: ChatMappers
+    private val chatMappers: ChatMappers,
+    private val userRepository: UserRepository
 ) {
     companion object {
         private const val TAG = "ChatSyncOperations"
@@ -31,6 +33,13 @@ class ChatSyncOperations @Inject constructor(
                     val chats = response.body()!!
                     
                     val existingChatsMap = chatDao.getAllChatsSync().associateBy { it.id }
+                    val serverChatIds = chats.map { it.id }.toSet()
+                    
+                    // Delete chats that exist locally but not on server
+                    val chatsToDelete = existingChatsMap.keys.filter { !serverChatIds.contains(it) }
+                    chatsToDelete.forEach { chatId ->
+                        chatDao.deleteChatById(chatId)
+                    }
                     
                     val updates = ArrayList<ChatEntity>()
                     val inserts = ArrayList<ChatEntity>()
@@ -73,14 +82,19 @@ class ChatSyncOperations @Inject constructor(
     suspend fun getChatById(chatId: Int): Result<Chat> {
         return withContext(Dispatchers.IO) {
             try {
-                val localChat = chatDao.getChatById(chatId)
-                if (localChat != null) {
-                    return@withContext Result.success(chatMappers.entityToModel(localChat))
-                }
-                
+                // Try API first to get fresh data (especially participants)
                 val response = apiService.getChatById(chatId)
                 if (response.isSuccessful && response.body() != null) {
                     val chat = response.body()!!
+                    
+                    // Pre-fetch participants to ensure avatars are available
+                    chat.participantIds?.forEach { userId ->
+                        try {
+                            userRepository.getUserById(userId)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to fetch participant $userId", e)
+                        }
+                    }
                     
                     val existingChat = chatDao.getChatById(chatId)
                     if (existingChat != null) {
@@ -93,14 +107,35 @@ class ChatSyncOperations @Inject constructor(
                     } else {
                         chatDao.insertChat(chatMappers.modelToEntity(chat))
                     }
-                    
                     Result.success(chat)
                 } else {
-                    Result.failure(Exception("Chat not found"))
+                    // Fallback to local if API fails
+                    val localChat = chatDao.getChatById(chatId)
+                    if (localChat != null) {
+                        val chat = chatMappers.entityToModel(localChat)
+                        // Ensure participants are cached for avatars even if offline
+                        chat.participantIds?.forEach { userId ->
+                            try {
+                                userRepository.getUserById(userId)
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Failed to fetch participant $userId", e)
+                            }
+                        }
+                        Result.success(chat)
+                    } else {
+                        Result.failure(Exception("Chat not found"))
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting chat by ID: $chatId", e)
-                Result.failure(e)
+                // Fallback to local on error
+                val localChat = chatDao.getChatById(chatId)
+                if (localChat != null) {
+                    val chat = chatMappers.entityToModel(localChat)
+                    Result.success(chat)
+                } else {
+                    Result.failure(e)
+                }
             }
         }
     }
