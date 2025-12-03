@@ -5,13 +5,13 @@ import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.nexy.client.data.local.AuthTokenManager
 import com.nexy.client.data.models.Message
 import com.nexy.client.data.models.ChatType
 import com.nexy.client.data.models.GroupType
-import com.nexy.client.data.repository.ChatRepository
-import com.nexy.client.data.repository.UserRepository
-import com.nexy.client.data.webrtc.WebRTCClient
+import com.nexy.client.ui.screens.chat.handlers.CallHandler
+import com.nexy.client.ui.screens.chat.handlers.ChatStateManager
+import com.nexy.client.ui.screens.chat.handlers.FileOperationsHandler
+import com.nexy.client.ui.screens.chat.handlers.MessageOperationsHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -34,10 +34,10 @@ data class ChatUiState(
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
-    private val chatRepository: ChatRepository,
-    private val userRepository: UserRepository,
-    private val tokenManager: AuthTokenManager,
-    private val webRTCClient: WebRTCClient,
+    private val stateManager: ChatStateManager,
+    private val messageOps: MessageOperationsHandler,
+    private val fileOps: FileOperationsHandler,
+    private val callHandler: CallHandler,
     private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     
@@ -89,7 +89,7 @@ class ChatViewModel @Inject constructor(
     
     private fun loadCurrentUser() {
         viewModelScope.launch {
-            val userId = tokenManager.getUserId()
+            val userId = stateManager.loadCurrentUserId()
             _uiState.value = _uiState.value.copy(currentUserId = userId)
         }
     }
@@ -97,44 +97,18 @@ class ChatViewModel @Inject constructor(
     private fun loadChatName() {
         viewModelScope.launch {
             try {
-                // Ensure we have the current user ID
-                val currentUserId = tokenManager.getUserId()
+                val currentUserId = stateManager.loadCurrentUserId()
+                val chatInfo = stateManager.loadChatInfo(chatId, currentUserId)
                 
-                val chatResult = chatRepository.getChatById(chatId)
-                if (chatResult.isSuccess) {
-                    val chat = chatResult.getOrNull()!!
-                    
-                    // Refresh chat info from server to ensure we have latest data
-                    // This is the "reliable method" - fetch fresh data on entry
-                    val freshChatResult = chatRepository.getChatById(chatId) // This might be cached, let's check repo
-                    // Actually, let's force a refresh if possible or just rely on getChatById which might hit DB
-                    // But we want to ensure we have the latest members/name etc.
-                    // ChatRepository.getChatById hits DB first.
-                    // We should add a method to force refresh a single chat or just use refreshChats()
-                    // But refreshChats gets ALL chats.
-                    // Let's just use what we have, but maybe trigger a message fetch
-                    
-                    val name = if (chat.type == ChatType.PRIVATE) {
-                        // For private chats, find the other user's name
-                        if (chat.participantIds != null && currentUserId != null) {
-                            val otherUserId = chat.participantIds.firstOrNull { it != currentUserId } ?: currentUserId
-                            val userResult = userRepository.getUserById(otherUserId)
-                            userResult.getOrNull()?.displayName ?: userResult.getOrNull()?.username ?: "Chat"
-                        } else {
-                            "Chat"
-                        }
-                    } else {
-                        chat.name ?: "Group Chat"
-                    }
-                    
+                if (chatInfo != null) {
                     _uiState.value = _uiState.value.copy(
-                        chatName = name,
-                        chatAvatarUrl = chat.avatarUrl,
-                        chatType = chat.type,
-                        groupType = chat.groupType,
-                        participantIds = chat.participantIds ?: emptyList(),
-                        isSelfChat = chat.participantIds?.size == 1 && chat.participantIds.contains(currentUserId),
-                        isCreator = chat.createdBy == currentUserId
+                        chatName = chatInfo.chatName,
+                        chatAvatarUrl = chatInfo.chatAvatarUrl,
+                        chatType = chatInfo.chatType,
+                        groupType = chatInfo.groupType,
+                        participantIds = chatInfo.participantIds,
+                        isSelfChat = chatInfo.isSelfChat,
+                        isCreator = chatInfo.isCreator
                     )
                 }
             } catch (e: Exception) {
@@ -148,7 +122,7 @@ class ChatViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isLoading = true)
             
             // First, start observing local DB
-            chatRepository.getMessagesByChatId(chatId)
+            messageOps.observeMessages(chatId)
                 .collect { messages ->
                     _uiState.value = _uiState.value.copy(
                         messages = messages,
@@ -158,22 +132,12 @@ class ChatViewModel @Inject constructor(
         }
         
         // Also trigger a fetch from server to ensure we're up to date
-        // This addresses the "synchronization problems" by pulling latest messages
         viewModelScope.launch {
             try {
-                chatRepository.loadMessages(chatId)
+                messageOps.loadMessages(chatId)
             } catch (e: Exception) {
                 // Error handled in repository/operations
             }
-        }
-    }
-    
-    private suspend fun ensureChatExists() {
-        try {
-            // Try to get chat from repository, which will fetch from server if not in DB
-            chatRepository.getChatById(chatId)
-        } catch (e: Exception) {
-            android.util.Log.w("ChatViewModel", "Chat not found, will be created on first message", e)
         }
     }
     
@@ -182,10 +146,7 @@ class ChatViewModel @Inject constructor(
             try {
                 _uiState.value = _uiState.value.copy(isLoading = true)
                 
-                // Ensure chat exists before loading messages
-                ensureChatExists()
-                
-                chatRepository.loadMessages(chatId).fold(
+                messageOps.loadMessages(chatId).fold(
                     onSuccess = {
                         _uiState.value = _uiState.value.copy(isLoading = false, error = null)
                     },
@@ -219,17 +180,16 @@ class ChatViewModel @Inject constructor(
             try {
                 val userId = _uiState.value.currentUserId ?: return@launch
                 
-                // Determine recipient for E2E encryption (only for private chats)
-                val recipientUserId = if (_uiState.value.chatType == ChatType.PRIVATE && !_uiState.value.isSelfChat) {
-                    // Find the other participant (not current user)
-                    _uiState.value.participantIds.firstOrNull { it != userId }
-                } else {
-                    null // No E2E for groups or self-chats
-                }
-                
                 _uiState.value = _uiState.value.copy(messageText = "")
                 
-                chatRepository.sendMessage(chatId, userId, text, recipientUserId = recipientUserId).fold(
+                messageOps.sendMessage(
+                    chatId = chatId,
+                    userId = userId,
+                    text = text,
+                    chatType = _uiState.value.chatType,
+                    isSelfChat = _uiState.value.isSelfChat,
+                    participantIds = _uiState.value.participantIds
+                ).fold(
                     onSuccess = {
                         _uiState.value = _uiState.value.copy(error = null)
                     },
@@ -250,7 +210,7 @@ class ChatViewModel @Inject constructor(
                 
                 _uiState.value = _uiState.value.copy(isLoading = true)
                 
-                chatRepository.sendFileMessage(chatId, userId, context, fileUri, fileName).fold(
+                fileOps.sendFileMessage(chatId, userId, context, fileUri, fileName).fold(
                     onSuccess = {
                         _uiState.value = _uiState.value.copy(error = null, isLoading = false)
                         android.util.Log.d("ChatViewModel", "File message sent successfully")
@@ -273,14 +233,14 @@ class ChatViewModel @Inject constructor(
     
     fun markAsRead() {
         viewModelScope.launch {
-            chatRepository.markChatAsRead(chatId)
+            messageOps.markAsRead(chatId)
         }
     }
     
     fun deleteMessage(messageId: String) {
         viewModelScope.launch {
             try {
-                chatRepository.deleteMessage(messageId).fold(
+                messageOps.deleteMessage(messageId).fold(
                     onSuccess = {
                         android.util.Log.d("ChatViewModel", "Message deleted successfully: $messageId")
                     },
@@ -301,7 +261,7 @@ class ChatViewModel @Inject constructor(
     fun clearChat() {
         viewModelScope.launch {
             try {
-                chatRepository.clearChatMessages(chatId).fold(
+                messageOps.clearChat(chatId).fold(
                     onSuccess = {
                         android.util.Log.d("ChatViewModel", "Chat cleared successfully")
                         _uiState.value = _uiState.value.copy(error = null)
@@ -323,7 +283,7 @@ class ChatViewModel @Inject constructor(
     fun deleteChat() {
         viewModelScope.launch {
             try {
-                chatRepository.deleteChat(chatId).fold(
+                messageOps.deleteChat(chatId).fold(
                     onSuccess = {
                         android.util.Log.d("ChatViewModel", "Chat deleted successfully")
                     },
@@ -346,15 +306,12 @@ class ChatViewModel @Inject constructor(
             try {
                 _uiState.value = _uiState.value.copy(isLoading = true)
                 
-                chatRepository.downloadFile(fileId, context, fileName).fold(
+                fileOps.downloadFile(fileId, context, fileName).fold(
                     onSuccess = { fileUri ->
                         _uiState.value = _uiState.value.copy(isLoading = false, error = null)
                         android.util.Log.d("ChatViewModel", "File downloaded successfully to: $fileUri")
                         
-                        // Just refresh UI to show "Open" button, don't auto-open
-                        // Trigger a recomposition by updating a dummy state or just let the file existence check handle it
-                        // Since MessageBubble checks file existence, it should update automatically on next composition
-                        // But we might need to force a refresh if it doesn't
+                        // Trigger a recomposition
                         _uiState.value = _uiState.value.copy(messages = _uiState.value.messages)
                     },
                     onFailure = { error ->
@@ -374,34 +331,9 @@ class ChatViewModel @Inject constructor(
     }
     
     fun openFile(context: Context, fileName: String) {
-        try {
-            val file = java.io.File(context.getExternalFilesDir(null), fileName)
-            if (!file.exists()) {
-                _uiState.value = _uiState.value.copy(error = "File not found")
-                return
-            }
-            
-            val contentUri = androidx.core.content.FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                file
-            )
-            
-            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                setDataAndType(contentUri, context.contentResolver.getType(contentUri) ?: "*/*")
-                flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
-            }
-            
-            try {
-                context.startActivity(android.content.Intent.createChooser(intent, "Open file"))
-            } catch (e: android.content.ActivityNotFoundException) {
-                _uiState.value = _uiState.value.copy(error = "No app found to open this file")
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("ChatViewModel", "Error opening file", e)
-            _uiState.value = _uiState.value.copy(
-                error = "Error opening file: ${e.message}"
-            )
+        val error = fileOps.openFile(context, fileName)
+        if (error != null) {
+            _uiState.value = _uiState.value.copy(error = error)
         }
     }
     
@@ -410,19 +342,9 @@ class ChatViewModel @Inject constructor(
     }
     
     fun startCall() {
-        val currentState = _uiState.value
-        val currentUserId = currentState.currentUserId
-        val participantIds = currentState.participantIds
-        
-        if (currentUserId != null && participantIds.isNotEmpty()) {
-            val recipientId = participantIds.firstOrNull { it != currentUserId }
-            if (recipientId != null) {
-                webRTCClient.startCall(recipientId, currentUserId)
-            } else {
-                _uiState.value = currentState.copy(error = "Cannot find recipient for call")
-            }
-        } else {
-            _uiState.value = currentState.copy(error = "Chat info not loaded")
+        val error = callHandler.startCall(_uiState.value.participantIds, _uiState.value.currentUserId)
+        if (error != null) {
+            _uiState.value = _uiState.value.copy(error = error)
         }
     }
 }
