@@ -128,8 +128,18 @@ class NexyWebSocketClient(
         sendMessage(message)
     }
     
-    fun sendMediaMessage(chatId: Int, senderId: Int, mediaType: String, mediaUrl: String, caption: String? = null) {
+    fun sendMediaMessage(chatId: Int, senderId: Int, mediaType: String, mediaUrl: String, caption: String? = null, mimeType: String? = null) {
         val messageId = generateMessageId()
+        val body = mutableMapOf<String, Any>(
+            "message_type" to mediaType,
+            "media_url" to mediaUrl,
+            "content" to (caption ?: "")
+        )
+        
+        if (mimeType != null) {
+            body["media_type"] = mimeType
+        }
+        
         val message = NexyMessage(
             header = NexyHeader(
                 type = "chat_message",
@@ -138,11 +148,7 @@ class NexyWebSocketClient(
                 senderId = senderId,
                 chatId = chatId
             ),
-            body = mapOf(
-                "message_type" to mediaType,
-                "media_url" to mediaUrl,
-                "content" to (caption ?: "")
-            )
+            body = body
         )
         sendMessage(message)
     }

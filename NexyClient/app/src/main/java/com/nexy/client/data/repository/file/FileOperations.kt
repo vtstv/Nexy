@@ -128,9 +128,21 @@ class FileOperations @Inject constructor(
                 // Insert to local DB
                 messageDao.insertMessage(messageMappers.modelToEntity(message))
                 
-                // Send via WebSocket (assuming WebSocket supports file messages)
-                // For now, we'll just send a text notification
-                webSocketClient.sendTextMessage(chatId, senderId, "📎 $fileName", messageId)
+                // Send via WebSocket
+                val wsMessageType = if (mimeType.startsWith("image/") || mimeType.startsWith("video/")) {
+                    "media"
+                } else {
+                    "file"
+                }
+                
+                webSocketClient.sendMediaMessage(
+                    chatId = chatId,
+                    senderId = senderId,
+                    mediaType = wsMessageType,
+                    mediaUrl = fileUrl,
+                    caption = fileName,
+                    mimeType = mimeType
+                )
                 
                 Result.success(message)
             } catch (e: Exception) {

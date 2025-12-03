@@ -41,20 +41,14 @@ func (s *FileService) UploadFile(ctx context.Context, userID int, fileHeader *mu
 		return nil, fmt.Errorf("file type not allowed")
 	}
 
-	// Determine directory based on file type
-	var uploadDir string
-	if fileType == "avatar" {
-		uploadDir = filepath.Join(s.config.Path, "avatars")
-	} else {
-		// Create date-based directory structure: YYYY/MM/DD
-		now := time.Now()
-		uploadDir = filepath.Join(
-			s.config.Path,
-			fmt.Sprintf("%04d", now.Year()),
-			fmt.Sprintf("%02d", now.Month()),
-			fmt.Sprintf("%02d", now.Day()),
-		)
-	}
+	// Create date-based directory structure: YYYY/MM/DD for all files
+	now := time.Now()
+	uploadDir := filepath.Join(
+		s.config.Path,
+		fmt.Sprintf("%04d", now.Year()),
+		fmt.Sprintf("%02d", now.Month()),
+		fmt.Sprintf("%02d", now.Day()),
+	)
 
 	fileID := uuid.New().String()
 	ext := filepath.Ext(fileHeader.Filename)

@@ -11,6 +11,7 @@ import com.nexy.client.data.models.nexy.NexyMessage
 import com.nexy.client.data.api.NexyApiService
 import com.nexy.client.data.repository.chat.ChatMappers
 import com.nexy.client.data.repository.message.MessageMappers
+import com.nexy.client.data.local.AuthTokenManager
 import com.nexy.client.data.local.SettingsManager
 import com.nexy.client.data.repository.UserRepository
 import com.nexy.client.utils.NotificationHelper
@@ -30,7 +31,8 @@ class WebSocketMessageHandler @Inject constructor(
     private val apiService: NexyApiService,
     private val notificationHelper: NotificationHelper,
     private val settingsManager: SettingsManager,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val tokenManager: AuthTokenManager
 ) {
     companion object {
         private const val TAG = "WSMessageHandler"
@@ -145,6 +147,13 @@ class WebSocketMessageHandler @Inject constructor(
                     messageId = message.id,
                     timestamp = System.currentTimeMillis()
                 )
+                
+                val currentUserId = tokenManager.getUserId()
+                if (currentUserId != null && message.senderId != currentUserId) {
+                    chatDao.incrementUnreadCount(message.chatId)
+                    Log.d(TAG, "Incremented unread count for chat ${message.chatId}")
+                }
+                
                 Log.d(TAG, "Updated chat ${message.chatId} with last message ${message.id}")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to update chat last message", e)

@@ -11,6 +11,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.background
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -207,74 +209,134 @@ private fun FileAttachment(
         file.exists()
     }
     
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .padding(bottom = 4.dp)
-            .combinedClickable(
-                onClick = {
-                    if (isDownloaded) {
-                        onOpenFile(message.content)
-                    } else {
-                        val fileId = message.mediaUrl?.substringAfterLast("/") ?: ""
-                        if (fileId.isNotEmpty()) {
-                            onDownloadFile(fileId, message.content)
+    val isImage = message.mediaType?.startsWith("image/") == true
+    val isVideo = message.mediaType?.startsWith("video/") == true
+
+    if (isImage) {
+        val imageUrl = ServerConfig.getFileUrl(message.mediaUrl)
+        AsyncImage(
+            model = imageUrl,
+            contentDescription = "Image",
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 300.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .combinedClickable(
+                    onClick = { onOpenFile(message.content) },
+                    onLongClick = onLongClick
+                ),
+            contentScale = ContentScale.Crop
+        )
+    } else if (isVideo) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color.Black)
+                .combinedClickable(
+                    onClick = { 
+                         if (isDownloaded) {
+                            onOpenFile(message.content)
+                        } else {
+                            val fileId = message.mediaUrl?.substringAfterLast("/") ?: ""
+                            if (fileId.isNotEmpty()) {
+                                onDownloadFile(fileId, message.content)
+                            }
                         }
-                    }
-                },
-                onLongClick = onLongClick
-            )
-    ) {
-        Icon(
-            Icons.Default.AttachFile,
-            contentDescription = "File",
-            modifier = Modifier.size(24.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = message.content,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        
-        if (isDownloaded) {
-            // Open button
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                modifier = Modifier.padding(start = 4.dp)
-            ) {
-                Text(
-                    text = "OPEN",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                )
-            }
-        } else {
-            // Download icon
+                    },
+                    onLongClick = onLongClick
+                ),
+            contentAlignment = Alignment.Center
+        ) {
             Icon(
-                Icons.Default.Download,
-                contentDescription = "Download",
+                imageVector = Icons.Default.PlayCircle,
+                contentDescription = "Play Video",
+                tint = Color.White,
+                modifier = Modifier.size(48.dp)
+            )
+             if (!isDownloaded) {
+                 Icon(
+                    imageVector = Icons.Default.Download,
+                    contentDescription = "Download",
+                    tint = Color.White,
+                    modifier = Modifier
+                        .size(24.dp)
+                        .align(Alignment.BottomEnd)
+                        .padding(8.dp)
+                )
+             }
+        }
+    } else {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .padding(bottom = 4.dp)
+                .combinedClickable(
+                    onClick = {
+                        if (isDownloaded) {
+                            onOpenFile(message.content)
+                        } else {
+                            val fileId = message.mediaUrl?.substringAfterLast("/") ?: ""
+                            if (fileId.isNotEmpty()) {
+                                onDownloadFile(fileId, message.content)
+                            }
+                        }
+                    },
+                    onLongClick = onLongClick
+                )
+        ) {
+            Icon(
+                Icons.Default.AttachFile,
+                contentDescription = "File",
                 modifier = Modifier.size(24.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = message.content,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            
+            if (isDownloaded) {
+                // Open button
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                    modifier = Modifier.padding(start = 4.dp)
+                ) {
+                    Text(
+                        text = "OPEN",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+            } else {
+                // Download icon
+                Icon(
+                    Icons.Default.Download,
+                    contentDescription = "Download",
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
         }
-    }
-    if (message.mediaType?.startsWith("image/") == true) {
-        Text(
-            text = "📷 Image",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    } else {
-        Text(
-            text = message.mediaType ?: "File",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        if (message.mediaType?.startsWith("image/") == true) {
+            Text(
+                text = "📷 Image",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            Text(
+                text = message.mediaType ?: "File",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
