@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.nexy.client.data.models.Message
 import com.nexy.client.ui.screens.chat.utils.formatTimestamp
+import com.nexy.client.ServerConfig
 
 import androidx.compose.ui.graphics.Color
 
@@ -33,100 +34,110 @@ fun MessageBubble(
     val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
     
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = if (isOwnMessage) Alignment.End else Alignment.Start
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        horizontalArrangement = if (isOwnMessage) Arrangement.End else Arrangement.Start,
+        verticalAlignment = Alignment.Bottom
     ) {
-        // Show sender info for incoming messages in group chats
-        if (isGroupChat && !isOwnMessage) {
-            Row(
-                modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Small avatar
-                if (message.sender?.avatarUrl != null) {
-                    AsyncImage(
-                        model = message.sender.avatarUrl,
-                        contentDescription = "Sender avatar",
-                        modifier = Modifier
-                            .size(20.dp)
-                            .clip(CircleShape)
-                    )
-                } else {
-                    Surface(
-                        modifier = Modifier.size(20.dp),
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primaryContainer
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = (message.sender?.displayName?.firstOrNull()?.uppercaseChar()
-                                    ?: message.sender?.username?.firstOrNull()?.uppercaseChar()
-                                    ?: '?').toString(),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
+        // Avatar for incoming messages (always show like Telegram)
+        if (!isOwnMessage) {
+            val avatarUrl = ServerConfig.getFileUrl(message.sender?.avatarUrl)
+            if (avatarUrl != null) {
+                AsyncImage(
+                    model = avatarUrl,
+                    contentDescription = "Sender avatar",
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                )
+            } else {
+                Surface(
+                    modifier = Modifier.size(32.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = (message.sender?.displayName?.firstOrNull()?.uppercaseChar()
+                                ?: message.sender?.username?.firstOrNull()?.uppercaseChar()
+                                ?: '?').toString(),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
                     }
                 }
-                
-                Spacer(modifier = Modifier.width(6.dp))
-                
-                Text(
-                    text = message.sender?.displayName ?: message.sender?.username ?: "User ${message.senderId}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
             }
+            Spacer(modifier = Modifier.width(8.dp))
         }
-        
+
         Surface(
-            shape = RoundedCornerShape(16.dp),
+            shape = if (isOwnMessage) {
+                RoundedCornerShape(16.dp, 16.dp, 0.dp, 16.dp)
+            } else {
+                RoundedCornerShape(16.dp, 16.dp, 16.dp, 0.dp)
+            },
             color = if (isOwnMessage) {
                 MaterialTheme.colorScheme.primaryContainer
             } else {
                 MaterialTheme.colorScheme.surfaceVariant
             },
-            modifier = Modifier.widthIn(max = 340.dp)
+            modifier = Modifier.widthIn(max = 300.dp)
         ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier.padding(8.dp)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    if (message.mediaUrl != null) {
-                        FileAttachment(
-                            message = message,
-                            onDownloadFile = onDownloadFile,
-                            onOpenFile = onOpenFile
-                        )
-                    } else {
-                        Text(
-                            text = message.content,
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontSize = MaterialTheme.typography.bodyMedium.fontSize * fontScale
-                            ),
-                            color = if (textColor != 0L) Color(textColor) else Color.Unspecified
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
+                // Sender Name inside bubble (only for groups)
+                if (isGroupChat && !isOwnMessage) {
                     Text(
-                        text = formatTimestamp(message.timestamp),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = message.sender?.displayName ?: message.sender?.username ?: "User ${message.senderId}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(bottom = 4.dp)
                     )
                 }
-                
-                if (isOwnMessage) {
-                    IconButton(
-                        onClick = { showDeleteDialog = true },
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = "Delete",
-                            modifier = Modifier.size(20.dp)
+
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Column(modifier = Modifier.weight(1f, fill = false)) {
+                        if (message.mediaUrl != null) {
+                            FileAttachment(
+                                message = message,
+                                onDownloadFile = onDownloadFile,
+                                onOpenFile = onOpenFile
+                            )
+                        } else {
+                            Text(
+                                text = message.content,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontSize = MaterialTheme.typography.bodyMedium.fontSize * fontScale
+                                ),
+                                color = if (textColor != 0L) Color(textColor) else Color.Unspecified
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Timestamp and Delete button
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = formatTimestamp(message.timestamp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
+                        
+                        if (isOwnMessage) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = "Delete",
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clickable { showDeleteDialog = true },
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                        }
                     }
                 }
             }

@@ -57,7 +57,9 @@ fun ChatSettingsSection(
                         fontScale <= 1.5f -> "Extra Large"
                         else -> "Huge"
                     },
-                    style = MaterialTheme.typography.bodySmall
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = MaterialTheme.typography.bodyMedium.fontSize * fontScale
+                    )
                 )
             }
         }

@@ -174,7 +174,7 @@ fun GroupInfoScreen(
                 items(uiState.participants) { user ->
                     ParticipantItem(
                         user = user,
-                        isOwner = uiState.chat?.createdBy == uiState.currentUserId,
+                        isOwner = uiState.chat?.createdBy == user.id,
                         onClick = { onParticipantClick(user.id) }
                     )
                 }
