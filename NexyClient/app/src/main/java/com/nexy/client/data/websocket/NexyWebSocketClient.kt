@@ -38,6 +38,11 @@ class NexyWebSocketClient(
     private var authToken: String? = null
     
     fun connect(token: String) {
+        if (_connectionState.value == ConnectionState.CONNECTED && authToken == token) {
+            Log.d(TAG, "Already connected with same token, skipping connect")
+            return
+        }
+        
         Log.d(TAG, "Connecting to WebSocket: $serverUrl")
         authToken = token
         disconnect()
@@ -71,6 +76,10 @@ class NexyWebSocketClient(
                 Log.d(TAG, "WebSocket closed: code=$code, reason=$reason")
                 _connectionState.value = ConnectionState.DISCONNECTED
                 heartbeatJob?.cancel()
+                // Always try to reconnect if closed unexpectedly
+                if (code != 1000) {
+                    scheduleReconnect()
+                }
             }
         })
     }
@@ -189,12 +198,25 @@ class NexyWebSocketClient(
     
     private fun sendMessage(message: NexyMessage) {
         if (webSocket == null) {
-            Log.e(TAG, "Cannot send message: WebSocket is null")
+            Log.e(TAG, "Cannot send message: WebSocket is null. Attempting to reconnect...")
+            if (authToken != null) {
+                connect(authToken!!)
+                // Queue message? For now just drop and let user retry or rely on reconnect
+            }
             return
         }
         
         val json = gson.toJson(message)
-        webSocket?.send(json)
+        try {
+            val success = webSocket?.send(json) ?: false
+            if (!success) {
+                Log.e(TAG, "Failed to send message (send returned false)")
+                scheduleReconnect()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception sending message", e)
+            scheduleReconnect()
+        }
     }
     
     private fun sendHeartbeat() {
@@ -241,8 +263,14 @@ class NexyWebSocketClient(
     private fun scheduleReconnect() {
         reconnectJob?.cancel()
         reconnectJob = scope.launch {
-            delay(5_000)
-            authToken?.let { connect(it) }
+            Log.d(TAG, "Scheduling reconnect in 3 seconds...")
+            delay(3_000)
+            if (authToken != null) {
+                Log.d(TAG, "Attempting to reconnect...")
+                connect(authToken!!)
+            } else {
+                Log.e(TAG, "Cannot reconnect: Auth token is null")
+            }
         }
     }
     

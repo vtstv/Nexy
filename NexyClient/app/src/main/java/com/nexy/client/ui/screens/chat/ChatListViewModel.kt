@@ -198,15 +198,18 @@ class ChatListViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(isLoading = false)
                     _refreshTrigger.value = System.currentTimeMillis()
                     
-                    // Fetch latest message for each chat to ensure previews are up to date
-                    // This ensures we have previews even if the user hasn't opened the chat yet
+                    // Sync latest messages for each chat
+                    // This ensures that if we missed messages while offline, we fetch them now.
+                    // We fetch 20 to cover a reasonable "offline" gap.
                     chats.forEach { chat ->
                         launch {
                             try {
-                                chatRepository.loadMessages(chat.id, limit = 1, offset = 0)
-                                _refreshTrigger.value = System.currentTimeMillis()
+                                if (chat.lastMessage != null) {
+                                    chatRepository.loadMessages(chat.id, limit = 20, offset = 0)
+                                    _refreshTrigger.value = System.currentTimeMillis()
+                                }
                             } catch (e: Exception) {
-                                android.util.Log.e("ChatListViewModel", "Failed to load preview for chat ${chat.id}", e)
+                                android.util.Log.e("ChatListViewModel", "Failed to load messages for chat ${chat.id}", e)
                             }
                         }
                     }
@@ -242,6 +245,7 @@ class ChatListViewModel @Inject constructor(
     
     override fun onCleared() {
         super.onCleared()
-        webSocketClient.disconnect()
+        // Do not disconnect WebSocket here as it is a singleton used by the entire app
+        // webSocketClient.disconnect()
     }
 }

@@ -59,10 +59,18 @@ class ChatOperations @Inject constructor(
                         val existingEntity = existingChatsMap[chat.id]
                         
                         if (existingEntity != null) {
+                            // Merge logic:
+                            // 1. Prefer server's lastMessageId if present, otherwise keep local
+                            // 2. Prefer server's unreadCount (source of truth), unless we want to support offline reads (TODO)
+                            // 3. Keep local muted state if server doesn't send it (or if we want local override)
+                            
+                            val mergedLastMessageId = chat.lastMessage?.id ?: existingEntity.lastMessageId
+                            val mergedUnreadCount = chat.unreadCount // Server is source of truth
+                            
                             updates.add(newEntity.copy(
-                                lastMessageId = existingEntity.lastMessageId,
-                                unreadCount = existingEntity.unreadCount,
-                                muted = existingEntity.muted
+                                lastMessageId = mergedLastMessageId,
+                                unreadCount = mergedUnreadCount,
+                                muted = existingEntity.muted // Keep local preference for now
                             ))
                         } else {
                             inserts.add(newEntity)
