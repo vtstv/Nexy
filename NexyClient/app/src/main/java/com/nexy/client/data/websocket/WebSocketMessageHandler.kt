@@ -48,6 +48,7 @@ class WebSocketMessageHandler @Inject constructor(
                     "chat_created" -> handleChatCreated(nexyMessage)
                     "ack" -> handleAck(nexyMessage)
                     "read" -> handleReadReceipt(nexyMessage)
+                    "edit" -> handleEditMessage(nexyMessage)
                     else -> Log.d(TAG, "Ignoring message type: ${nexyMessage.header.type}")
                 }
             } catch (e: Exception) {
@@ -236,6 +237,16 @@ class WebSocketMessageHandler @Inject constructor(
         
         Log.d(TAG, "Updating message status to READ: $messageId")
         messageDao.updateMessageStatus(messageId, MessageStatus.READ.name)
+    }
+    
+    private suspend fun handleEditMessage(nexyMessage: NexyMessage) {
+        val body = nexyMessage.body ?: return
+        val messageId = body["message_id"] as? String ?: return
+        val content = body["content"] as? String ?: return
+        
+        Log.d(TAG, "Handling edit message: messageId=$messageId, newContent=$content")
+        
+        messageDao.updateMessageContent(messageId, content, true)
     }
     
     private fun convertTimestamp(timestamp: Long): String {

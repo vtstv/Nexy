@@ -454,3 +454,24 @@ func (c *Client) closeConnection() {
 func userOnlineKey(userID int) string {
 	return "user:online:" + string(rune(userID))
 }
+
+func (h *Hub) BroadcastEdit(msg *models.Message) {
+	editBody := EditMessageBody{
+		MessageID: msg.MessageID,
+		Content:   msg.Content,
+	}
+	bodyBytes, _ := json.Marshal(editBody)
+
+	nexyMsg := &NexyMessage{
+		Header: NexyHeader{
+			Type:      "edit",
+			MessageID: msg.MessageID,
+			Timestamp: time.Now().Unix(),
+			SenderID:  msg.SenderID,
+			ChatID:    &msg.ChatID,
+		},
+		Body: bodyBytes,
+	}
+
+	h.broadcastToChatMembers(msg.ChatID, nexyMsg)
+}

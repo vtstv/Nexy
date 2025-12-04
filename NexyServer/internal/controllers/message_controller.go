@@ -12,14 +12,19 @@ import (
 	"github.com/vtstv/nexy/internal/middleware"
 	"github.com/vtstv/nexy/internal/models"
 	"github.com/vtstv/nexy/internal/services"
+	nexy "github.com/vtstv/nexy/internal/ws"
 )
 
 type MessageController struct {
 	messageService *services.MessageService
+	hub            *nexy.Hub
 }
 
-func NewMessageController(messageService *services.MessageService) *MessageController {
-	return &MessageController{messageService: messageService}
+func NewMessageController(messageService *services.MessageService, hub *nexy.Hub) *MessageController {
+	return &MessageController{
+		messageService: messageService,
+		hub:            hub,
+	}
 }
 
 func (c *MessageController) GetChatHistory(w http.ResponseWriter, r *http.Request) {
@@ -131,6 +136,10 @@ func (c *MessageController) UpdateMessage(w http.ResponseWriter, r *http.Request
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	if c.hub != nil {
+		c.hub.BroadcastEdit(msg)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

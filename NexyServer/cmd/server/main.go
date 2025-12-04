@@ -54,18 +54,18 @@ func main() {
 	e2eService := services.NewE2EService(e2eRepo)
 	contactService := services.NewContactService(contactRepo, userRepo)
 
+	nexyChatRepo := nexy.NewNexyChatRepo(chatRepo)
+	hub := nexy.NewHub(redisClient.Client, messageRepo, nexyChatRepo, userRepo)
+	go hub.Run()
+
 	authController := controllers.NewAuthController(authService)
 	userController := controllers.NewUserController(userService, qrService)
 	groupController := controllers.NewGroupController(groupService)
 	inviteController := controllers.NewInviteController(inviteService)
-	messageController := controllers.NewMessageController(messageService)
+	messageController := controllers.NewMessageController(messageService, hub)
 	fileController := controllers.NewFileController(fileService)
 	e2eController := controllers.NewE2EController(e2eService)
 	contactController := controllers.NewContactController(contactService)
-
-	nexyChatRepo := nexy.NewNexyChatRepo(chatRepo)
-	hub := nexy.NewHub(redisClient.Client, messageRepo, nexyChatRepo, userRepo)
-	go hub.Run()
 
 	wsHandler := nexy.NewWSHandler(hub)
 	wsController := controllers.NewWSController(wsHandler, authService)
