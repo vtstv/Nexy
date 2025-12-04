@@ -77,3 +77,36 @@ fun isSameDay(timestamp1: String?, timestamp2: String?): Boolean {
     val header2 = formatDateHeader(timestamp2)
     return header1 == header2 && header1.isNotEmpty()
 }
+
+fun isSameDay(timestamp: String?, dateMillis: Long?): Boolean {
+    if (timestamp == null || dateMillis == null) return false
+    
+    val formats = listOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss"
+    )
+    
+    var date: Date? = null
+    for (format in formats) {
+        try {
+            val parser = SimpleDateFormat(format, Locale.getDefault())
+            parser.timeZone = TimeZone.getTimeZone("UTC")
+            date = parser.parse(timestamp)
+            if (date != null) break
+        } catch (e: Exception) {
+            continue
+        }
+    }
+    
+    if (date == null) return false
+    
+    val calendar1 = Calendar.getInstance()
+    calendar1.time = date
+    
+    val calendar2 = Calendar.getInstance()
+    calendar2.timeInMillis = dateMillis
+    
+    return calendar1.get(Calendar.YEAR) == calendar2.get(Calendar.YEAR) &&
+           calendar1.get(Calendar.DAY_OF_YEAR) == calendar2.get(Calendar.DAY_OF_YEAR)
+}
