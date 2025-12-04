@@ -18,6 +18,7 @@ const (
 	TypeDelivered    MessageType = "delivered"
 	TypeRead         MessageType = "read"
 	TypeEdit         MessageType = "edit"
+	TypeDelete       MessageType = "delete"
 	TypeOnline       MessageType = "online"
 	TypeOffline      MessageType = "offline"
 	TypeHeartbeat    MessageType = "heartbeat"

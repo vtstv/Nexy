@@ -77,19 +77,19 @@ func (s *MessageService) UpdateMessageStatus(ctx context.Context, messageID, use
 	return s.messageRepo.UpdateStatus(ctx, msgStatus)
 }
 
-func (s *MessageService) DeleteMessage(ctx context.Context, messageID string, userID int) error {
+func (s *MessageService) DeleteMessage(ctx context.Context, messageID string, userID int) (*models.Message, error) {
 	// Get message to check for attachments
 	msg, err := s.messageRepo.GetByUUID(ctx, messageID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if msg == nil {
-		return errors.New("message not found")
+		return nil, errors.New("message not found")
 	}
 
 	// Verify ownership
 	if msg.SenderID != userID {
-		return errors.New("unauthorized")
+		return nil, errors.New("unauthorized")
 	}
 
 	// Delete attachment if exists
@@ -104,7 +104,11 @@ func (s *MessageService) DeleteMessage(ctx context.Context, messageID string, us
 	}
 
 	// Verify user owns the message before deleting
-	return s.messageRepo.DeleteMessage(ctx, messageID, userID)
+	if err := s.messageRepo.DeleteMessage(ctx, messageID, userID); err != nil {
+		return nil, err
+	}
+
+	return msg, nil
 }
 
 func (s *MessageService) SearchMessages(ctx context.Context, chatID, userID int, query string) ([]*models.Message, error) {

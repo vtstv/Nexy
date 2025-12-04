@@ -96,10 +96,14 @@ func (c *MessageController) DeleteMessage(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	err := c.messageService.DeleteMessage(r.Context(), req.MessageID, userID)
+	msg, err := c.messageService.DeleteMessage(r.Context(), req.MessageID, userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	if c.hub != nil {
+		c.hub.BroadcastDelete(msg)
 	}
 
 	w.WriteHeader(http.StatusNoContent)

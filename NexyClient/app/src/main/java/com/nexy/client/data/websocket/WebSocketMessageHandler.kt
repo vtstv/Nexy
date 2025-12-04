@@ -53,6 +53,7 @@ class WebSocketMessageHandler @Inject constructor(
                     "ack" -> handleAck(nexyMessage)
                     "read" -> handleReadReceipt(nexyMessage)
                     "edit" -> handleEditMessage(nexyMessage)
+                    "delete" -> handleDeleteMessage(nexyMessage)
                     "typing" -> handleTyping(nexyMessage)
                     else -> Log.d(TAG, "Ignoring message type: ${nexyMessage.header.type}")
                 }
@@ -280,6 +281,16 @@ class WebSocketMessageHandler @Inject constructor(
         Log.d(TAG, "Handling edit message: messageId=$messageId, newContent=$content")
         
         messageDao.updateMessageContent(messageId, content, true)
+    }
+    
+    private suspend fun handleDeleteMessage(nexyMessage: NexyMessage) {
+        val body = nexyMessage.body ?: return
+        val messageId = body["message_id"] as? String ?: return
+
+        Log.d(TAG, "Handling delete message: messageId=$messageId")
+
+        // Delete from local database
+        messageDao.deleteMessage(messageId)
     }
     
     private suspend fun handleTyping(nexyMessage: NexyMessage) {

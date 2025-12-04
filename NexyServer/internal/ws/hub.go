@@ -627,3 +627,23 @@ func (h *Hub) BroadcastEdit(msg *models.Message) {
 
 	h.broadcastToChatMembers(msg.ChatID, nexyMsg)
 }
+
+func (h *Hub) BroadcastDelete(msg *models.Message) {
+	deleteBody := map[string]string{
+		"message_id": msg.MessageID,
+	}
+	bodyBytes, _ := json.Marshal(deleteBody)
+
+	nexyMsg := &NexyMessage{
+		Header: NexyHeader{
+			Type:      TypeDelete,
+			MessageID: msg.MessageID,
+			Timestamp: time.Now().Unix(),
+			SenderID:  msg.SenderID,
+			ChatID:    &msg.ChatID,
+		},
+		Body: bodyBytes,
+	}
+
+	h.broadcastToChatMembers(msg.ChatID, nexyMsg)
+}
