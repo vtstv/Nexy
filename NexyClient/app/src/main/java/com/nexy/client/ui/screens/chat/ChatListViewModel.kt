@@ -9,6 +9,7 @@ import com.nexy.client.data.models.User
 import com.nexy.client.data.models.ChatFolder
 import com.nexy.client.data.api.NexyApiService
 import com.nexy.client.data.repository.ChatRepository
+import com.nexy.client.data.repository.FolderRepository
 import com.nexy.client.data.repository.UserRepository
 import com.nexy.client.data.websocket.NexyWebSocketClient
 import com.nexy.client.utils.PinManager
@@ -36,6 +37,7 @@ data class ChatListUiState(
 class ChatListViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
     private val userRepository: UserRepository,
+    private val folderRepository: FolderRepository,
     private val tokenManager: AuthTokenManager,
     private val webSocketClient: NexyWebSocketClient,
     private val messageHandler: com.nexy.client.data.websocket.WebSocketMessageHandler,
@@ -46,8 +48,7 @@ class ChatListViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ChatListUiState())
     val uiState: StateFlow<ChatListUiState> = _uiState.asStateFlow()
     
-    private val _folders = MutableStateFlow<List<ChatFolder>>(emptyList())
-    val folders: StateFlow<List<ChatFolder>> = _folders.asStateFlow()
+    val folders: StateFlow<List<ChatFolder>> = folderRepository.folders
     
     private val _refreshTrigger = MutableStateFlow(0L)
     
@@ -106,14 +107,7 @@ class ChatListViewModel @Inject constructor(
     
     private fun loadFolders() {
         viewModelScope.launch {
-            try {
-                val response = apiService.getFolders()
-                if (response.isSuccessful) {
-                    _folders.value = response.body() ?: emptyList()
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("ChatListViewModel", "Failed to load folders", e)
-            }
+            folderRepository.loadFolders()
         }
     }
     
