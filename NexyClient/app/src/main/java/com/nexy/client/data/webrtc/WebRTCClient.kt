@@ -165,6 +165,7 @@ class WebRTCClient @Inject constructor(
             currentCallId = UUID.randomUUID().toString()
             _callState.value = CallState.Outgoing(recipientId)
             
+            setAudioMode(true)
             createPeerConnection(senderId)
             createOffer(senderId)
         } catch (e: Exception) {
@@ -189,6 +190,7 @@ class WebRTCClient @Inject constructor(
             currentCallId = callId
             _callState.value = CallState.Active(recipientId)
             
+            setAudioMode(true)
             createPeerConnection(senderId)
             setRemoteDescription(remoteSdp)
             createAnswer(senderId)
@@ -372,6 +374,9 @@ class WebRTCClient @Inject constructor(
         peerConnection?.close()
         peerConnection = null
         localAudioTrack = null
+        currentCallId = null
+        currentRecipientId = null
+        setAudioMode(false)
     }
 
     fun toggleMute(isMuted: Boolean) {
@@ -381,5 +386,16 @@ class WebRTCClient @Inject constructor(
     fun toggleSpeaker(isSpeakerOn: Boolean) {
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         audioManager.isSpeakerphoneOn = isSpeakerOn
+    }
+
+    private fun setAudioMode(active: Boolean) {
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        if (active) {
+            audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+            audioManager.isSpeakerphoneOn = false // Default to earpiece
+        } else {
+            audioManager.mode = AudioManager.MODE_NORMAL
+            audioManager.isSpeakerphoneOn = false
+        }
     }
 }

@@ -30,6 +30,7 @@ fun CallScreen(
 ) {
     val callState by viewModel.callState.collectAsState()
     val remoteUser by viewModel.remoteUser.collectAsState()
+    val callDuration by viewModel.callDuration.collectAsState()
     var isMuted by remember { mutableStateOf(false) }
     var isSpeakerOn by remember { mutableStateOf(false) }
 
@@ -88,6 +89,15 @@ fun CallScreen(
                     style = MaterialTheme.typography.headlineMedium,
                     textAlign = TextAlign.Center
                 )
+
+                if (callState is CallState.Active) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = formatDuration(callDuration),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 
@@ -211,4 +221,10 @@ fun CallScreen(
             }
         }
     }
+}
+
+private fun formatDuration(seconds: Long): String {
+    val minutes = seconds / 60
+    val remainingSeconds = seconds % 60
+    return "%02d:%02d".format(minutes, remainingSeconds)
 }

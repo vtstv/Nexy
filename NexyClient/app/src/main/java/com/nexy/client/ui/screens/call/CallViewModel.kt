@@ -25,6 +25,11 @@ class CallViewModel @Inject constructor(
     private val _remoteUser = MutableStateFlow<User?>(null)
     val remoteUser: StateFlow<User?> = _remoteUser.asStateFlow()
 
+    private val _callDuration = MutableStateFlow(0L)
+    val callDuration: StateFlow<Long> = _callDuration.asStateFlow()
+
+    private var timerJob: kotlinx.coroutines.Job? = null
+
     init {
         viewModelScope.launch {
             callState.collectLatest { state ->
@@ -35,6 +40,12 @@ class CallViewModel @Inject constructor(
                     else -> null
                 }
 
+                if (state is CallState.Active) {
+                    startTimer()
+                } else {
+                    stopTimer()
+                }
+
                 if (remoteUserId != null) {
                     fetchUser(remoteUserId)
                 } else {
@@ -42,6 +53,22 @@ class CallViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    private fun startTimer() {
+        if (timerJob?.isActive == true) return
+        _callDuration.value = 0
+        timerJob = viewModelScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(1000)
+                _callDuration.value++
+            }
+        }
+    }
+
+    private fun stopTimer() {
+        timerJob?.cancel()
+        timerJob = null
     }
 
     private fun fetchUser(userId: Int) {
