@@ -3,16 +3,18 @@
  */
 package com.nexy.client.ui.screens.settings.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nexy.client.data.models.UserSession
@@ -30,10 +32,13 @@ fun SecuritySection(
     onLogoutSession: (Int) -> Unit,
     onLogoutAllOtherSessions: () -> Unit
 ) {
+    var showTerminateAllDialog by remember { mutableStateOf(false) }
+    
     LaunchedEffect(Unit) {
         onLoadSessions()
     }
 
+    // Security section header
     Text(
         text = "Security",
         style = MaterialTheme.typography.titleMedium,
@@ -67,11 +72,15 @@ fun SecuritySection(
 
     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
+    // ========== THIS DEVICE SECTION ==========
+    val currentSession = sessions.find { it.isCurrent }
+    val otherSessions = sessions.filter { !it.isCurrent }
+
     Text(
-        text = "Logged In Devices",
+        text = "This device",
         style = MaterialTheme.typography.titleMedium,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(16.dp)
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
     )
 
     if (isLoadingSessions) {
@@ -83,47 +92,141 @@ fun SecuritySection(
         ) {
             CircularProgressIndicator(modifier = Modifier.size(24.dp))
         }
-    } else if (sessions.isEmpty()) {
-        ListItem(
-            headlineContent = { Text("No active sessions") },
-            supportingContent = { Text("Unable to load device information") }
-        )
-    } else {
-        sessions.forEach { session ->
-            SessionItem(
-                session = session,
-                onLogout = { onLogoutSession(session.id) }
-            )
-        }
-
-        if (sessions.size > 1) {
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+    } else if (currentSession != null) {
+        CurrentDeviceItem(session = currentSession)
+        
+        // Terminate all other sessions button 
+        if (otherSessions.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
             
             ListItem(
                 headlineContent = { 
                     Text(
-                        "Logout all other devices",
-                        color = MaterialTheme.colorScheme.error
+                        "Terminate all other sessions",
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Medium
                     )
                 },
                 supportingContent = { 
-                    Text("End all sessions except this one") 
-                },
-                leadingContent = {
-                    Icon(
-                        Icons.Default.ExitToApp,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error
+                    Text(
+                        "Logs out all devices except for this one.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
-                modifier = Modifier.clickable { onLogoutAllOtherSessions() }
+                leadingContent = {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.errorContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Block,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                },
+                modifier = Modifier.clickable { showTerminateAllDialog = true }
             )
         }
+    } else {
+        ListItem(
+            headlineContent = { Text("No active session") },
+            supportingContent = { Text("Unable to load device information") }
+        )
+    }
+
+    // ========== ACTIVE DEVICES SECTION ==========
+    if (otherSessions.isNotEmpty()) {
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+        
+        Text(
+            text = "Active Devices",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+
+        otherSessions.forEach { session ->
+            OtherDeviceItem(
+                session = session,
+                onLogout = { onLogoutSession(session.id) }
+            )
+        }
+    }
+
+    // Terminate all dialog
+    if (showTerminateAllDialog) {
+        AlertDialog(
+            onDismissRequest = { showTerminateAllDialog = false },
+            icon = {
+                Icon(
+                    Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = { Text("Terminate all other sessions?") },
+            text = { 
+                Text("This will log you out from all devices except this one. Are you sure?") 
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onLogoutAllOtherSessions()
+                        showTerminateAllDialog = false
+                    }
+                ) {
+                    Text("Terminate", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTerminateAllDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
 @Composable
-private fun SessionItem(
+private fun CurrentDeviceItem(session: UserSession) {
+    ListItem(
+        headlineContent = { 
+            Text(
+                text = session.deviceName.ifEmpty { "Unknown Device" },
+                fontWeight = FontWeight.Bold
+            )
+        },
+        supportingContent = { 
+            Column {
+                Text(
+                    text = "Nexy ${session.deviceType}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = session.ipAddress,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        leadingContent = {
+            DeviceIcon(
+                deviceType = session.deviceType,
+                isCurrentDevice = true
+            )
+        }
+    )
+}
+
+@Composable
+private fun OtherDeviceItem(
     session: UserSession,
     onLogout: () -> Unit
 ) {
@@ -131,55 +234,38 @@ private fun SessionItem(
 
     ListItem(
         headlineContent = { 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = session.deviceName.ifEmpty { "Unknown Device" },
-                    fontWeight = if (session.isCurrent) FontWeight.Bold else FontWeight.Normal
-                )
-                if (session.isCurrent) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "(This device)",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
+            Text(
+                text = session.deviceName.ifEmpty { "Unknown Device" },
+                fontWeight = FontWeight.Medium
+            )
         },
         supportingContent = { 
             Column {
                 Text(
-                    text = "${session.deviceType} • ${session.ipAddress}",
-                    style = MaterialTheme.typography.bodySmall
+                    text = "Nexy ${session.deviceType}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = "Last active: ${formatLastActive(session.lastActive)}",
+                    text = "${session.ipAddress} • ${formatLastActive(session.lastActive)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         },
         leadingContent = {
-            Icon(
-                imageVector = when {
-                    session.deviceType.contains("Android", ignoreCase = true) -> Icons.Default.PhoneAndroid
-                    session.deviceType.contains("iOS", ignoreCase = true) -> Icons.Default.PhoneIphone
-                    session.deviceType.contains("Web", ignoreCase = true) -> Icons.Default.Computer
-                    else -> Icons.Default.Devices
-                },
-                contentDescription = null,
-                tint = if (session.isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            DeviceIcon(
+                deviceType = session.deviceType,
+                isCurrentDevice = false
             )
         },
         trailingContent = {
-            if (!session.isCurrent) {
-                IconButton(onClick = { showConfirmDialog = true }) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "Logout",
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                }
+            IconButton(onClick = { showConfirmDialog = true }) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Terminate session",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     )
@@ -187,8 +273,10 @@ private fun SessionItem(
     if (showConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showConfirmDialog = false },
-            title = { Text("Logout Device") },
-            text = { Text("Are you sure you want to logout from \"${session.deviceName}\"?") },
+            title = { Text("Terminate session?") },
+            text = { 
+                Text("Are you sure you want to terminate the session on \"${session.deviceName}\"?") 
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -196,7 +284,7 @@ private fun SessionItem(
                         showConfirmDialog = false
                     }
                 ) {
-                    Text("Logout", color = MaterialTheme.colorScheme.error)
+                    Text("Terminate", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
@@ -208,6 +296,45 @@ private fun SessionItem(
     }
 }
 
+@Composable
+private fun DeviceIcon(
+    deviceType: String,
+    isCurrentDevice: Boolean
+) {
+    val backgroundColor = if (isCurrentDevice) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        Color(0xFF4CAF50).copy(alpha = 0.2f) // Green
+    }
+    
+    val iconColor = if (isCurrentDevice) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        Color(0xFF4CAF50) // Green
+    }
+
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(backgroundColor),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = when {
+                deviceType.contains("Android", ignoreCase = true) -> Icons.Default.PhoneAndroid
+                deviceType.contains("iOS", ignoreCase = true) -> Icons.Default.PhoneIphone
+                deviceType.contains("Desktop", ignoreCase = true) -> Icons.Default.Computer
+                deviceType.contains("Web", ignoreCase = true) -> Icons.Default.Language
+                else -> Icons.Default.Devices
+            },
+            contentDescription = null,
+            tint = iconColor,
+            modifier = Modifier.size(22.dp)
+        )
+    }
+}
+
 private fun formatLastActive(dateString: String): String {
     return try {
         val inputFormat = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault())
@@ -215,12 +342,15 @@ private fun formatLastActive(dateString: String): String {
         val now = java.util.Date()
         val diff = now.time - (date?.time ?: now.time)
         
+        val dateFormat = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault())
+        val timeFormat = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+        
         when {
             diff < 60_000 -> "Just now"
-            diff < 3_600_000 -> "${diff / 60_000} minutes ago"
-            diff < 86_400_000 -> "${diff / 3_600_000} hours ago"
+            diff < 3_600_000 -> "${diff / 60_000} min ago"
+            diff < 86_400_000 -> timeFormat.format(date!!) // Today - show time
             diff < 604_800_000 -> "${diff / 86_400_000} days ago"
-            else -> java.text.SimpleDateFormat("MMM d, yyyy", java.util.Locale.getDefault()).format(date!!)
+            else -> dateFormat.format(date!!) // Show date
         }
     } catch (e: Exception) {
         dateString

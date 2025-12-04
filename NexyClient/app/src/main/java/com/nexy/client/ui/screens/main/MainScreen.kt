@@ -16,7 +16,7 @@ import androidx.activity.compose.BackHandler
 /**
  * Main screen with adaptive layout
  * Tablet (Landscape): Split panel (Chat list + Active chat)
- * Phone / Portrait: Single panel (Telegram-like navigation)
+ * Phone / Portrait: Single panel 
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
