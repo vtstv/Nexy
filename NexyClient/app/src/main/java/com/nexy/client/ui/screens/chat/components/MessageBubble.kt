@@ -14,6 +14,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.background
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.nexy.client.data.models.Message
@@ -109,7 +110,7 @@ fun MessageBubble(
                     MaterialTheme.colorScheme.surfaceVariant
                 },
                 modifier = Modifier
-                    .widthIn(max = 300.dp)
+                    .widthIn(max = (LocalConfiguration.current.screenWidthDp * 0.85f).dp)
                     .combinedClickable(
                         onClick = { showMenu = true },
                         onLongClick = { showMenu = true }
