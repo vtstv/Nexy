@@ -148,7 +148,7 @@ func (h *Hub) handleBroadcast(message *NexyMessage) {
 	case TypeChatMessage:
 		h.handleChatMessage(message, h.unregisterClientFunc)
 	case TypeEdit:
-		h.handleEditMessage(message, h.unregisterClientFunc)
+		h.handleEditMessage(message)
 	case TypeTyping:
 		h.handleTypingMessage(message, h.unregisterClientFunc)
 	case TypeDelivered, TypeRead:

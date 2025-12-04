@@ -87,7 +87,7 @@ func (h *Hub) handleChatMessage(message *NexyMessage, unregisterFunc func(*Clien
 	log.Printf("Message broadcasted to chat members: chatID=%d", *message.Header.ChatID)
 }
 
-func (h *Hub) handleEditMessage(message *NexyMessage, unregisterFunc func(*Client)) {
+func (h *Hub) handleEditMessage(message *NexyMessage) {
 	ctx := context.Background()
 
 	var editBody EditMessageBody

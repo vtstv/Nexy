@@ -33,12 +33,7 @@ func (h *WSHandler) ServeWS(w http.ResponseWriter, r *http.Request, userID int) 
 		return
 	}
 
-	client := &Client{
-		hub:    h.hub,
-		conn:   conn,
-		send:   make(chan []byte, 256),
-		userID: userID,
-	}
+	client := newClient(h.hub, conn, userID)
 
 	client.hub.register <- client
 
