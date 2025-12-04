@@ -110,6 +110,21 @@ func (s *FileService) GetFileByID(ctx context.Context, fileID string) (*models.F
 	return s.fileRepo.GetByFileID(ctx, fileID)
 }
 
+func (s *FileService) DeleteFile(ctx context.Context, fileID string) error {
+	file, err := s.fileRepo.GetByFileID(ctx, fileID)
+	if err != nil {
+		return err
+	}
+
+	// Delete from disk
+	if err := os.Remove(file.StoragePath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to delete file from disk: %w", err)
+	}
+
+	// Delete metadata
+	return s.fileRepo.Delete(ctx, fileID)
+}
+
 func (s *FileService) isAllowedMimeType(mimeType string) bool {
 	for _, allowed := range s.config.AllowedMimeTypes {
 		if strings.TrimSpace(allowed) == mimeType {

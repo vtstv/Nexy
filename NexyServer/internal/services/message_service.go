@@ -6,6 +6,7 @@ package services
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/vtstv/nexy/internal/models"
 	"github.com/vtstv/nexy/internal/repositories"
@@ -14,12 +15,14 @@ import (
 type MessageService struct {
 	messageRepo *repositories.MessageRepository
 	chatRepo    *repositories.ChatRepository
+	fileService *FileService
 }
 
-func NewMessageService(messageRepo *repositories.MessageRepository, chatRepo *repositories.ChatRepository) *MessageService {
+func NewMessageService(messageRepo *repositories.MessageRepository, chatRepo *repositories.ChatRepository, fileService *FileService) *MessageService {
 	return &MessageService{
 		messageRepo: messageRepo,
 		chatRepo:    chatRepo,
+		fileService: fileService,
 	}
 }
 
@@ -75,6 +78,31 @@ func (s *MessageService) UpdateMessageStatus(ctx context.Context, messageID, use
 }
 
 func (s *MessageService) DeleteMessage(ctx context.Context, messageID string, userID int) error {
+	// Get message to check for attachments
+	msg, err := s.messageRepo.GetByUUID(ctx, messageID)
+	if err != nil {
+		return err
+	}
+	if msg == nil {
+		return errors.New("message not found")
+	}
+
+	// Verify ownership
+	if msg.SenderID != userID {
+		return errors.New("unauthorized")
+	}
+
+	// Delete attachment if exists
+	if msg.MediaURL != "" {
+		// Extract file ID from URL (e.g. /files/uuid -> uuid)
+		parts := strings.Split(msg.MediaURL, "/")
+		if len(parts) > 0 {
+			fileID := parts[len(parts)-1]
+			// Ignore error if file deletion fails, proceed to delete message
+			_ = s.fileService.DeleteFile(ctx, fileID)
+		}
+	}
+
 	// Verify user owns the message before deleting
 	return s.messageRepo.DeleteMessage(ctx, messageID, userID)
 }

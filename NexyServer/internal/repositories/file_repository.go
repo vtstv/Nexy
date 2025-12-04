@@ -54,5 +54,12 @@ func (r *FileRepository) GetByFileID(ctx context.Context, fileID string) (*model
 		&file.URL,
 		&file.CreatedAt,
 	)
+
 	return file, err
+}
+
+func (r *FileRepository) Delete(ctx context.Context, fileID string) error {
+	query := `DELETE FROM files WHERE file_id = $1`
+	_, err := r.db.ExecContext(ctx, query, fileID)
+	return err
 }
