@@ -21,8 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.nexy.client.data.webrtc.CallState
-import com.nexy.client.data.webrtc.WebRTCClient
+import com.nexy.client.data.webrtc.models.CallState
 
 @Composable
 fun CallScreen(

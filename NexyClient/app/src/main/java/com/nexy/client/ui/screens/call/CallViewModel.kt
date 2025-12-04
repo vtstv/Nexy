@@ -4,8 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nexy.client.data.models.User
 import com.nexy.client.data.repository.UserRepository
-import com.nexy.client.data.webrtc.CallState
 import com.nexy.client.data.webrtc.WebRTCClient
+import com.nexy.client.data.webrtc.models.CallState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

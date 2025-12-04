@@ -20,8 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nexy.client.data.local.AuthTokenManager
-import com.nexy.client.data.webrtc.CallState
 import com.nexy.client.data.webrtc.WebRTCClient
+import com.nexy.client.data.webrtc.models.CallState
 import com.nexy.client.ui.navigation.NexyApp
 import com.nexy.client.ui.screens.auth.PinLockScreen
 import com.nexy.client.ui.screens.call.CallScreen
