@@ -38,6 +38,9 @@ data class Message(
     
     @SerializedName("is_edited")  // Server has is_edited field
     val isEdited: Boolean = false,
+
+    @SerializedName("is_deleted")
+    val isDeleted: Boolean = false,
     
     @SerializedName("encrypted")  // Server E2E fields
     val encrypted: Boolean = false,

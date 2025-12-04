@@ -90,7 +90,7 @@ func (r *MessageRepository) GetByChatID(ctx context.Context, chatID int, limit, 
 				   'sent'
 			   ) as status
 		FROM messages m
-		WHERE m.chat_id = $1 AND m.is_deleted = false
+		WHERE m.chat_id = $1
 		ORDER BY m.created_at DESC
 		LIMIT $2 OFFSET $3`
 
@@ -128,14 +128,23 @@ func (r *MessageRepository) GetByChatID(ctx context.Context, chatID int, limit, 
 		if err != nil {
 			return nil, err
 		}
+
+		// Clear content for deleted messages to protect privacy
+		if msg.IsDeleted {
+			msg.Content = ""
+			msg.MediaURL = ""
+			msg.MediaType = ""
+			msg.FileSize = nil
+		}
+
 		msg.Status = status
-		if mediaURL.Valid {
+		if mediaURL.Valid && !msg.IsDeleted {
 			msg.MediaURL = mediaURL.String
 		}
-		if mediaType.Valid {
+		if mediaType.Valid && !msg.IsDeleted {
 			msg.MediaType = mediaType.String
 		}
-		if fileSize.Valid {
+		if fileSize.Valid && !msg.IsDeleted {
 			msg.FileSize = &fileSize.Int64
 		}
 		if replyToID.Valid {

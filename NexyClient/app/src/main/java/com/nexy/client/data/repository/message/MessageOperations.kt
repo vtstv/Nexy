@@ -77,6 +77,12 @@ class MessageOperations @Inject constructor(
                     
                     // Insert to local database
                     decryptedMessages.forEach { message ->
+                        // Handle deleted messages
+                        if (message.isDeleted) {
+                            messageDao.deleteMessage(message.id)
+                            return@forEach
+                        }
+
                         // Insert sender if available
                         message.sender?.let { sender ->
                             userDao.insertUser(UserEntity(
