@@ -47,6 +47,9 @@ class ChatRepository @Inject constructor(
     suspend fun searchMessages(chatId: Int, query: String): Result<List<Message>> = 
         messageOperations.searchMessages(chatId, query)
 
+    suspend fun editMessage(messageId: String, content: String): Result<Unit> =
+        messageOperations.editMessage(messageId, content)
+
     suspend fun sendMessage(
         chatId: Int, 
         senderId: Int, 

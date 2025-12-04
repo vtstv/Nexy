@@ -121,7 +121,9 @@ func (rt *Router) Setup() *mux.Router {
 	messages := api.PathPrefix("/messages").Subrouter()
 	messages.Use(rt.authMiddleware.Authenticate)
 	messages.HandleFunc("/history", rt.messageController.GetChatHistory).Methods("GET")
+	messages.HandleFunc("/search", rt.messageController.SearchMessages).Methods("GET")
 	messages.HandleFunc("/delete", rt.messageController.DeleteMessage).Methods("POST")
+	messages.HandleFunc("/{id}", rt.messageController.UpdateMessage).Methods("PUT")
 
 	files := api.PathPrefix("/files").Subrouter()
 	// Upload requires authentication

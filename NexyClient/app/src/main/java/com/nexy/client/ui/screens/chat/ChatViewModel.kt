@@ -33,7 +33,8 @@ data class ChatUiState(
     val isCreator: Boolean = false,
     val isSearching: Boolean = false,
     val searchQuery: String = "",
-    val searchResults: List<Message> = emptyList()
+    val searchResults: List<Message> = emptyList(),
+    val editingMessage: Message? = null
 )
 
 @HiltViewModel
@@ -203,6 +204,11 @@ class ChatViewModel @Inject constructor(
     }
     
     fun sendMessage(replyToId: Int? = null) {
+        if (_uiState.value.editingMessage != null) {
+            saveEditedMessage()
+            return
+        }
+
         val text = _uiState.value.messageText.text.trim()
         if (text.isEmpty()) return
         
@@ -270,25 +276,49 @@ class ChatViewModel @Inject constructor(
     
     fun deleteMessage(messageId: String) {
         viewModelScope.launch {
-            try {
-                messageOps.deleteMessage(messageId).fold(
-                    onSuccess = {
-                        android.util.Log.d("ChatViewModel", "Message deleted successfully: $messageId")
-                    },
-                    onFailure = { error ->
-                        _uiState.value = _uiState.value.copy(
-                            error = error.message ?: "Failed to delete message"
-                        )
-                    }
-                )
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    error = "Error deleting message: ${e.message}"
-                )
-            }
+            messageOps.deleteMessage(messageId)
+                .onFailure { e ->
+                    _uiState.value = _uiState.value.copy(error = e.message)
+                }
         }
     }
-    
+
+    fun startEditing(message: Message) {
+        _uiState.value = _uiState.value.copy(
+            editingMessage = message,
+            messageText = TextFieldValue(message.content)
+        )
+    }
+
+    fun cancelEditing() {
+        _uiState.value = _uiState.value.copy(
+            editingMessage = null,
+            messageText = TextFieldValue("")
+        )
+    }
+
+    fun saveEditedMessage() {
+        val state = uiState.value
+        val message = state.editingMessage ?: return
+        val newContent = state.messageText.text.trim()
+
+        if (newContent.isEmpty()) return
+        if (newContent == message.content) {
+            cancelEditing()
+            return
+        }
+
+        viewModelScope.launch {
+            messageOps.editMessage(message.id, newContent)
+                .onSuccess {
+                    cancelEditing()
+                }
+                .onFailure { e ->
+                    _uiState.value = _uiState.value.copy(error = e.message)
+                }
+        }
+    }
+
     fun clearChat() {
         viewModelScope.launch {
             try {

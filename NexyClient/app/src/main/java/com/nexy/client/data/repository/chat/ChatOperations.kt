@@ -167,6 +167,72 @@ class ChatOperations @Inject constructor(
         }
     }
 
+    suspend fun deleteMessage(messageId: String): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.deleteMessage(com.nexy.client.data.models.DeleteMessageRequest(messageId))
+                if (response.isSuccessful) {
+                    messageDao.deleteMessage(messageId)
+                    Result.success(Unit)
+                } else {
+                    Result.failure(Exception("Failed to delete message: ${response.code()}"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
+    suspend fun editMessage(messageId: String, content: String): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.updateMessage(messageId, com.nexy.client.data.models.UpdateMessageRequest(content))
+                if (response.isSuccessful) {
+                    // Update local DB
+                    val updatedMessage = response.body()
+                    if (updatedMessage != null) {
+                        // We need to update the message content and isEdited flag in local DB
+                        // Assuming messageDao has an update method or we can use a query
+                        messageDao.updateMessageContent(messageId, content, true)
+                    }
+                    Result.success(Unit)
+                } else {
+                    Result.failure(Exception("Failed to edit message: ${response.code()}"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
+    suspend fun createPrivateChat(userId: Int): Result<Chat> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val currentUserId = tokenManager.getUserId()
+                if (currentUserId == null) {
+                    return@withContext Result.failure(Exception("User not logged in"))
+                }
+                
+                val request = CreateChatRequest(userId)
+                val response = apiService.createPrivateChat(request)
+                
+                if (response.isSuccessful && response.body() != null) {
+                    val chat = response.body()!!
+                    
+                    // Insert chat into local DB
+                    val entity = chatMappers.modelToEntity(chat)
+                    chatDao.insertChat(entity)
+                    
+                    Result.success(chat)
+                } else {
+                    Result.failure(Exception("Failed to create private chat"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
     // Delegate invite operations
     suspend fun createInviteLink(chatId: Int, maxUses: Int = 1, expiresAt: Long? = null) =
         chatInviteOperations.createInviteLink(chatId, maxUses, expiresAt)

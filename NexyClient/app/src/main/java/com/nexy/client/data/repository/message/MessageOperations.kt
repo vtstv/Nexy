@@ -2,7 +2,7 @@ package com.nexy.client.data.repository.message
 
 import android.util.Log
 import com.nexy.client.BuildConfig
-import com.nexy.client.data.api.DeleteMessageRequest
+import com.nexy.client.data.models.DeleteMessageRequest
 import com.nexy.client.data.api.NexyApiService
 import com.nexy.client.data.local.dao.MessageDao
 import com.nexy.client.data.models.Message
@@ -221,23 +221,36 @@ class MessageOperations @Inject constructor(
     suspend fun deleteMessage(messageId: String): Result<Unit> {
         return withContext(Dispatchers.IO) {
             try {
-                Log.d(TAG, "Deleting message: messageId=$messageId")
-                // Delete from server first
                 val response = apiService.deleteMessage(DeleteMessageRequest(messageId))
                 if (response.isSuccessful) {
-                    // Then delete from local database
                     messageDao.deleteMessage(messageId)
                     Result.success(Unit)
                 } else {
-                    Result.failure(Exception("Failed to delete message on server"))
+                    Result.failure(Exception("Failed to delete message: ${response.code()}"))
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to delete message", e)
                 Result.failure(e)
             }
         }
     }
-    
+
+    suspend fun editMessage(messageId: String, content: String): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.updateMessage(messageId, com.nexy.client.data.models.UpdateMessageRequest(content))
+                if (response.isSuccessful) {
+                    // Update local DB
+                    messageDao.updateMessageContent(messageId, content, true)
+                    Result.success(Unit)
+                } else {
+                    Result.failure(Exception("Failed to edit message: ${response.code()}"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
     suspend fun deleteMessagesByChatId(chatId: Int) {
         withContext(Dispatchers.IO) {
             messageDao.deleteMessagesByChatId(chatId)

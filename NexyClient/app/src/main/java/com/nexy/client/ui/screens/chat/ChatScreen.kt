@@ -165,6 +165,7 @@ fun ChatScreen(
                                 outgoingTextColor = outgoingTextColor,
                                 onDeleteMessage = {},
                                 onReplyMessage = {},
+                                onEditMessage = {},
                                 onDownloadFile = { _, _ -> },
                                 onOpenFile = {},
                                 onSaveFile = {}
@@ -183,6 +184,7 @@ fun ChatScreen(
                             outgoingTextColor = outgoingTextColor,
                             onDeleteMessage = viewModel::deleteMessage,
                             onReplyMessage = { message -> replyToMessage = message },
+                            onEditMessage = viewModel::startEditing,
                             onDownloadFile = { fileId, fileName ->
                                 viewModel.downloadFile(context, fileId, fileName)
                             },
@@ -208,7 +210,9 @@ fun ChatScreen(
                         showEmojiPicker = showEmojiPicker,
                         onToggleEmojiPicker = { showEmojiPicker = !showEmojiPicker },
                         replyToMessage = replyToMessage,
-                        onCancelReply = { replyToMessage = null }
+                        onCancelReply = { replyToMessage = null },
+                        editingMessage = uiState.editingMessage,
+                        onCancelEdit = viewModel::cancelEditing
                     )
                 }
             }

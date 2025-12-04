@@ -30,5 +30,6 @@ data class MessageEntity(
     val mediaUrl: String?,
     val mediaThumbnail: String?,
     val replyToId: String?,
+    val isEdited: Boolean = false,
     val isSyncedToServer: Boolean = false
 )

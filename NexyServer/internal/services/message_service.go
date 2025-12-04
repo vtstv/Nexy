@@ -36,6 +36,34 @@ func (s *MessageService) GetChatHistory(ctx context.Context, chatID, userID, lim
 	return s.messageRepo.GetByChatID(ctx, chatID, limit, offset)
 }
 
+func (s *MessageService) UpdateMessage(ctx context.Context, messageID string, userID int, content string) (*models.Message, error) {
+	// Get existing message to verify ownership
+	msg, err := s.messageRepo.GetByUUID(ctx, messageID)
+	if err != nil {
+		return nil, err
+	}
+	if msg == nil {
+		return nil, errors.New("message not found")
+	}
+
+	if msg.SenderID != userID {
+		return nil, errors.New("unauthorized: can only edit own messages")
+	}
+
+	if msg.IsDeleted {
+		return nil, errors.New("cannot edit deleted message")
+	}
+
+	msg.Content = content
+	msg.IsEdited = true
+
+	if err := s.messageRepo.Update(ctx, msg); err != nil {
+		return nil, err
+	}
+
+	return msg, nil
+}
+
 func (s *MessageService) UpdateMessageStatus(ctx context.Context, messageID, userID int, status string) error {
 	msgStatus := &models.MessageStatus{
 		MessageID: messageID,

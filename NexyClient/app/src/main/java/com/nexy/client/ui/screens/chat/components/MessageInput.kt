@@ -32,7 +32,9 @@ fun MessageInput(
     showEmojiPicker: Boolean,
     onToggleEmojiPicker: () -> Unit,
     replyToMessage: Message? = null,
-    onCancelReply: () -> Unit = {}
+    onCancelReply: () -> Unit = {},
+    editingMessage: Message? = null,
+    onCancelEdit: () -> Unit = {}
 ) {
     var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
     var selectedFileName by remember { mutableStateOf<String?>(null) }
@@ -58,14 +60,13 @@ fun MessageInput(
     
     Surface(tonalElevation = 3.dp) {
         Column {
-            replyToMessage?.let { message ->
-                ReplyPreview(
-                    message = message,
-                    onCancel = onCancelReply
-                )
+            if (editingMessage != null) {
+                EditPreview(message = editingMessage, onCancel = onCancelEdit)
+            } else if (replyToMessage != null) {
+                ReplyPreview(message = replyToMessage, onCancel = onCancelReply)
             }
-
-            selectedFileUri?.let { uri ->
+            
+            if (selectedFileUri != null) {
                 FilePreview(
                     fileName = selectedFileName ?: "File",
                     onRemove = {
@@ -114,7 +115,8 @@ fun MessageInput(
                         onSend()
                     }
                 },
-                sendEnabled = text.text.isNotBlank() || selectedFileUri != null
+                sendEnabled = text.text.isNotBlank() || selectedFileUri != null,
+                isEditing = editingMessage != null
             )
         }
     }
@@ -247,7 +249,8 @@ private fun InputRow(
     onToggleEmojiPicker: () -> Unit,
     onAttachFile: () -> Unit,
     onSend: () -> Unit,
-    sendEnabled: Boolean
+    sendEnabled: Boolean,
+    isEditing: Boolean = false
 ) {
     Row(
         modifier = Modifier
@@ -286,10 +289,48 @@ private fun InputRow(
             modifier = Modifier.size(48.dp)
         ) {
             Icon(
-                Icons.AutoMirrored.Filled.Send, 
-                stringResource(R.string.send),
+                if (isEditing) Icons.Default.Check else Icons.AutoMirrored.Filled.Send, 
+                if (isEditing) "Save" else stringResource(R.string.send),
                 tint = if (sendEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
             )
+        }
+    }
+}
+
+@Composable
+private fun EditPreview(
+    message: Message,
+    onCancel: () -> Unit
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.Edit,
+                contentDescription = "Edit",
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Editing message",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = message.content,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1
+                )
+            }
+            IconButton(onClick = onCancel) {
+                Icon(Icons.Default.Close, contentDescription = "Cancel Edit")
+            }
         }
     }
 }

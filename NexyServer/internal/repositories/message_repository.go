@@ -215,6 +215,21 @@ func (r *MessageRepository) DeleteMessage(ctx context.Context, messageID string,
 	return nil
 }
 
+func (r *MessageRepository) Update(ctx context.Context, msg *models.Message) error {
+	query := `
+		UPDATE messages 
+		SET content = $1, is_edited = $2, updated_at = NOW()
+		WHERE message_id = $3 AND sender_id = $4
+		RETURNING updated_at`
+
+	return r.db.QueryRowContext(ctx, query,
+		msg.Content,
+		true,
+		msg.MessageID,
+		msg.SenderID,
+	).Scan(&msg.UpdatedAt)
+}
+
 func (r *MessageRepository) GetByUUID(ctx context.Context, uuid string) (*models.Message, error) {
 	msg := &models.Message{}
 	query := `

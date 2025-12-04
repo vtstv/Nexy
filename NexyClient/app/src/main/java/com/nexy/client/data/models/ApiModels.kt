@@ -144,7 +144,12 @@ data class AddMemberRequest(
 
 data class DeleteMessageRequest(
     @SerializedName("message_id")
-    val messageId: Int
+    val messageId: String
+)
+
+data class UpdateMessageRequest(
+    @SerializedName("content")
+    val content: String
 )
 
 data class UpdateMemberRoleRequest(

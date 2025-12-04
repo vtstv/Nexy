@@ -64,6 +64,12 @@ interface NexyApiService {
     @POST("messages/delete")
     suspend fun deleteMessage(@Body request: DeleteMessageRequest): Response<Unit>
     
+    @PUT("messages/{id}")
+    suspend fun updateMessage(
+        @Path("id") messageId: String,
+        @Body request: UpdateMessageRequest
+    ): Response<Message>
+
     // Invite endpoints - server uses POST with body instead of path params
     @POST("invites")
     suspend fun createInviteLink(@Body request: CreateInviteRequest): Response<InviteLink>
@@ -203,11 +209,6 @@ data class AddMemberRequest(
 data class TransferOwnershipRequest(
     @com.google.gson.annotations.SerializedName("new_owner_id")
     val newOwnerId: Int
-)
-
-data class DeleteMessageRequest(
-    @com.google.gson.annotations.SerializedName("message_id")
-    val messageId: String
 )
 
 data class UploadResponse(

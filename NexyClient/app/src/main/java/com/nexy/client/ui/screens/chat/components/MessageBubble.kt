@@ -42,6 +42,7 @@ fun MessageBubble(
     textColor: Long = 0L,
     onDelete: () -> Unit = {},
     onReply: () -> Unit = {},
+    onEdit: () -> Unit = {},
     onCopy: () -> Unit = {},
     onDownloadFile: (String, String) -> Unit = { _, _ -> },
     onOpenFile: (String) -> Unit = {},
@@ -195,6 +196,14 @@ fun MessageBubble(
 
                         // Timestamp & Status
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (message.isEdited) {
+                                Text(
+                                    text = "edited",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    modifier = Modifier.padding(end = 4.dp)
+                                )
+                            }
                             Text(
                                 text = formatTimestamp(message.timestamp),
                                 style = MaterialTheme.typography.labelSmall,
@@ -281,6 +290,14 @@ fun MessageBubble(
                 }
 
                 if (isOwnMessage) {
+                    DropdownMenuItem(
+                        text = { Text("Edit") },
+                        onClick = {
+                            onEdit()
+                            showMenu = false
+                        },
+                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                    )
                     DropdownMenuItem(
                         text = { Text("Delete") },
                         onClick = {

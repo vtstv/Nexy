@@ -17,6 +17,7 @@ const (
 	TypeTyping       MessageType = "typing"
 	TypeDelivered    MessageType = "delivered"
 	TypeRead         MessageType = "read"
+	TypeEdit         MessageType = "edit"
 	TypeOnline       MessageType = "online"
 	TypeOffline      MessageType = "offline"
 	TypeHeartbeat    MessageType = "heartbeat"
@@ -70,6 +71,11 @@ type DeliveredBody struct {
 
 type ReadBody struct {
 	MessageID string `json:"message_id"`
+}
+
+type EditMessageBody struct {
+	MessageID string `json:"message_id"`
+	Content   string `json:"content"`
 }
 
 type OnlineBody struct {

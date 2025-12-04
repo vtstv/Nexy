@@ -44,6 +44,7 @@ type MessageRepository interface {
 	CreateMessageFromWebSocket(ctx context.Context, messageID string, chatID, senderID int, bodyJSON []byte) error
 	GetByUUID(ctx context.Context, uuid string) (*models.Message, error)
 	UpdateStatus(ctx context.Context, status *models.MessageStatus) error
+	Update(ctx context.Context, msg *models.Message) error
 }
 
 type ChatRepository interface {
@@ -124,6 +125,8 @@ func (h *Hub) handleBroadcast(message *NexyMessage) {
 	switch message.Header.Type {
 	case TypeChatMessage:
 		h.handleChatMessage(message)
+	case TypeEdit:
+		h.handleEditMessage(message)
 	case TypeTyping, TypeDelivered, TypeRead:
 		h.handleStatusMessage(message)
 	case TypeCallOffer, TypeCallAnswer, TypeICECandidate, TypeCallCancel, TypeCallEnd, TypeCallBusy:
@@ -206,6 +209,44 @@ func (h *Hub) handleChatMessage(message *NexyMessage) {
 	}
 
 	h.broadcastToChatMembers(*message.Header.ChatID, message)
+}
+
+func (h *Hub) handleEditMessage(message *NexyMessage) {
+	ctx := context.Background()
+	var editBody EditMessageBody
+	if err := json.Unmarshal(message.Body, &editBody); err != nil {
+		log.Printf("Error unmarshalling edit body: %v", err)
+		return
+	}
+
+	// Get existing message
+	msg, err := h.messageRepo.GetByUUID(ctx, editBody.MessageID)
+	if err != nil {
+		log.Printf("Error getting message for edit: %v", err)
+		return
+	}
+	if msg == nil {
+		log.Printf("Message not found for edit: %s", editBody.MessageID)
+		return
+	}
+
+	// Verify ownership
+	if msg.SenderID != message.Header.SenderID {
+		log.Printf("Unauthorized edit attempt by user %d on message %s", message.Header.SenderID, editBody.MessageID)
+		return
+	}
+
+	// Update in DB
+	msg.Content = editBody.Content
+	msg.IsEdited = true
+	if err := h.messageRepo.Update(ctx, msg); err != nil {
+		log.Printf("Failed to update message in DB: %v", err)
+		return
+	}
+
+	// Broadcast to chat members
+	message.Header.ChatID = &msg.ChatID
+	h.broadcastToChatMembers(msg.ChatID, message)
 }
 
 func (h *Hub) handleStatusMessage(message *NexyMessage) {

@@ -43,6 +43,10 @@ class MessageOperationsHandler @Inject constructor(
         return chatRepository.deleteMessage(messageId)
     }
 
+    suspend fun editMessage(messageId: String, content: String): Result<Unit> {
+        return chatRepository.editMessage(messageId, content)
+    }
+
     suspend fun clearChat(chatId: Int): Result<Unit> {
         return chatRepository.clearChatMessages(chatId)
     }
