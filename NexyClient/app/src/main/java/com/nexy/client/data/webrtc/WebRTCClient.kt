@@ -46,6 +46,7 @@ class WebRTCClient @Inject constructor(
     private var localAudioTrack: AudioTrack? = null
     private var currentCallId: String? = null
     private var currentRecipientId: Int? = null
+    private var isInitialized = false
     
     private val eglBase = EglBase.create()
     
@@ -61,7 +62,7 @@ class WebRTCClient @Inject constructor(
     }
     
     fun initialize() {
-        if (peerConnectionFactory != null) return
+        if (isInitialized) return
         initWebRTC()
     }
 
@@ -135,6 +136,8 @@ class WebRTCClient @Inject constructor(
                 .setOptions(options)
                 .setAudioDeviceModule(JavaAudioDeviceModule.builder(context).createAudioDeviceModule())
                 .createPeerConnectionFactory()
+            
+            isInitialized = true
             Log.d(TAG, "WebRTC initialized successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initialize WebRTC", e)
@@ -149,8 +152,12 @@ class WebRTCClient @Inject constructor(
         }
 
         if (peerConnectionFactory == null) {
-            Log.e(TAG, "PeerConnectionFactory is not initialized")
-            return
+            Log.e(TAG, "PeerConnectionFactory is not initialized, attempting to initialize")
+            initialize()
+            if (peerConnectionFactory == null) {
+                Log.e(TAG, "Failed to initialize PeerConnectionFactory")
+                return
+            }
         }
 
         try {
@@ -220,52 +227,60 @@ class WebRTCClient @Inject constructor(
     }
 
     private fun createPeerConnection(myUserId: Int) {
-        val rtcConfig = PeerConnection.RTCConfiguration(iceServers)
-        rtcConfig.sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
-        
-        peerConnection = peerConnectionFactory?.createPeerConnection(rtcConfig, object : PeerConnection.Observer {
-            override fun onSignalingChange(state: PeerConnection.SignalingState?) {
-                Log.d(TAG, "onSignalingChange: $state")
-            }
-
-            override fun onIceConnectionChange(state: PeerConnection.IceConnectionState?) {
-                Log.d(TAG, "onIceConnectionChange: $state")
-            }
-
-            override fun onIceConnectionReceivingChange(receiving: Boolean) {}
-
-            override fun onIceGatheringChange(state: PeerConnection.IceGatheringState?) {}
-
-            override fun onIceCandidate(candidate: IceCandidate?) {
-                candidate?.let {
-                    sendIceCandidate(it, myUserId)
+        try {
+            val rtcConfig = PeerConnection.RTCConfiguration(iceServers)
+            rtcConfig.sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
+            
+            peerConnection = peerConnectionFactory?.createPeerConnection(rtcConfig, object : PeerConnection.Observer {
+                override fun onSignalingChange(state: PeerConnection.SignalingState?) {
+                    Log.d(TAG, "onSignalingChange: $state")
                 }
+
+                override fun onIceConnectionChange(state: PeerConnection.IceConnectionState?) {
+                    Log.d(TAG, "onIceConnectionChange: $state")
+                }
+
+                override fun onIceConnectionReceivingChange(receiving: Boolean) {}
+
+                override fun onIceGatheringChange(state: PeerConnection.IceGatheringState?) {}
+
+                override fun onIceCandidate(candidate: IceCandidate?) {
+                    candidate?.let {
+                        sendIceCandidate(it, myUserId)
+                    }
+                }
+
+                override fun onIceCandidatesRemoved(candidates: Array<out IceCandidate>?) {}
+
+                override fun onAddStream(stream: MediaStream?) {
+                    Log.d(TAG, "onAddStream: ${stream?.id}")
+                    // Handle remote audio stream here if needed (usually handled automatically by WebRTC for audio)
+                }
+
+                override fun onRemoveStream(stream: MediaStream?) {}
+
+                override fun onDataChannel(channel: DataChannel?) {}
+
+                override fun onRenegotiationNeeded() {}
+            })
+            
+            if (peerConnection == null) {
+                Log.e(TAG, "Failed to create PeerConnection")
+                throw RuntimeException("Failed to create PeerConnection")
             }
-
-            override fun onIceCandidatesRemoved(candidates: Array<out IceCandidate>?) {}
-
-            override fun onAddStream(stream: MediaStream?) {
-                Log.d(TAG, "onAddStream: ${stream?.id}")
-                // Handle remote audio stream here if needed (usually handled automatically by WebRTC for audio)
-            }
-
-            override fun onRemoveStream(stream: MediaStream?) {}
-
-            override fun onDataChannel(channel: DataChannel?) {}
-
-            override fun onRenegotiationNeeded() {}
-
-            override fun onAddTrack(receiver: RtpReceiver?, streams: Array<out MediaStream>?) {}
-        })
-        
-        // Create local audio track
-        val audioSource = peerConnectionFactory?.createAudioSource(MediaConstraints())
-        localAudioTrack = peerConnectionFactory?.createAudioTrack("ARDAMSa0", audioSource)
-        
-        val mediaStream = peerConnectionFactory?.createLocalMediaStream("ARDAMS")
-        mediaStream?.addTrack(localAudioTrack)
-        
-        peerConnection?.addStream(mediaStream)
+            
+            // Create audio track
+            val audioSource = peerConnectionFactory?.createAudioSource(MediaConstraints())
+            localAudioTrack = peerConnectionFactory?.createAudioTrack("ARDAMSa0", audioSource)
+            
+            // Use addTrack instead of addStream for Unified Plan
+            val streamIds = listOf("ARDAMS")
+            peerConnection?.addTrack(localAudioTrack, streamIds)
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating peer connection", e)
+            throw e
+        }
     }
 
     private fun createOffer(senderId: Int) {
@@ -357,17 +372,14 @@ class WebRTCClient @Inject constructor(
         peerConnection?.close()
         peerConnection = null
         localAudioTrack = null
-        currentCallId = null
-        currentRecipientId = null
     }
 
-    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-
-    fun toggleSpeaker(enable: Boolean) {
-        audioManager.isSpeakerphoneOn = enable
+    fun toggleMute(isMuted: Boolean) {
+        localAudioTrack?.setEnabled(!isMuted)
     }
 
-    fun toggleMute(mute: Boolean) {
-        localAudioTrack?.setEnabled(!mute)
+    fun toggleSpeaker(isSpeakerOn: Boolean) {
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        audioManager.isSpeakerphoneOn = isSpeakerOn
     }
 }

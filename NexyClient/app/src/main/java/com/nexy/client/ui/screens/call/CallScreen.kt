@@ -24,11 +24,12 @@ import com.nexy.client.data.webrtc.WebRTCClient
 
 @Composable
 fun CallScreen(
-    webRTCClient: WebRTCClient,
+    viewModel: CallViewModel = hiltViewModel(),
     currentUserId: Int,
     onDismiss: () -> Unit
 ) {
-    val callState by webRTCClient.callState.collectAsState()
+    val callState by viewModel.callState.collectAsState()
+    val remoteUser by viewModel.remoteUser.collectAsState()
     var isMuted by remember { mutableStateOf(false) }
     var isSpeakerOn by remember { mutableStateOf(false) }
 
@@ -91,7 +92,7 @@ fun CallScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 Text(
-                    text = when (val state = callState) {
+                    text = remoteUser?.displayName ?: remoteUser?.username ?: when (val state = callState) {
                         is CallState.Incoming -> "User ${state.callerId}"
                         is CallState.Outgoing -> "User ${state.recipientId}"
                         is CallState.Active -> "User ${state.remoteUserId}"
@@ -114,7 +115,7 @@ fun CallScreen(
                     is CallState.Incoming -> {
                         // Decline Button
                         IconButton(
-                            onClick = { webRTCClient.endCall(currentUserId) },
+                            onClick = { viewModel.endCall(currentUserId) },
                             modifier = Modifier
                                 .size(64.dp)
                                 .background(Color.Red, CircleShape)
@@ -129,7 +130,7 @@ fun CallScreen(
                         // Accept Button
                         IconButton(
                             onClick = { 
-                                webRTCClient.answerCall(
+                                viewModel.answerCall(
                                     currentUserId, 
                                     state.callerId, 
                                     state.callId, 
@@ -153,7 +154,7 @@ fun CallScreen(
                         IconButton(
                             onClick = { 
                                 isSpeakerOn = !isSpeakerOn
-                                webRTCClient.toggleSpeaker(isSpeakerOn)
+                                viewModel.toggleSpeaker(isSpeakerOn)
                             },
                             modifier = Modifier
                                 .size(56.dp)
@@ -173,7 +174,7 @@ fun CallScreen(
                         IconButton(
                             onClick = { 
                                 isMuted = !isMuted
-                                webRTCClient.toggleMute(isMuted)
+                                viewModel.toggleMute(isMuted)
                             },
                             modifier = Modifier
                                 .size(56.dp)
@@ -191,7 +192,7 @@ fun CallScreen(
                         
                         // End Call Button
                         IconButton(
-                            onClick = { webRTCClient.endCall(currentUserId) },
+                            onClick = { viewModel.endCall(currentUserId) },
                             modifier = Modifier
                                 .size(72.dp)
                                 .background(Color.Red, CircleShape)

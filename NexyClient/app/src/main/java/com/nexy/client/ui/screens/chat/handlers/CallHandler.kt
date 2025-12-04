@@ -16,7 +16,11 @@ class CallHandler @Inject constructor(
             return "Cannot find recipient for call"
         }
         
-        webRTCClient.startCall(recipientId, currentUserId)
-        return null
+        try {
+            webRTCClient.startCall(recipientId, currentUserId)
+            return null
+        } catch (e: Exception) {
+            return "Failed to start call: ${e.message}"
+        }
     }
 }

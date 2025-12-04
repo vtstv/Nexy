@@ -116,7 +116,6 @@ class MainActivity : AppCompatActivity() {
                             
                             if (callState !is CallState.Idle && currentUserId != null) {
                                 CallScreen(
-                                    webRTCClient = webRTCClient,
                                     currentUserId = currentUserId!!,
                                     onDismiss = { }
                                 )
