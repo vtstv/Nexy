@@ -56,6 +56,12 @@ func (r *RefreshTokenRepository) DeleteByUserID(ctx context.Context, userID int)
 	return err
 }
 
+func (r *RefreshTokenRepository) DeleteByID(ctx context.Context, id int) error {
+	query := `DELETE FROM refresh_tokens WHERE id = $1`
+	_, err := r.db.ExecContext(ctx, query, id)
+	return err
+}
+
 func (r *RefreshTokenRepository) DeleteExpired(ctx context.Context) error {
 	query := `DELETE FROM refresh_tokens WHERE expires_at < $1`
 	_, err := r.db.ExecContext(ctx, query, time.Now())

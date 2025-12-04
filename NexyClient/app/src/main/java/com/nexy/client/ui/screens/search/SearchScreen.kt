@@ -66,10 +66,11 @@ fun SearchScreen(
                 onValueChange = viewModel::onQueryChange,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 placeholder = { Text("Search by username...") },
                 leadingIcon = { Icon(Icons.Default.Search, null) },
-                singleLine = true
+                singleLine = true,
+                shape = MaterialTheme.shapes.medium
             )
             
             when {

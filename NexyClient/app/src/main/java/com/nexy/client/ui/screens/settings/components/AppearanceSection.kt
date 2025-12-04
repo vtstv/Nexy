@@ -132,15 +132,22 @@ private fun LanguageSelectorDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.select_language)) },
         text = {
-            Column {
-                listOf("en" to "English", "de" to "Deutsch", "ru" to "Russian").forEach { (code, name) ->
+            Column(
+                modifier = Modifier.width(IntrinsicSize.Min)
+            ) {
+                listOf("en" to "English", "de" to "Deutsch", "ru" to "Русский").forEach { (code, name) ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onLanguageSelected(code) }
-                            .padding(vertical = 12.dp),
+                            .padding(vertical = 12.dp, horizontal = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        RadioButton(
+                            selected = false,
+                            onClick = { onLanguageSelected(code) }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(text = name)
                     }
                 }

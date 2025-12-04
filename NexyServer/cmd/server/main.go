@@ -43,6 +43,7 @@ func main() {
 	fileRepo := repositories.NewFileRepository(db)
 	e2eRepo := repositories.NewE2ERepository(db)
 	contactRepo := repositories.NewContactRepository(db.DB)
+	sessionRepo := repositories.NewSessionRepository(db)
 
 	authService := services.NewAuthService(userRepo, refreshTokenRepo, &cfg.JWT)
 	userService := services.NewUserService(userRepo, chatRepo)
@@ -58,7 +59,7 @@ func main() {
 	hub := nexy.NewHub(redisClient.Client, messageRepo, nexyChatRepo, userRepo)
 	go hub.Run()
 
-	authController := controllers.NewAuthController(authService)
+	authController := controllers.NewAuthController(authService, sessionRepo)
 	userController := controllers.NewUserController(userService, qrService)
 	groupController := controllers.NewGroupController(groupService)
 	inviteController := controllers.NewInviteController(inviteService)
@@ -67,6 +68,7 @@ func main() {
 	e2eController := controllers.NewE2EController(e2eService)
 	contactController := controllers.NewContactController(contactService)
 	turnController := controllers.NewTURNController(cfg)
+	sessionController := controllers.NewSessionController(sessionRepo, refreshTokenRepo)
 
 	wsHandler := nexy.NewWSHandler(hub)
 	wsController := controllers.NewWSController(wsHandler, authService)
@@ -86,6 +88,7 @@ func main() {
 		e2eController,
 		contactController,
 		turnController,
+		sessionController,
 		authMiddleware,
 		corsMiddleware,
 		rateLimiter,

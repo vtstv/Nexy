@@ -190,6 +190,16 @@ interface NexyApiService {
     
     @GET("turn/ice-servers")
     suspend fun getICEServers(): Response<ICEConfigResponse>
+
+    // Session/Device management endpoints
+    @GET("sessions")
+    suspend fun getSessions(): Response<List<UserSession>>
+
+    @DELETE("sessions/{sessionId}")
+    suspend fun deleteSession(@Path("sessionId") sessionId: Int): Response<Unit>
+
+    @DELETE("sessions/others")
+    suspend fun deleteAllOtherSessions(): Response<Unit>
 }
 
 data class ICEServer(

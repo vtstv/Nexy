@@ -6,17 +6,23 @@ package controllers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/vtstv/nexy/internal/middleware"
+	"github.com/vtstv/nexy/internal/repositories"
 	"github.com/vtstv/nexy/internal/services"
 )
 
 type AuthController struct {
 	authService *services.AuthService
+	sessionRepo *repositories.SessionRepository
 }
 
-func NewAuthController(authService *services.AuthService) *AuthController {
-	return &AuthController{authService: authService}
+func NewAuthController(authService *services.AuthService, sessionRepo *repositories.SessionRepository) *AuthController {
+	return &AuthController{
+		authService: authService,
+		sessionRepo: sessionRepo,
+	}
 }
 
 type RegisterRequest struct {
@@ -88,6 +94,16 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Create session for this login
+	userAgent := r.Header.Get("User-Agent")
+	ipAddress := r.RemoteAddr
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		ipAddress = strings.Split(forwarded, ",")[0]
+	}
+
+	deviceName, deviceType := parseUserAgent(userAgent)
+	c.sessionRepo.CreateFromLogin(r.Context(), user.ID, deviceName, deviceType, ipAddress, userAgent)
+
 	response := AuthResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
@@ -96,6 +112,39 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+func parseUserAgent(userAgent string) (deviceName, deviceType string) {
+	ua := strings.ToLower(userAgent)
+
+	if strings.Contains(ua, "android") {
+		deviceType = "Android"
+		deviceName = "Android Device"
+	} else if strings.Contains(ua, "okhttp") {
+		// OkHttp is typically used by Android apps
+		deviceType = "Android"
+		deviceName = "Android Device"
+	} else if strings.Contains(ua, "iphone") {
+		deviceType = "iOS"
+		deviceName = "iPhone"
+	} else if strings.Contains(ua, "ipad") {
+		deviceType = "iOS"
+		deviceName = "iPad"
+	} else if strings.Contains(ua, "windows") {
+		deviceType = "Desktop"
+		deviceName = "Windows PC"
+	} else if strings.Contains(ua, "macintosh") || strings.Contains(ua, "mac os") {
+		deviceType = "Desktop"
+		deviceName = "Mac"
+	} else if strings.Contains(ua, "linux") {
+		deviceType = "Desktop"
+		deviceName = "Linux PC"
+	} else {
+		deviceType = "Unknown"
+		deviceName = "Unknown Device"
+	}
+
+	return
 }
 
 func (c *AuthController) RefreshToken(w http.ResponseWriter, r *http.Request) {

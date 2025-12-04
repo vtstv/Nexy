@@ -19,6 +19,7 @@ type Router struct {
 	e2eController     *controllers.E2EController
 	contactController *controllers.ContactController
 	turnController    *controllers.TURNController
+	sessionController *controllers.SessionController
 	authMiddleware    *middleware.AuthMiddleware
 	corsMiddleware    *middleware.CORSMiddleware
 	rateLimiter       *middleware.RateLimiter
@@ -35,6 +36,7 @@ func NewRouter(
 	e2eController *controllers.E2EController,
 	contactController *controllers.ContactController,
 	turnController *controllers.TURNController,
+	sessionController *controllers.SessionController,
 	authMiddleware *middleware.AuthMiddleware,
 	corsMiddleware *middleware.CORSMiddleware,
 	rateLimiter *middleware.RateLimiter,
@@ -50,6 +52,7 @@ func NewRouter(
 		e2eController:     e2eController,
 		contactController: contactController,
 		turnController:    turnController,
+		sessionController: sessionController,
 		authMiddleware:    authMiddleware,
 		corsMiddleware:    corsMiddleware,
 		rateLimiter:       rateLimiter,
@@ -158,6 +161,13 @@ func (rt *Router) Setup() *mux.Router {
 	turn := api.PathPrefix("/turn").Subrouter()
 	turn.Use(rt.authMiddleware.Authenticate)
 	turn.HandleFunc("/ice-servers", rt.turnController.GetICEServers).Methods("GET")
+
+	// Sessions endpoints (device management)
+	sessions := api.PathPrefix("/sessions").Subrouter()
+	sessions.Use(rt.authMiddleware.Authenticate)
+	sessions.HandleFunc("", rt.sessionController.GetSessions).Methods("GET")
+	sessions.HandleFunc("/{id:[0-9]+}", rt.sessionController.DeleteSession).Methods("DELETE")
+	sessions.HandleFunc("/others", rt.sessionController.DeleteAllOtherSessions).Methods("DELETE")
 
 	// WebSocket endpoint - authentication handled in controller via query param
 	r.HandleFunc("/ws", rt.wsController.HandleWebSocket)

@@ -9,8 +9,10 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nexy.client.data.api.NexyApiService
 import com.nexy.client.data.local.AuthTokenManager
 import com.nexy.client.data.local.settingsDataStore
+import com.nexy.client.data.models.UserSession
 import com.nexy.client.data.repository.UserRepository
 import com.nexy.client.ui.screens.chat.handlers.ChatStateManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,7 +31,8 @@ class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val tokenManager: AuthTokenManager,
     private val userRepository: UserRepository,
-    private val stateManager: ChatStateManager
+    private val stateManager: ChatStateManager,
+    private val apiService: NexyApiService
 ) : ViewModel() {
 
     private val PIN_CODE_KEY = stringPreferencesKey("pin_code")
@@ -81,6 +84,12 @@ class SettingsViewModel @Inject constructor(
 
     private val _typingIndicatorsEnabled = MutableStateFlow(true)
     val typingIndicatorsEnabled: StateFlow<Boolean> = _typingIndicatorsEnabled.asStateFlow()
+
+    private val _sessions = MutableStateFlow<List<UserSession>>(emptyList())
+    val sessions: StateFlow<List<UserSession>> = _sessions.asStateFlow()
+
+    private val _isLoadingSessions = MutableStateFlow(false)
+    val isLoadingSessions: StateFlow<Boolean> = _isLoadingSessions.asStateFlow()
 
     init {
         loadSettings()
@@ -309,6 +318,48 @@ class SettingsViewModel @Inject constructor(
                         typingIndicatorsEnabled = enabled
                     )
                 }
+            }
+        }
+    }
+
+    fun loadSessions() {
+        viewModelScope.launch {
+            _isLoadingSessions.value = true
+            try {
+                val response = apiService.getSessions()
+                if (response.isSuccessful) {
+                    _sessions.value = response.body() ?: emptyList()
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("SettingsViewModel", "Failed to load sessions", e)
+            } finally {
+                _isLoadingSessions.value = false
+            }
+        }
+    }
+
+    fun logoutSession(sessionId: Int) {
+        viewModelScope.launch {
+            try {
+                val response = apiService.deleteSession(sessionId)
+                if (response.isSuccessful) {
+                    _sessions.value = _sessions.value.filter { it.id != sessionId }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("SettingsViewModel", "Failed to logout session", e)
+            }
+        }
+    }
+
+    fun logoutAllOtherSessions() {
+        viewModelScope.launch {
+            try {
+                val response = apiService.deleteAllOtherSessions()
+                if (response.isSuccessful) {
+                    _sessions.value = _sessions.value.filter { it.isCurrent }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("SettingsViewModel", "Failed to logout other sessions", e)
             }
         }
     }

@@ -162,3 +162,29 @@ data class JoinByInviteRequest(
     val inviteCode: String
 )
 
+data class UserSession(
+    @SerializedName("id")
+    val id: Int,
+    
+    @SerializedName("user_id")
+    val userId: Int,
+    
+    @SerializedName("device_name")
+    val deviceName: String,
+    
+    @SerializedName("device_type")
+    val deviceType: String,
+    
+    @SerializedName("ip_address")
+    val ipAddress: String,
+    
+    @SerializedName("last_active")
+    val lastActive: String,
+    
+    @SerializedName("created_at")
+    val createdAt: String,
+    
+    @SerializedName("is_current")
+    val isCurrent: Boolean
+)
+

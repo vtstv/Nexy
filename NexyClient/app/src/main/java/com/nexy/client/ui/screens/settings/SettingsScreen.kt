@@ -73,6 +73,8 @@ fun SettingsScreen(
     val isBackgroundServiceEnabled by viewModel.isBackgroundServiceEnabled.collectAsState()
     val readReceiptsEnabled by viewModel.readReceiptsEnabled.collectAsState()
     val typingIndicatorsEnabled by viewModel.typingIndicatorsEnabled.collectAsState()
+    val sessions by viewModel.sessions.collectAsState()
+    val isLoadingSessions by viewModel.isLoadingSessions.collectAsState()
     
     var showPinDialog by remember { mutableStateOf(false) }
     var showCacheDialog by remember { mutableStateOf(false) }
@@ -225,6 +227,8 @@ fun SettingsScreen(
                         pinCode = pinCode,
                         isBiometricEnabled = isBiometricEnabled,
                         canAuthenticate = canAuthenticate,
+                        sessions = sessions,
+                        isLoadingSessions = isLoadingSessions,
                         onPinToggle = { enabled ->
                             if (enabled) {
                                 showPinDialog = true
@@ -233,7 +237,10 @@ fun SettingsScreen(
                                 viewModel.setBiometricEnabled(false)
                             }
                         },
-                        onBiometricToggle = { viewModel.setBiometricEnabled(it) }
+                        onBiometricToggle = { viewModel.setBiometricEnabled(it) },
+                        onLoadSessions = { viewModel.loadSessions() },
+                        onLogoutSession = { sessionId -> viewModel.logoutSession(sessionId) },
+                        onLogoutAllOtherSessions = { viewModel.logoutAllOtherSessions() }
                     )
                 }
                 SettingsCategory.STORAGE -> {
