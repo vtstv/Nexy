@@ -34,7 +34,7 @@ fun ChatSelectorScreen(
     onNavigateBack: () -> Unit,
     viewModel: FolderViewModel = hiltViewModel()
 ) {
-    val allChats by viewModel.allChats.collectAsState()
+    val selectableChats by viewModel.selectableChats.collectAsState()
     val currentFolder by viewModel.currentFolder.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     
@@ -48,13 +48,14 @@ fun ChatSelectorScreen(
     }
     var selection by remember(initialSelection) { mutableStateOf(initialSelection) }
     
-    val groupedChats = remember(allChats) {
-        allChats.groupBy { chat ->
-            when (chat.type) {
-                ChatType.GROUP -> "Groups"
-                ChatType.PRIVATE -> "Chats"
+    val groupedChats = remember(selectableChats) {
+        selectableChats.groupBy { it.chat.type }
+            .mapKeys { (type, _) ->
+                when (type) {
+                    ChatType.GROUP -> "Groups"
+                    ChatType.PRIVATE -> "Chats"
+                }
             }
-        }
     }
 
     Scaffold(
@@ -109,10 +110,10 @@ fun ChatSelectorScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             items(selection.toList()) { chatId ->
-                                val chat = allChats.find { it.id == chatId }
-                                if (chat != null) {
+                                val item = selectableChats.find { it.chat.id == chatId }
+                                if (item != null) {
                                     SelectedChatChip(
-                                        chat = chat,
+                                        item = item,
                                         onRemove = { selection = selection - chatId }
                                     )
                                 }
@@ -140,9 +141,9 @@ fun ChatSelectorScreen(
                         iconColor = Color(0xFF2196F3),
                         isSelected = false,
                         onClick = { 
-                            val privateChats = allChats.filter { 
-                                it.type == ChatType.PRIVATE 
-                            }.map { it.id }
+                            val privateChats = selectableChats.filter { 
+                                it.chat.type == ChatType.PRIVATE 
+                            }.map { it.chat.id }
                             selection = selection + privateChats
                         }
                     )
@@ -155,9 +156,9 @@ fun ChatSelectorScreen(
                         iconColor = Color(0xFF4CAF50),
                         isSelected = false,
                         onClick = { 
-                            val groupChats = allChats.filter { 
-                                it.type == ChatType.GROUP
-                            }.map { it.id }
+                            val groupChats = selectableChats.filter { 
+                                it.chat.type == ChatType.GROUP
+                            }.map { it.chat.id }
                             selection = selection + groupChats
                         }
                     )
@@ -178,15 +179,15 @@ fun ChatSelectorScreen(
                         )
                     }
 
-                    items(chats) { chat ->
+                    items(chats) { item ->
                         SelectableChatItem(
-                            chat = chat,
-                            isSelected = chat.id in selection,
+                            item = item,
+                            isSelected = item.chat.id in selection,
                             onClick = {
-                                selection = if (chat.id in selection) {
-                                    selection - chat.id
+                                selection = if (item.chat.id in selection) {
+                                    selection - item.chat.id
                                 } else {
-                                    selection + chat.id
+                                    selection + item.chat.id
                                 }
                             }
                         )
@@ -199,7 +200,7 @@ fun ChatSelectorScreen(
 
 @Composable
 private fun SelectedChatChip(
-    chat: Chat,
+    item: SelectableChat,
     onRemove: () -> Unit
 ) {
     Surface(
@@ -220,7 +221,7 @@ private fun SelectedChatChip(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = (chat.name ?: chat.username ?: "?").take(1).uppercase(),
+                    text = item.displayName.take(1).uppercase(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimary,
                     fontWeight = FontWeight.Bold
@@ -230,7 +231,7 @@ private fun SelectedChatChip(
             Spacer(modifier = Modifier.width(8.dp))
             
             Text(
-                text = (chat.name ?: chat.username ?: "Chat").take(12),
+                text = item.displayName.take(12),
                 style = MaterialTheme.typography.bodyMedium
             )
             
@@ -299,19 +300,19 @@ private fun ChatTypeQuickFilter(
 
 @Composable
 private fun SelectableChatItem(
-    chat: Chat,
+    item: SelectableChat,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
     ListItem(
         headlineContent = { 
             Text(
-                text = chat.name ?: chat.username ?: "Chat",
+                text = item.displayName,
                 fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal
             )
         },
         supportingContent = {
-            val typeLabel = when (chat.type) {
+            val typeLabel = when (item.chat.type) {
                 ChatType.GROUP -> "Group"
                 ChatType.PRIVATE -> "Chat"
             }
@@ -329,7 +330,7 @@ private fun SelectableChatItem(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = (chat.name ?: chat.username ?: "?").take(1).uppercase(),
+                    text = item.displayName.take(1).uppercase(),
                     style = MaterialTheme.typography.titleMedium,
                     color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
                            else MaterialTheme.colorScheme.onSurfaceVariant

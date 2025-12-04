@@ -5,10 +5,13 @@ package com.nexy.client.ui.screens.folders
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nexy.client.data.local.AuthTokenManager
 import com.nexy.client.data.models.Chat
 import com.nexy.client.data.models.ChatFolder
+import com.nexy.client.data.models.ChatType
 import com.nexy.client.data.repository.ChatRepository
 import com.nexy.client.data.repository.FolderRepository
+import com.nexy.client.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -19,10 +22,18 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class SelectableChat(
+    val chat: Chat,
+    val displayName: String,
+    val avatarUrl: String? = null
+)
+
 @HiltViewModel
 class FolderViewModel @Inject constructor(
     private val folderRepository: FolderRepository,
-    private val chatRepository: ChatRepository
+    private val chatRepository: ChatRepository,
+    private val userRepository: UserRepository,
+    private val tokenManager: AuthTokenManager
 ) : ViewModel() {
 
     val folders: StateFlow<List<ChatFolder>> = folderRepository.folders
@@ -31,6 +42,9 @@ class FolderViewModel @Inject constructor(
 
     private val _allChats = MutableStateFlow<List<Chat>>(emptyList())
     val allChats: StateFlow<List<Chat>> = _allChats.asStateFlow()
+
+    private val _selectableChats = MutableStateFlow<List<SelectableChat>>(emptyList())
+    val selectableChats: StateFlow<List<SelectableChat>> = _selectableChats.asStateFlow()
 
     private val _currentFolderId = MutableStateFlow<Int?>(null)
     
@@ -53,8 +67,27 @@ class FolderViewModel @Inject constructor(
 
     fun loadAllChats() {
         viewModelScope.launch {
+            val currentUserId = tokenManager.getUserId()
             chatRepository.getAllChats().collect { chats ->
                 _allChats.value = chats
+                
+                val selectable = ArrayList<SelectableChat>()
+                for (chat in chats) {
+                    val (name, avatar) = if (chat.type == ChatType.PRIVATE) {
+                        val otherId = chat.participantIds?.firstOrNull { it != currentUserId }
+                        if (otherId != null) {
+                            val userResult = userRepository.getUserById(otherId)
+                            val user = userResult.getOrNull()
+                            Pair(user?.displayName ?: user?.username ?: "User $otherId", user?.avatarUrl)
+                        } else {
+                            Pair("Notepad", null)
+                        }
+                    } else {
+                        Pair(chat.name ?: "Unknown", chat.avatarUrl)
+                    }
+                    selectable.add(SelectableChat(chat, name, avatar))
+                }
+                _selectableChats.value = selectable
             }
         }
     }
