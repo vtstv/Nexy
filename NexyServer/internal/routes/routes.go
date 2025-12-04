@@ -18,6 +18,7 @@ type Router struct {
 	wsController      *controllers.WSController
 	e2eController     *controllers.E2EController
 	contactController *controllers.ContactController
+	turnController    *controllers.TURNController
 	authMiddleware    *middleware.AuthMiddleware
 	corsMiddleware    *middleware.CORSMiddleware
 	rateLimiter       *middleware.RateLimiter
@@ -33,6 +34,7 @@ func NewRouter(
 	wsController *controllers.WSController,
 	e2eController *controllers.E2EController,
 	contactController *controllers.ContactController,
+	turnController *controllers.TURNController,
 	authMiddleware *middleware.AuthMiddleware,
 	corsMiddleware *middleware.CORSMiddleware,
 	rateLimiter *middleware.RateLimiter,
@@ -47,6 +49,7 @@ func NewRouter(
 		wsController:      wsController,
 		e2eController:     e2eController,
 		contactController: contactController,
+		turnController:    turnController,
 		authMiddleware:    authMiddleware,
 		corsMiddleware:    corsMiddleware,
 		rateLimiter:       rateLimiter,
@@ -150,6 +153,11 @@ func (rt *Router) Setup() *mux.Router {
 	contacts.HandleFunc("/status", rt.contactController.CheckContactStatus).Methods("GET")
 	contacts.HandleFunc("/{id}", rt.contactController.UpdateContactStatus).Methods("PUT")
 	contacts.HandleFunc("/{id}", rt.contactController.DeleteContact).Methods("DELETE")
+
+	// TURN/STUN server configuration endpoint
+	turn := api.PathPrefix("/turn").Subrouter()
+	turn.Use(rt.authMiddleware.Authenticate)
+	turn.HandleFunc("/ice-servers", rt.turnController.GetICEServers).Methods("GET")
 
 	// WebSocket endpoint - authentication handled in controller via query param
 	r.HandleFunc("/ws", rt.wsController.HandleWebSocket)

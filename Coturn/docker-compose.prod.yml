@@ -1,0 +1,44 @@
+services:
+  coturn:
+    image: coturn/coturn:latest
+    container_name: nexy_coturn_prod
+    restart: always
+    
+    ports:
+      - "3478:3478/udp"
+      - "3478:3478/tcp"
+      - "5349:5349/udp"
+      - "5349:5349/tcp"
+      # Production: wider port range
+      - "49152-65535:49152-65535/udp"
+    
+    volumes:
+      - ./turnserver.prod.conf:/etc/coturn/turnserver.conf:ro
+      - coturn_logs:/var/log
+      - ./certs:/etc/coturn/certs:ro
+    
+    environment:
+      - DETECT_EXTERNAL_IP=yes
+      - DETECT_RELAY_IP=yes
+      # Set your public IP
+      - EXTERNAL_IP=${EXTERNAL_IP}
+    
+    networks:
+      - coturn_network
+    
+    # Resource limits (adjust based on server capacity)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+volumes:
+  coturn_logs:
+
+networks:
+  coturn_network:
+    driver: bridge

@@ -66,6 +66,7 @@ func main() {
 	fileController := controllers.NewFileController(fileService)
 	e2eController := controllers.NewE2EController(e2eService)
 	contactController := controllers.NewContactController(contactService)
+	turnController := controllers.NewTURNController(cfg)
 
 	wsHandler := nexy.NewWSHandler(hub)
 	wsController := controllers.NewWSController(wsHandler, authService)
@@ -84,6 +85,7 @@ func main() {
 		wsController,
 		e2eController,
 		contactController,
+		turnController,
 		authMiddleware,
 		corsMiddleware,
 		rateLimiter,

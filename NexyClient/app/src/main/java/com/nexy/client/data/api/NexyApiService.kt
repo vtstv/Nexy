@@ -187,7 +187,24 @@ interface NexyApiService {
     
     @POST("chats/groups/join")
     suspend fun joinGroupByInvite(@Body request: JoinByInviteRequest): Response<Chat>
+    
+    @GET("turn/ice-servers")
+    suspend fun getICEServers(): Response<ICEConfigResponse>
 }
+
+data class ICEServer(
+    @com.google.gson.annotations.SerializedName("urls")
+    val urls: List<String>,
+    @com.google.gson.annotations.SerializedName("username")
+    val username: String? = null,
+    @com.google.gson.annotations.SerializedName("credential")
+    val credential: String? = null
+)
+
+data class ICEConfigResponse(
+    @com.google.gson.annotations.SerializedName("iceServers")
+    val iceServers: List<ICEServer>
+)
 
 data class CreateChatRequest(
     @com.google.gson.annotations.SerializedName("recipient_id")

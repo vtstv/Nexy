@@ -1,0 +1,38 @@
+services:
+  coturn:
+    image: coturn/coturn:latest
+    container_name: nexy_coturn
+    restart: unless-stopped
+    
+    ports:
+      # STUN/TURN main ports
+      - "3478:3478/udp"
+      - "3478:3478/tcp"
+      # TLS ports (for production)
+      - "5349:5349/udp"
+      - "5349:5349/tcp"
+      # Relay port range (adjust for production)
+      - "49160-49200:49160-49200/udp"
+    
+    volumes:
+      - ./turnserver.conf:/etc/coturn/turnserver.conf:ro
+      - coturn_logs:/var/log
+      # For TLS certificates (production)
+      # - ./certs:/etc/coturn/certs:ro
+    
+    environment:
+      # Detect external IP automatically
+      - DETECT_EXTERNAL_IP=yes
+      - DETECT_RELAY_IP=yes
+      # Override with specific IP if needed
+      # - EXTERNAL_IP=your.public.ip.address
+    
+    networks:
+      - coturn_network
+
+volumes:
+  coturn_logs:
+
+networks:
+  coturn_network:
+    driver: bridge

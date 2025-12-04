@@ -11,6 +11,7 @@ import com.nexy.client.data.models.nexy.CallAnswerBody
 import com.nexy.client.data.models.nexy.CallCancelBody
 import com.nexy.client.data.models.nexy.CallOfferBody
 import com.nexy.client.data.models.nexy.ICECandidateBody
+import com.nexy.client.data.api.NexyApiService
 import com.nexy.client.data.websocket.NexyWebSocketClient
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -46,6 +47,7 @@ data class CallStats(
 class WebRTCClient @Inject constructor(
     @ApplicationContext private val context: Context,
     private val webSocketClient: NexyWebSocketClient,
+    private val apiService: NexyApiService,
     private val gson: Gson
 ) {
     private val TAG = "WebRTCClient"
@@ -60,7 +62,7 @@ class WebRTCClient @Inject constructor(
     
     private val eglBase = EglBase.create()
     
-    private val iceServers = listOf(
+    private var iceServers = listOf(
         PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer()
     )
 
@@ -72,6 +74,32 @@ class WebRTCClient @Inject constructor(
 
     init {
         observeIncomingMessages()
+        fetchICEServers()
+    }
+    
+    private fun fetchICEServers() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val response = apiService.getICEServers()
+                if (response.isSuccessful) {
+                    response.body()?.let { config ->
+                        iceServers = config.iceServers.map { iceServer ->
+                            val builder = PeerConnection.IceServer.builder(iceServer.urls)
+                            if (iceServer.username != null && iceServer.credential != null) {
+                                builder.setUsername(iceServer.username)
+                                builder.setPassword(iceServer.credential)
+                            }
+                            builder.createIceServer()
+                        }
+                        Log.d(TAG, "ICE servers configured: ${iceServers.size} servers")
+                    }
+                } else {
+                    Log.w(TAG, "Failed to fetch ICE servers, using defaults")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching ICE servers, using defaults", e)
+            }
+        }
     }
     
     fun initialize() {

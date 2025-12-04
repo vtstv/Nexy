@@ -19,6 +19,7 @@ type Config struct {
 	S3        S3Config
 	CORS      CORSConfig
 	RateLimit RateLimitConfig
+	TURN      TURNConfig
 }
 
 type ServerConfig struct {
@@ -69,6 +70,13 @@ type CORSConfig struct {
 type RateLimitConfig struct {
 	Requests int
 	Window   int
+}
+
+type TURNConfig struct {
+	ServerURL     string
+	Username      string
+	Password      string
+	STUNServerURL string
 }
 
 func Load() (*Config, error) {
@@ -151,6 +159,12 @@ func Load() (*Config, error) {
 		RateLimit: RateLimitConfig{
 			Requests: rateLimitRequests,
 			Window:   rateLimitWindow,
+		},
+		TURN: TURNConfig{
+			ServerURL:     getEnv("TURN_SERVER_URL", "turn:localhost:3478"),
+			Username:      getEnv("TURN_USERNAME", "nexy"),
+			Password:      getEnv("TURN_PASSWORD", "nexy_turn_password"),
+			STUNServerURL: getEnv("STUN_SERVER_URL", "stun:localhost:3478"),
 		},
 	}, nil
 }

@@ -1,0 +1,30 @@
+# Environment files
+.env
+
+# Certificates (never commit private keys!)
+certs/
+*.pem
+*.key
+*.crt
+
+# Logs
+*.log
+logs/
+
+# Docker volumes
+**/volumes/
+
+# Backup files
+*.backup
+*.bak
+*.tar.gz
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
