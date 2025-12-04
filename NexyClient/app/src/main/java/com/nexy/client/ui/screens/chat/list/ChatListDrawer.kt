@@ -24,14 +24,12 @@ import coil.request.ImageRequest
 import com.nexy.client.BuildConfig
 import com.nexy.client.R
 import com.nexy.client.ServerConfig
-import com.nexy.client.ui.theme.ThemeStyle
 
 @Composable
 fun ChatListDrawer(
     userName: String,
     avatarUrl: String?,
     isDarkTheme: Boolean,
-    themeStyle: ThemeStyle,
     isPinSet: Boolean,
     onNavigateToProfile: () -> Unit,
     onNavigateToCreateGroup: () -> Unit,
@@ -41,8 +39,6 @@ fun ChatListDrawer(
     onNavigateToSettings: () -> Unit,
     onLockApp: () -> Unit,
     onShowAboutDialog: () -> Unit,
-    onShowLanguageDialog: () -> Unit,
-    onShowThemeStyleDialog: () -> Unit,
     onToggleTheme: () -> Unit,
     onShowLogoutDialog: () -> Unit,
     onCloseDrawer: () -> Unit
@@ -199,44 +195,6 @@ fun ChatListDrawer(
                     onShowAboutDialog()
                 },
                 modifier = Modifier.padding(horizontal = 12.dp).height(48.dp)
-            )
-
-            // Language Selector
-            NavigationDrawerItem(
-                icon = { Icon(Icons.Default.Language, null) },
-                label = { Text(stringResource(R.string.language)) },
-                selected = false,
-                onClick = {
-                    onShowLanguageDialog()
-                },
-                modifier = Modifier.padding(horizontal = 12.dp).height(48.dp)
-            )
-            
-            // Theme Style Selector
-            NavigationDrawerItem(
-                icon = { Icon(Icons.Default.Palette, null) },
-                label = { 
-                    Column {
-                        Text(stringResource(R.string.theme_style))
-                        Text(
-                            text = when(themeStyle) {
-                                ThemeStyle.Pink -> stringResource(R.string.style_pink)
-                                ThemeStyle.Blue -> stringResource(R.string.style_blue)
-                                ThemeStyle.Green -> stringResource(R.string.style_green)
-                                ThemeStyle.Purple -> stringResource(R.string.style_purple)
-                                ThemeStyle.Orange -> stringResource(R.string.style_orange)
-                                ThemeStyle.Teal -> stringResource(R.string.style_teal)
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                },
-                selected = false,
-                onClick = {
-                    onShowThemeStyleDialog()
-                },
-                modifier = Modifier.padding(horizontal = 12.dp).height(56.dp)
             )
 
             NavigationDrawerItem(

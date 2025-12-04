@@ -28,12 +28,9 @@ fun ChatListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val isDarkTheme by themeViewModel.isDarkTheme.collectAsState()
-    val themeStyle by themeViewModel.themeStyle.collectAsState()
     val pinCode by settingsViewModel.pinCode.collectAsState()
     
     var showLogoutDialog by remember { mutableStateOf(false) }
-    var showThemeStyleDialog by remember { mutableStateOf(false) }
-    var showLanguageDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
     
     val userName = uiState.currentUser?.displayName?.ifBlank { uiState.currentUser?.username } 
@@ -58,7 +55,6 @@ fun ChatListScreen(
                 userName = userName,
                 avatarUrl = uiState.currentUser?.avatarUrl,
                 isDarkTheme = isDarkTheme,
-                themeStyle = themeStyle,
                 isPinSet = pinCode != null,
                 onNavigateToProfile = onNavigateToProfile,
                 onNavigateToCreateGroup = onNavigateToCreateGroup,
@@ -68,8 +64,6 @@ fun ChatListScreen(
                 onNavigateToSettings = onNavigateToSettings,
                 onLockApp = { viewModel.lockApp() },
                 onShowAboutDialog = { showAboutDialog = true },
-                onShowLanguageDialog = { showLanguageDialog = true },
-                onShowThemeStyleDialog = { showThemeStyleDialog = true },
                 onToggleTheme = { themeViewModel.toggleTheme() },
                 onShowLogoutDialog = { showLogoutDialog = true },
                 onCloseDrawer = { scope.launch { drawerState.close() } }
@@ -99,22 +93,10 @@ fun ChatListScreen(
             AboutDialog(onDismiss = { showAboutDialog = false })
         }
 
-        if (showLanguageDialog) {
-            LanguageDialog(onDismiss = { showLanguageDialog = false })
-        }
-
         if (showLogoutDialog) {
             LogoutDialog(
                 onDismiss = { showLogoutDialog = false },
                 onLogout = onLogout
-            )
-        }
-        
-        if (showThemeStyleDialog) {
-            ThemeStyleDialog(
-                themeStyle = themeStyle,
-                onThemeStyleSelected = { themeViewModel.setThemeStyle(it) },
-                onDismiss = { showThemeStyleDialog = false }
             )
         }
     }

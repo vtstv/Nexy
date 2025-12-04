@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -34,6 +35,7 @@ import com.nexy.client.ui.screens.settings.components.dialogs.PinSetupDialog
 
 private enum class SettingsCategory {
     MAIN,
+    APPEARANCE,
     CHAT,
     NOTIFICATIONS,
     SECURITY,
@@ -58,6 +60,7 @@ fun SettingsScreen(
     val cacheMaxAge by viewModel.cacheMaxAge.collectAsState()
     
     val themeStyle by themeViewModel.themeStyle.collectAsState()
+    val isDarkTheme by themeViewModel.isDarkTheme.collectAsState()
     val fontScale by themeViewModel.fontScale.collectAsState()
     val incomingTextColor by themeViewModel.incomingTextColor.collectAsState()
     val outgoingTextColor by themeViewModel.outgoingTextColor.collectAsState()
@@ -100,6 +103,7 @@ fun SettingsScreen(
                     Text(
                         text = when (currentCategory) {
                             SettingsCategory.MAIN -> stringResource(R.string.settings)
+                            SettingsCategory.APPEARANCE -> stringResource(R.string.appearance)
                             SettingsCategory.CHAT -> "Chat Settings"
                             SettingsCategory.NOTIFICATIONS -> "Notifications"
                             SettingsCategory.SECURITY -> "Security"
@@ -130,6 +134,11 @@ fun SettingsScreen(
             when (currentCategory) {
                 SettingsCategory.MAIN -> {
                     SettingsCategoryItem(
+                        icon = Icons.Default.Palette,
+                        title = stringResource(R.string.appearance),
+                        onClick = { currentCategory = SettingsCategory.APPEARANCE }
+                    )
+                    SettingsCategoryItem(
                         icon = Icons.Default.Email,
                         title = "Chat Settings",
                         onClick = { currentCategory = SettingsCategory.CHAT }
@@ -148,6 +157,14 @@ fun SettingsScreen(
                         icon = Icons.Default.Info,
                         title = "Storage & Data",
                         onClick = { currentCategory = SettingsCategory.STORAGE }
+                    )
+                }
+                SettingsCategory.APPEARANCE -> {
+                    AppearanceSection(
+                        isDarkTheme = isDarkTheme,
+                        themeStyle = themeStyle,
+                        onToggleTheme = { themeViewModel.toggleTheme() },
+                        onThemeStyleChange = { themeViewModel.setThemeStyle(it) }
                     )
                 }
                 SettingsCategory.CHAT -> {
