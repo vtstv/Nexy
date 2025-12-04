@@ -188,10 +188,9 @@ class ChatViewModel @Inject constructor(
                         messages = messages,
                         isLoading = false
                     )
-                    // Mark chat as read when messages are loaded/updated
-                    if (messages.isNotEmpty()) {
-                        messageOps.markAsRead(chatId)
-                    }
+                    // Only mark as read if the chat is actually visible/active
+                    // We rely on the UI calling markAsRead() in LaunchedEffect or onResume
+                    // Removing the automatic markAsRead here prevents background updates from triggering read receipts
                 }
         }
         
