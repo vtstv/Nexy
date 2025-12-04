@@ -60,6 +60,9 @@ class WebRTCClient @Inject constructor(
     private var isInitialized = false
     private var statsJob: kotlinx.coroutines.Job? = null
     
+    // Queue for early ICE candidates that arrive before PeerConnection is ready
+    private val pendingIceCandidates = mutableListOf<ICECandidateBody>()
+    
     private val eglBase = EglBase.create()
     
     private var iceServers = listOf(
@@ -84,6 +87,7 @@ class WebRTCClient @Inject constructor(
                 if (response.isSuccessful) {
                     response.body()?.let { config ->
                         iceServers = config.iceServers.map { iceServer ->
+                            Log.d(TAG, "Adding ICE server: ${iceServer.urls.joinToString()}")
                             val builder = PeerConnection.IceServer.builder(iceServer.urls)
                             if (iceServer.username != null && iceServer.credential != null) {
                                 builder.setUsername(iceServer.username)
@@ -110,9 +114,7 @@ class WebRTCClient @Inject constructor(
     private fun observeIncomingMessages() {
         CoroutineScope(Dispatchers.IO).launch {
             webSocketClient.incomingMessages.collect { message ->
-                if (message != null) {
-                    handleSignalingMessage(message)
-                }
+                handleSignalingMessage(message)
             }
         }
     }
@@ -131,12 +133,14 @@ class WebRTCClient @Inject constructor(
                 val offer = gson.fromJson(jsonBody, CallOfferBody::class.java)
                 if (currentCallId == null) {
                     Log.d(TAG, "Received call offer from $senderId: ${offer.callId}")
+                    Log.d(TAG, "Offer SDP: ${offer.sdp}")
                     _callState.value = CallState.Incoming(senderId, offer.callId, offer.sdp)
                 }
             }
             "call_answer" -> {
                 val answer = gson.fromJson(jsonBody, CallAnswerBody::class.java)
                 if (currentCallId == answer.callId) {
+                    Log.d(TAG, "Received call answer: ${answer.sdp}")
                     onRemoteSessionReceived(answer.sdp)
                     currentRecipientId?.let {
                         _callState.value = CallState.Active(it)
@@ -145,8 +149,18 @@ class WebRTCClient @Inject constructor(
             }
             "ice_candidate" -> {
                 val candidate = gson.fromJson(jsonBody, ICECandidateBody::class.java)
+                // Check if candidate matches current call OR if we're waiting for a call to start
                 if (currentCallId == candidate.callId) {
+                    Log.d(TAG, "Received remote ICE candidate: ${candidate.candidate}")
                     onIceCandidateReceived(candidate)
+                } else if (peerConnection == null) {
+                    // Queue candidate if PeerConnection is not ready yet (early candidate)
+                    Log.d(TAG, "Queuing early ICE candidate for call ${candidate.callId}: ${candidate.candidate}")
+                    synchronized(pendingIceCandidates) {
+                        pendingIceCandidates.add(candidate)
+                    }
+                } else {
+                    Log.w(TAG, "Ignoring ICE candidate for different call: ${candidate.callId} (current: $currentCallId)")
                 }
             }
             "call_end" -> {
@@ -237,6 +251,9 @@ class WebRTCClient @Inject constructor(
             setRemoteDescription(remoteSdp)
             createAnswer(senderId)
             startStatsLogging()
+            
+            // Process any ICE candidates that arrived before the call was set up
+            processPendingIceCandidates()
         } catch (e: Exception) {
             Log.e(TAG, "Error answering call", e)
             _callState.value = CallState.Idle
@@ -247,7 +264,75 @@ class WebRTCClient @Inject constructor(
         setRemoteDescription(sdp)
     }
     
+    /**
+     * Process any ICE candidates that arrived before the call was fully set up.
+     * This handles the race condition where candidates arrive before currentCallId is set.
+     */
+    private fun processPendingIceCandidates() {
+        synchronized(pendingIceCandidates) {
+            if (pendingIceCandidates.isEmpty()) {
+                Log.d(TAG, "No pending ICE candidates to process")
+                return
+            }
+            
+            Log.d(TAG, "Processing ${pendingIceCandidates.size} pending ICE candidates")
+            val candidatesToProcess = pendingIceCandidates.filter { it.callId == currentCallId }
+            val otherCandidates = pendingIceCandidates.filter { it.callId != currentCallId }
+            
+            if (otherCandidates.isNotEmpty()) {
+                Log.w(TAG, "Discarding ${otherCandidates.size} candidates for different calls")
+            }
+            
+            candidatesToProcess.forEach { candidate ->
+                Log.d(TAG, "Processing queued ICE candidate: ${candidate.candidate}")
+                onIceCandidateReceived(candidate)
+            }
+            
+            pendingIceCandidates.clear()
+        }
+    }
+    
     fun onIceCandidateReceived(candidate: ICECandidateBody) {
+        Log.d(TAG, "Processing remote ICE candidate: ${candidate.candidate}")
+        
+        val candidateStr = candidate.candidate
+        
+        // Block definitely unreachable addresses:
+        // 1. Loopback addresses (127.0.0.1, ::1) - local machine only
+        // 2. Emulator internal IP (10.0.2.15) - not routable
+        // 3. Docker bridge networks (172.16-31.*) - container-only networks
+        
+        val isLoopback = candidateStr.contains("127.0.0.1") || candidateStr.contains("::1")
+        val isEmulatorInternal = candidateStr.contains("10.0.2.")
+        val isDockerNetwork = Regex("""172\.(1[6-9]|2[0-9]|3[01])\..*""").containsMatchIn(candidateStr)
+        
+        // For local network (192.168.0.x), allow direct connection if both devices are on same LAN
+        // This is the most efficient path for physical device <-> emulator on same network
+        val isLocalNetwork = candidateStr.contains("192.168.")
+        val isRelay = candidateStr.contains("typ relay")
+        val isHost = candidateStr.contains("typ host")
+        val isSrflx = candidateStr.contains("typ srflx")
+        
+        when {
+            isLoopback || isEmulatorInternal -> {
+                Log.w(TAG, "❌ Blocking unreachable: $candidateStr")
+                return
+            }
+            isDockerNetwork && !isRelay -> {
+                Log.w(TAG, "❌ Blocking Docker network: $candidateStr")
+                return
+            }
+            isLocalNetwork && (isHost || isSrflx) -> {
+                Log.d(TAG, "✅ Allowing LAN candidate: $candidateStr")
+            }
+            isRelay -> {
+                Log.d(TAG, "✅ Allowing relay candidate: $candidateStr")
+            }
+            else -> {
+                Log.d(TAG, "✅ Allowing candidate: $candidateStr")
+            }
+        }
+        
         val iceCandidate = IceCandidate(candidate.sdpMid, candidate.sdpMLineIndex, candidate.candidate)
         peerConnection?.addIceCandidate(iceCandidate)
     }
@@ -275,6 +360,10 @@ class WebRTCClient @Inject constructor(
         try {
             val rtcConfig = PeerConnection.RTCConfiguration(iceServers)
             rtcConfig.sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
+            // Allow all candidate types - let ICE find the best path
+            // Filtering is done in onIceCandidate to block unreachable candidates
+            rtcConfig.iceTransportsType = PeerConnection.IceTransportsType.ALL
+            Log.d(TAG, "🌐 ICE configured: ALL candidates with smart filtering")
             
             peerConnection = peerConnectionFactory?.createPeerConnection(rtcConfig, object : PeerConnection.Observer {
                 override fun onSignalingChange(state: PeerConnection.SignalingState?) {
@@ -289,12 +378,19 @@ class WebRTCClient @Inject constructor(
 
                 override fun onIceConnectionReceivingChange(receiving: Boolean) {}
 
-                override fun onIceGatheringChange(state: PeerConnection.IceGatheringState?) {}
+                override fun onIceGatheringChange(state: PeerConnection.IceGatheringState?) {
+                    Log.d(TAG, "onIceGatheringChange: $state")
+                }
 
                 override fun onIceCandidate(candidate: IceCandidate?) {
                     candidate?.let {
+                        Log.d(TAG, "onIceCandidate: ${it.sdpMid}:${it.sdpMLineIndex} - ${it.sdp}")
                         sendIceCandidate(it, myUserId)
                     }
+                }
+
+                override fun onIceCandidateError(event: IceCandidateErrorEvent) {
+                    Log.e(TAG, "onIceCandidateError: ${event.errorCode} - ${event.errorText} at ${event.address}:${event.port} url: ${event.url}")
                 }
 
                 override fun onIceCandidatesRemoved(candidates: Array<out IceCandidate>?) {}
@@ -423,6 +519,11 @@ class WebRTCClient @Inject constructor(
         currentCallId = null
         currentRecipientId = null
         setAudioMode(false)
+        
+        // Clear any pending candidates
+        synchronized(pendingIceCandidates) {
+            pendingIceCandidates.clear()
+        }
     }
 
     private fun startStatsLogging() {

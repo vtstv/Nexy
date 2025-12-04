@@ -4,7 +4,9 @@ import android.util.Log
 import com.google.gson.Gson
 import com.nexy.client.data.models.nexy.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import okhttp3.*
 import java.util.concurrent.TimeUnit
@@ -30,8 +32,13 @@ class NexyWebSocketClient(
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
     val connectionState: StateFlow<ConnectionState> = _connectionState
     
-    private val _incomingMessages = MutableStateFlow<NexyMessage?>(null)
-    val incomingMessages: StateFlow<NexyMessage?> = _incomingMessages
+    // Using SharedFlow with buffer to prevent message loss during rapid ICE candidate exchange
+    // replay=0 means no replay to new subscribers, extraBufferCapacity=64 provides buffer for bursts
+    private val _incomingMessages = MutableSharedFlow<NexyMessage>(
+        replay = 0,
+        extraBufferCapacity = 64
+    )
+    val incomingMessages: SharedFlow<NexyMessage> = _incomingMessages
     
     private var messageCallback: ((NexyMessage) -> Unit)? = null
     private var messagePreviewCallback: (() -> Unit)? = null
@@ -275,7 +282,10 @@ class NexyWebSocketClient(
             val message = gson.fromJson(text, NexyMessage::class.java)
             
             message?.let {
-                _incomingMessages.value = it
+                // Emit to SharedFlow (non-blocking with tryEmit)
+                if (!_incomingMessages.tryEmit(it)) {
+                    Log.w(TAG, "Message buffer full, dropping message: ${it.header.type}")
+                }
                 messageCallback?.invoke(it)
                 
                 // Trigger preview update only for chat messages

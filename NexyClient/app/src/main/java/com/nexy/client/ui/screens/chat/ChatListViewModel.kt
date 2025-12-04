@@ -65,7 +65,7 @@ class ChatListViewModel @Inject constructor(
         // Also listen to incoming messages directly for immediate updates
         viewModelScope.launch {
             webSocketClient.incomingMessages.collect { message ->
-                if (message != null && message.header.type == "chat_message") {
+                if (message.header.type == "chat_message") {
                     android.util.Log.d("ChatListViewModel", "Chat message received, updating refresh trigger")
                     _refreshTrigger.value = System.currentTimeMillis()
                     // Also refresh last message from DB for immediate preview update

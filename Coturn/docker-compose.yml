@@ -20,12 +20,12 @@ services:
       # For TLS certificates (production)
       # - ./certs:/etc/coturn/certs:ro
     
+    # Override default CMD to prevent auto-detection of external-ip (we set it in config)
+    command: ["-c", "/etc/coturn/turnserver.conf", "--log-file=stdout"]
+    
     environment:
-      # Detect external IP automatically
-      # - DETECT_EXTERNAL_IP=yes
+      # External IP is set in turnserver.conf, don't duplicate here
       - DETECT_RELAY_IP=yes
-      # Override with specific IP if needed
-      # - EXTERNAL_IP=your.public.ip.address
     
     networks:
       - coturn_network
