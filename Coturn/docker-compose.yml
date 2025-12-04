@@ -22,7 +22,7 @@ services:
     
     environment:
       # Detect external IP automatically
-      - DETECT_EXTERNAL_IP=yes
+      # - DETECT_EXTERNAL_IP=yes
       - DETECT_RELAY_IP=yes
       # Override with specific IP if needed
       # - EXTERNAL_IP=your.public.ip.address
