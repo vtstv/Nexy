@@ -113,6 +113,14 @@ func (r *NexyChatRepo) CreatePrivateChat(ctx context.Context, user1ID, user2ID i
 	}, nil
 }
 
-func (r *NexyChatRepo) GetChatMembers(ctx context.Context, chatID int) ([]*models.ChatMember, error) {
-	return r.repo.GetChatMembersFull(ctx, chatID)
+func (r *NexyChatRepo) GetChatMembers(ctx context.Context, chatID int) ([]int, error) {
+	return r.repo.GetChatMembers(ctx, chatID)
+}
+
+func (r *NexyChatRepo) Create(ctx context.Context, chat *models.Chat) error {
+	return r.repo.Create(ctx, chat)
+}
+
+func (r *NexyChatRepo) AddMember(ctx context.Context, member *models.ChatMember) error {
+	return r.repo.AddMember(ctx, member)
 }
