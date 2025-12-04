@@ -200,7 +200,7 @@ fun ChatScreen(
                     
                     MessageInput(
                         text = uiState.messageText,
-                        onTextChange = viewModel::onMessageTextChange,
+                        onTextChange = viewModel::onMessageTextChanged,
                         onSend = {
                             viewModel.sendMessage(replyToId = replyToMessage?.serverId)
                             replyToMessage = null

@@ -238,10 +238,24 @@ class WebSocketMessageHandler @Inject constructor(
     
     private suspend fun handleReadReceipt(nexyMessage: NexyMessage) {
         val body = nexyMessage.body ?: return
-        val messageId = body["read_message_id"] as? String ?: return
+        // Server sends "message_id" in the body for read receipts
+        val messageId = (body["message_id"] as? String) ?: (body["read_message_id"] as? String) ?: return
         
-        Log.d(TAG, "Updating message status to READ: $messageId")
-        messageDao.updateMessageStatus(messageId, MessageStatus.READ.name)
+        Log.d(TAG, "Received read receipt for message: $messageId")
+        
+        // Find the message to get its timestamp and chatId
+        val message = messageDao.getMessageById(messageId)
+        if (message != null) {
+            Log.d(TAG, "Marking messages in chat ${message.chatId} up to ${message.timestamp} as READ")
+            // Only mark messages sent by ME as read (because the other person read them)
+            val currentUserId = tokenManager.getUserId()
+            if (currentUserId != null) {
+                messageDao.markMessagesAsReadUpTo(message.chatId, message.timestamp, currentUserId)
+            }
+        } else {
+            Log.w(TAG, "Message $messageId not found for read receipt, updating status only if exists")
+            messageDao.updateMessageStatus(messageId, MessageStatus.READ.name)
+        }
     }
     
     private suspend fun handleEditMessage(nexyMessage: NexyMessage) {
@@ -256,9 +270,22 @@ class WebSocketMessageHandler @Inject constructor(
     
     private suspend fun handleTyping(nexyMessage: NexyMessage) {
         val body = nexyMessage.body ?: return
-        val chatId = (body["chat_id"] as? Double)?.toInt() ?: return
+        // Handle both Double (Gson default) and other number types
+        val chatId = when (val id = body["chat_id"]) {
+            is Double -> id.toInt()
+            is Int -> id
+            is String -> id.toIntOrNull()
+            else -> id.toString().toDoubleOrNull()?.toInt()
+        }
+        
+        if (chatId == null) {
+            Log.w(TAG, "Invalid chat_id in typing message: ${body["chat_id"]}")
+            return
+        }
+
         val isTyping = body["is_typing"] as? Boolean ?: return
         
+        Log.d(TAG, "Received typing event: chatId=$chatId, isTyping=$isTyping")
         _typingEvents.emit(Pair(chatId, isTyping))
     }
     

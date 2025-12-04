@@ -219,18 +219,18 @@ class ChatViewModel @Inject constructor(
         }
     }
     
-    fun onMessageTextChange(text: TextFieldValue) {
-        _uiState.value = _uiState.value.copy(messageText = text)
-    }
-    
     fun onMessageTextChanged(text: TextFieldValue) {
         _uiState.value = _uiState.value.copy(messageText = text)
         
         // Handle typing indicator
         if (text.text.isNotEmpty()) {
-            if (!_uiState.value.isTyping) {
-                // Send start typing
-                messageOps.sendTyping(chatId, true)
+            // Send start typing if not already typing (or if debounce expired)
+            // We don't track "isTyping" state for *self* in UI state usually, 
+            // but we can use the debounce job existence as a proxy or just send it.
+            // Better: Send it if we haven't sent it recently.
+            
+            if (typingDebounceJob == null || !typingDebounceJob!!.isActive) {
+                 messageOps.sendTyping(chatId, true)
             }
             
             // Reset debounce timer

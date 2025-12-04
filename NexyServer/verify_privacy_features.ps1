@@ -1,1 +1,0 @@
-python docs/verify_privacy_features.py

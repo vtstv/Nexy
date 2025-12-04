@@ -153,16 +153,22 @@ class NexyWebSocketClient(
         sendMessage(message)
     }
     
-    fun sendTypingIndicator(recipientId: Int, senderId: Int, isTyping: Boolean) {
+    fun sendTypingIndicator(recipientId: Int, senderId: Int, isTyping: Boolean, chatId: Int = 0) {
+        val body = mutableMapOf<String, Any>("is_typing" to isTyping)
+        if (chatId != 0) {
+            body["chat_id"] = chatId
+        }
+
         val message = NexyMessage(
             header = NexyHeader(
                 type = "typing",
                 messageId = generateMessageId(),
                 timestamp = System.currentTimeMillis() / 1000,
                 senderId = senderId,
-                recipientId = recipientId
+                recipientId = recipientId,
+                chatId = if (chatId != 0) chatId else null
             ),
-            body = mapOf("is_typing" to isTyping)
+            body = body
         )
         sendMessage(message)
     }
@@ -210,6 +216,7 @@ class NexyWebSocketClient(
     }
     
     fun sendTyping(chatId: Int, isTyping: Boolean) {
+        Log.d(TAG, "Sending typing indicator: chatId=$chatId, isTyping=$isTyping")
         val body = mapOf(
             "chat_id" to chatId,
             "is_typing" to isTyping
