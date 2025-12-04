@@ -3,10 +3,12 @@
  */
 package com.nexy.client.ui.screens.chat.list
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -17,18 +19,32 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.nexy.client.R
 import com.nexy.client.data.models.ChatType
+import com.nexy.client.data.models.ChatFolder as ApiFolderModel
 import com.nexy.client.ui.screens.chat.ChatWithInfo
+
+// Built-in folder type for filtering
+sealed class FolderTab {
+    object All : FolderTab()
+    data class Custom(val folder: ApiFolderModel) : FolderTab()
+}
 
 @Composable
 fun ChatListContent(
     padding: PaddingValues,
     chats: List<ChatWithInfo>,
     isLoading: Boolean,
+    folders: List<ApiFolderModel> = emptyList(),
     onChatClick: (Int) -> Unit,
-    onNavigateToSearch: () -> Unit
+    onNavigateToSearch: () -> Unit,
+    onNavigateToFolders: () -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    var selectedFolder by remember { mutableStateOf(ChatFolder.ALL) }
+    var selectedTabIndex by remember { mutableStateOf(0) }
+
+    // Create folder tabs: All + user folders
+    val folderTabs = remember(folders) {
+        listOf(FolderTab.All) + folders.map { FolderTab.Custom(it) }
+    }
 
     Column(modifier = Modifier.fillMaxSize().padding(padding)) {
         // Search bar
@@ -53,18 +69,41 @@ fun ChatListContent(
             shape = MaterialTheme.shapes.medium
         )
 
-        // Folders
-        TabRow(selectedTabIndex = selectedFolder.ordinal) {
-            ChatFolder.values().forEach { folder ->
+        // Dynamic folder tabs
+        ScrollableTabRow(
+            selectedTabIndex = selectedTabIndex,
+            edgePadding = 8.dp
+        ) {
+            folderTabs.forEachIndexed { index, tab ->
                 Tab(
-                    selected = selectedFolder == folder,
-                    onClick = { selectedFolder = folder },
-                    text = { Text(stringResource(folder.titleRes)) }
+                    selected = selectedTabIndex == index,
+                    onClick = { selectedTabIndex = index },
+                    text = { 
+                        Text(
+                            when (tab) {
+                                is FolderTab.All -> stringResource(R.string.folder_all)
+                                is FolderTab.Custom -> tab.folder.name
+                            }
+                        )
+                    }
                 )
             }
+            
+            // Add folder tab (icon only)
+            Tab(
+                selected = false,
+                onClick = onNavigateToFolders,
+                icon = {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = "Edit folders",
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            )
         }
 
-        //  Chat list
+        // Chat list
         Box(modifier = Modifier.fillMaxSize()) {
             if (isLoading && chats.isEmpty()) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -80,16 +119,39 @@ fun ChatListContent(
                     }
                 }
             } else {
+                val selectedTab = folderTabs.getOrNull(selectedTabIndex) ?: FolderTab.All
+                
                 val filteredChats = chats
                     .filter { chatWithInfo ->
                         val matchesSearch = if (searchQuery.isEmpty()) true
                         else chatWithInfo.displayName.contains(searchQuery, ignoreCase = true) ||
                                 chatWithInfo.chat.lastMessage?.content?.contains(searchQuery, ignoreCase = true) == true
                         
-                        val matchesFolder = when(selectedFolder) {
-                            ChatFolder.ALL -> true
-                            ChatFolder.PRIVATE -> chatWithInfo.chat.type == ChatType.PRIVATE
-                            ChatFolder.GROUPS -> chatWithInfo.chat.type == ChatType.GROUP
+                        val matchesFolder = when (selectedTab) {
+                            is FolderTab.All -> true
+                            is FolderTab.Custom -> {
+                                val folder = selectedTab.folder
+                                val chatId = chatWithInfo.chat.id
+                                val chatType = chatWithInfo.chat.type
+                                
+                                // Check if explicitly excluded
+                                if (folder.excludedChatIds?.contains(chatId) == true) {
+                                    false
+                                }
+                                // Check if explicitly included
+                                else if (folder.includedChatIds?.contains(chatId) == true) {
+                                    true
+                                }
+                                // Check by chat type filters
+                                else {
+                                    val isGroup = chatType == ChatType.GROUP
+                                    val isPrivate = chatType == ChatType.PRIVATE
+                                    
+                                    (folder.includeGroups && isGroup) ||
+                                    (folder.includeContacts && isPrivate) ||
+                                    (folder.includeNonContacts && isPrivate)
+                                }
+                            }
                         }
                         
                         matchesSearch && matchesFolder

@@ -44,6 +44,7 @@ func main() {
 	e2eRepo := repositories.NewE2ERepository(db)
 	contactRepo := repositories.NewContactRepository(db.DB)
 	sessionRepo := repositories.NewSessionRepository(db)
+	folderRepo := repositories.NewFolderRepository(db)
 
 	authService := services.NewAuthService(userRepo, refreshTokenRepo, &cfg.JWT)
 	userService := services.NewUserService(userRepo, chatRepo)
@@ -69,6 +70,7 @@ func main() {
 	contactController := controllers.NewContactController(contactService)
 	turnController := controllers.NewTURNController(cfg)
 	sessionController := controllers.NewSessionController(sessionRepo, refreshTokenRepo)
+	folderController := controllers.NewFolderController(folderRepo)
 
 	wsHandler := nexy.NewWSHandler(hub)
 	wsController := controllers.NewWSController(wsHandler, authService)
@@ -89,6 +91,7 @@ func main() {
 		contactController,
 		turnController,
 		sessionController,
+		folderController,
 		authMiddleware,
 		corsMiddleware,
 		rateLimiter,

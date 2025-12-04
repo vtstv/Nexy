@@ -200,6 +200,40 @@ interface NexyApiService {
 
     @DELETE("sessions/others")
     suspend fun deleteAllOtherSessions(): Response<Unit>
+
+    // Chat Folders endpoints
+    @GET("folders")
+    suspend fun getFolders(): Response<List<ChatFolder>>
+
+    @GET("folders/{folderId}")
+    suspend fun getFolder(@Path("folderId") folderId: Int): Response<ChatFolder>
+
+    @POST("folders")
+    suspend fun createFolder(@Body request: CreateFolderRequest): Response<ChatFolder>
+
+    @PUT("folders/{folderId}")
+    suspend fun updateFolder(
+        @Path("folderId") folderId: Int,
+        @Body request: UpdateFolderRequest
+    ): Response<ChatFolder>
+
+    @DELETE("folders/{folderId}")
+    suspend fun deleteFolder(@Path("folderId") folderId: Int): Response<Unit>
+
+    @POST("folders/{folderId}/chats")
+    suspend fun addChatsToFolder(
+        @Path("folderId") folderId: Int,
+        @Body request: AddChatsToFolderRequest
+    ): Response<Unit>
+
+    @DELETE("folders/{folderId}/chats/{chatId}")
+    suspend fun removeChatFromFolder(
+        @Path("folderId") folderId: Int,
+        @Path("chatId") chatId: Int
+    ): Response<Unit>
+
+    @PUT("folders/reorder")
+    suspend fun reorderFolders(@Body request: ReorderFoldersRequest): Response<Unit>
 }
 
 data class ICEServer(

@@ -36,7 +36,8 @@ fun MainScreenDialogs(
     onGroupSettingsDialogDismiss: () -> Unit,
     onChatSelected: (Int) -> Unit,
     onNavigateToSearch: () -> Unit,
-    onNavigateToEditGroup: (Int) -> Unit
+    onNavigateToEditGroup: (Int) -> Unit,
+    onRefreshChats: () -> Unit
 ) {
     val dialogShape = if (screenConfig.useSplitScreen) MaterialTheme.shapes.large else RectangleShape
     
@@ -133,6 +134,7 @@ fun MainScreenDialogs(
                     onNavigateBack = onCreateGroupDialogDismiss,
                     onGroupCreated = { chatId ->
                         if (chatId > 0) {
+                            onRefreshChats()
                             onChatSelected(chatId)
                             onCreateGroupDialogDismiss()
                         }

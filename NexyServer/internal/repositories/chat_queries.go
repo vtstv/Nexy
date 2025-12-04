@@ -130,6 +130,31 @@ func (r *ChatRepository) GetUserChats(ctx context.Context, userID int) ([]*model
 			chat.ParticipantIds = participants
 		}
 
+		// For private chats, set name to the other participant's username/display_name
+		if chat.Type == "private" && len(chat.ParticipantIds) > 0 {
+			for _, participantID := range chat.ParticipantIds {
+				if participantID != userID {
+					// Get other user's name
+					var displayName, username sql.NullString
+					var avatarURL sql.NullString
+					err := r.db.QueryRowContext(ctx,
+						`SELECT display_name, username, avatar_url FROM users WHERE id = $1`,
+						participantID).Scan(&displayName, &username, &avatarURL)
+					if err == nil {
+						if displayName.Valid && displayName.String != "" {
+							chat.Name = displayName.String
+						} else if username.Valid && username.String != "" {
+							chat.Name = username.String
+						}
+						if avatarURL.Valid && avatarURL.String != "" {
+							chat.AvatarURL = avatarURL.String
+						}
+					}
+					break
+				}
+			}
+		}
+
 		chats = append(chats, chat)
 	}
 

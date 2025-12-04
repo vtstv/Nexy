@@ -27,6 +27,7 @@ fun MainScreen(
     onNavigateToGroupSettings: (Int) -> Unit = {},
     onNavigateToEditGroup: (Int) -> Unit = {},
     onNavigateToGroupInfo: (Int) -> Unit = {},
+    onNavigateToFolders: () -> Unit = {},
     onLogout: () -> Unit,
     onChatSelected: (Int?) -> Unit = {},
     initialChatId: Int? = null
@@ -61,6 +62,7 @@ fun MainScreen(
             onNavigateToProfile = onNavigateToProfile,
             onNavigateToSettings = onNavigateToSettings,
             onNavigateToGroupInfo = onNavigateToGroupInfo,
+            onNavigateToFolders = onNavigateToFolders,
             onLogout = onLogout,
             dialogState = dialogState
         )
@@ -72,6 +74,7 @@ fun MainScreen(
             onNavigateToProfile = onNavigateToProfile,
             onNavigateToSettings = onNavigateToSettings,
             onNavigateToGroupInfo = onNavigateToGroupInfo,
+            onNavigateToFolders = onNavigateToFolders,
             onLogout = onLogout,
             dialogState = dialogState
         )
@@ -92,6 +95,7 @@ fun MainScreen(
         onGroupSettingsDialogDismiss = dialogState::closeGroupSettings,
         onChatSelected = { chatId -> selectedChatId = chatId },
         onNavigateToSearch = onNavigateToSearch,
-        onNavigateToEditGroup = onNavigateToEditGroup
+        onNavigateToEditGroup = onNavigateToEditGroup,
+        onRefreshChats = dialogState::triggerRefresh
     )
 }

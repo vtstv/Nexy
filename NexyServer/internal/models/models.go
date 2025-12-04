@@ -148,3 +148,21 @@ type ContactWithUser struct {
 	Contact
 	ContactUser User `json:"contact_user"`
 }
+
+// Chat Folders
+type ChatFolder struct {
+	ID        int       `json:"id"`
+	UserID    int       `json:"user_id"`
+	Name      string    `json:"name"`
+	Icon      string    `json:"icon"`
+	Color     string    `json:"color"`
+	Position  int       `json:"position"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type ChatFolderWithChats struct {
+	ChatFolder
+	IncludedChats []int `json:"included_chats"`
+	ExcludedChats []int `json:"excluded_chats,omitempty"`
+}

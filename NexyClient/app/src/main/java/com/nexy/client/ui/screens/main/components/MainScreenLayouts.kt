@@ -20,6 +20,7 @@ fun SplitScreenLayout(
     onNavigateToProfile: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToGroupInfo: (Int) -> Unit,
+    onNavigateToFolders: () -> Unit = {},
     onLogout: () -> Unit,
     dialogState: DialogState
 ) {
@@ -40,7 +41,9 @@ fun SplitScreenLayout(
                 onNavigateToCreateGroup = dialogState::openCreateGroup,
                 onNavigateToSearchGroups = dialogState::openSearchGroups,
                 onNavigateToSettings = onNavigateToSettings,
-                onLogout = onLogout
+                onNavigateToFolders = onNavigateToFolders,
+                onLogout = onLogout,
+                refreshTrigger = dialogState.refreshTrigger
             )
         }
         
@@ -92,6 +95,7 @@ fun SinglePaneLayout(
     onNavigateToProfile: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToGroupInfo: (Int) -> Unit,
+    onNavigateToFolders: () -> Unit = {},
     onLogout: () -> Unit,
     dialogState: DialogState
 ) {
@@ -112,7 +116,9 @@ fun SinglePaneLayout(
                 onNavigateToCreateGroup = dialogState::openCreateGroup,
                 onNavigateToSearchGroups = dialogState::openSearchGroups,
                 onNavigateToSettings = onNavigateToSettings,
-                onLogout = onLogout
+                onNavigateToFolders = onNavigateToFolders,
+                onLogout = onLogout,
+                refreshTrigger = dialogState.refreshTrigger
             )
         }
     }

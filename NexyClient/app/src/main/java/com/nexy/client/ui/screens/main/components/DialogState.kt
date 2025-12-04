@@ -11,6 +11,7 @@ class DialogState {
     var showCreateGroup by mutableStateOf(false)
     var showSearchGroups by mutableStateOf(false)
     var showGroupSettings by mutableStateOf<Int?>(null)
+    var refreshTrigger by mutableStateOf(0L)
     
     fun openContacts() { showContacts = true }
     fun closeContacts() { showContacts = false }
@@ -26,6 +27,8 @@ class DialogState {
     
     fun openGroupSettings(groupId: Int) { showGroupSettings = groupId }
     fun closeGroupSettings() { showGroupSettings = null }
+    
+    fun triggerRefresh() { refreshTrigger = System.currentTimeMillis() }
 }
 
 @Composable

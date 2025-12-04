@@ -188,3 +188,83 @@ data class UserSession(
     val isCurrent: Boolean
 )
 
+// Chat Folders
+data class ChatFolder(
+    @SerializedName("id")
+    val id: Int,
+    
+    @SerializedName("user_id")
+    val userId: Int,
+    
+    @SerializedName("name")
+    val name: String,
+    
+    @SerializedName("icon")
+    val icon: String,
+    
+    @SerializedName("color")
+    val color: String,
+    
+    @SerializedName("position")
+    val position: Int,
+    
+    @SerializedName("include_contacts")
+    val includeContacts: Boolean = false,
+    
+    @SerializedName("include_non_contacts")
+    val includeNonContacts: Boolean = false,
+    
+    @SerializedName("include_groups")
+    val includeGroups: Boolean = false,
+    
+    @SerializedName("include_channels")
+    val includeChannels: Boolean = false,
+    
+    @SerializedName("include_bots")
+    val includeBots: Boolean = false,
+    
+    @SerializedName("included_chats")
+    val includedChatIds: List<Int>? = null,
+    
+    @SerializedName("excluded_chats")
+    val excludedChatIds: List<Int>? = null,
+    
+    @SerializedName("created_at")
+    val createdAt: String? = null,
+    
+    @SerializedName("updated_at")
+    val updatedAt: String? = null
+)
+
+data class CreateFolderRequest(
+    @SerializedName("name")
+    val name: String,
+    
+    @SerializedName("icon")
+    val icon: String = "📁",
+    
+    @SerializedName("color")
+    val color: String = "#2196F3"
+)
+
+data class UpdateFolderRequest(
+    @SerializedName("name")
+    val name: String,
+    
+    @SerializedName("icon")
+    val icon: String,
+    
+    @SerializedName("color")
+    val color: String
+)
+
+data class AddChatsToFolderRequest(
+    @SerializedName("chat_ids")
+    val chatIds: List<Int>
+)
+
+data class ReorderFoldersRequest(
+    @SerializedName("positions")
+    val positions: Map<Int, Int>
+)
+

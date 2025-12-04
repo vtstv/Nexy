@@ -17,6 +17,9 @@ import com.nexy.client.ui.screens.auth.AuthViewModel
 import com.nexy.client.ui.screens.auth.LoginScreen
 import com.nexy.client.ui.screens.auth.RegisterScreen
 import com.nexy.client.ui.screens.call.CallScreen
+import com.nexy.client.ui.screens.folders.ChatSelectorScreen
+import com.nexy.client.ui.screens.folders.FolderEditorScreen
+import com.nexy.client.ui.screens.folders.FolderListScreen
 import com.nexy.client.ui.screens.group.CreateGroupScreen
 import com.nexy.client.ui.screens.group.EditGroupScreen
 import com.nexy.client.ui.screens.group.GroupInfoScreen
@@ -89,6 +92,9 @@ fun NexyApp() {
                 },
                 onNavigateToGroupInfo = { chatId ->
                     navController.navigate(Screen.GroupInfo.createRoute(chatId))
+                },
+                onNavigateToFolders = {
+                    navController.navigate(Screen.Folders.route)
                 },
                 onLogout = {
                     authViewModel.logout(clearCredentials = false)
@@ -246,6 +252,57 @@ fun NexyApp() {
                 },
                 onGroupClick = { groupId ->
                     navController.navigate(Screen.GroupSettings.createRoute(groupId))
+                }
+            )
+        }
+        
+        // Folder screens
+        composable(Screen.Folders.route) {
+            FolderListScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onCreateFolder = {
+                    navController.navigate(Screen.FolderEditor.createRoute())
+                },
+                onEditFolder = { folderId ->
+                    navController.navigate(Screen.FolderEditor.createRoute(folderId))
+                }
+            )
+        }
+        
+        composable(
+            route = Screen.FolderEditor.route,
+            arguments = listOf(
+                navArgument("folderId") { 
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val folderIdStr = backStackEntry.arguments?.getString("folderId")
+            val folderId = folderIdStr?.toIntOrNull()
+            FolderEditorScreen(
+                folderId = folderId,
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onAddChats = { id ->
+                    navController.navigate(Screen.ChatSelector.createRoute(id))
+                }
+            )
+        }
+        
+        composable(
+            route = Screen.ChatSelector.route,
+            arguments = listOf(navArgument("folderId") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val folderId = backStackEntry.arguments?.getInt("folderId") ?: return@composable
+            ChatSelectorScreen(
+                folderId = folderId,
+                onNavigateBack = {
+                    navController.popBackStack()
                 }
             )
         }

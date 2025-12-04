@@ -1,12 +1,13 @@
 package com.nexy.client.ui.screens.chat
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nexy.client.data.local.AuthTokenManager
 import com.nexy.client.data.models.Chat
 import com.nexy.client.data.models.ChatType
 import com.nexy.client.data.models.User
+import com.nexy.client.data.models.ChatFolder
+import com.nexy.client.data.api.NexyApiService
 import com.nexy.client.data.repository.ChatRepository
 import com.nexy.client.data.repository.UserRepository
 import com.nexy.client.data.websocket.NexyWebSocketClient
@@ -38,11 +39,15 @@ class ChatListViewModel @Inject constructor(
     private val tokenManager: AuthTokenManager,
     private val webSocketClient: NexyWebSocketClient,
     private val messageHandler: com.nexy.client.data.websocket.WebSocketMessageHandler,
-    private val pinManager: PinManager
+    private val pinManager: PinManager,
+    private val apiService: NexyApiService
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(ChatListUiState())
     val uiState: StateFlow<ChatListUiState> = _uiState.asStateFlow()
+    
+    private val _folders = MutableStateFlow<List<ChatFolder>>(emptyList())
+    val folders: StateFlow<List<ChatFolder>> = _folders.asStateFlow()
     
     private val _refreshTrigger = MutableStateFlow(0L)
     
@@ -50,6 +55,7 @@ class ChatListViewModel @Inject constructor(
         connectWebSocket()
         loadChats()
         loadCurrentUser()
+        loadFolders()
         
         // Setup message handler to save incoming messages to DB
         webSocketClient.setMessageCallback { message ->
@@ -96,6 +102,23 @@ class ChatListViewModel @Inject constructor(
                 }
             }
         }
+    }
+    
+    private fun loadFolders() {
+        viewModelScope.launch {
+            try {
+                val response = apiService.getFolders()
+                if (response.isSuccessful) {
+                    _folders.value = response.body() ?: emptyList()
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("ChatListViewModel", "Failed to load folders", e)
+            }
+        }
+    }
+    
+    fun refreshFolders() {
+        loadFolders()
     }
     
     private fun connectWebSocket() {

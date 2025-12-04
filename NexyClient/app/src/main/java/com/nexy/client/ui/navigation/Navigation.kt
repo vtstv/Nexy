@@ -32,4 +32,11 @@ sealed class Screen(val route: String) {
         fun createRoute(chatId: Int) = "group_info/$chatId"
     }
     object SearchGroups : Screen("search_groups")
+    object Folders : Screen("folders")
+    object FolderEditor : Screen("folder_editor?folderId={folderId}") {
+        fun createRoute(folderId: Int? = null) = if (folderId != null) "folder_editor?folderId=$folderId" else "folder_editor"
+    }
+    object ChatSelector : Screen("chat_selector/{folderId}") {
+        fun createRoute(folderId: Int) = "chat_selector/$folderId"
+    }
 }

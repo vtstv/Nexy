@@ -20,6 +20,7 @@ type Router struct {
 	contactController *controllers.ContactController
 	turnController    *controllers.TURNController
 	sessionController *controllers.SessionController
+	folderController  *controllers.FolderController
 	authMiddleware    *middleware.AuthMiddleware
 	corsMiddleware    *middleware.CORSMiddleware
 	rateLimiter       *middleware.RateLimiter
@@ -37,6 +38,7 @@ func NewRouter(
 	contactController *controllers.ContactController,
 	turnController *controllers.TURNController,
 	sessionController *controllers.SessionController,
+	folderController *controllers.FolderController,
 	authMiddleware *middleware.AuthMiddleware,
 	corsMiddleware *middleware.CORSMiddleware,
 	rateLimiter *middleware.RateLimiter,
@@ -53,6 +55,7 @@ func NewRouter(
 		contactController: contactController,
 		turnController:    turnController,
 		sessionController: sessionController,
+		folderController:  folderController,
 		authMiddleware:    authMiddleware,
 		corsMiddleware:    corsMiddleware,
 		rateLimiter:       rateLimiter,
@@ -168,6 +171,18 @@ func (rt *Router) Setup() *mux.Router {
 	sessions.HandleFunc("", rt.sessionController.GetSessions).Methods("GET")
 	sessions.HandleFunc("/{id:[0-9]+}", rt.sessionController.DeleteSession).Methods("DELETE")
 	sessions.HandleFunc("/others", rt.sessionController.DeleteAllOtherSessions).Methods("DELETE")
+
+	// Folders endpoints (chat folders like Telegram)
+	folders := api.PathPrefix("/folders").Subrouter()
+	folders.Use(rt.authMiddleware.Authenticate)
+	folders.HandleFunc("", rt.folderController.GetFolders).Methods("GET")
+	folders.HandleFunc("", rt.folderController.CreateFolder).Methods("POST")
+	folders.HandleFunc("/reorder", rt.folderController.ReorderFolders).Methods("PUT")
+	folders.HandleFunc("/{id:[0-9]+}", rt.folderController.GetFolder).Methods("GET")
+	folders.HandleFunc("/{id:[0-9]+}", rt.folderController.UpdateFolder).Methods("PUT")
+	folders.HandleFunc("/{id:[0-9]+}", rt.folderController.DeleteFolder).Methods("DELETE")
+	folders.HandleFunc("/{id:[0-9]+}/chats", rt.folderController.AddChatsToFolder).Methods("POST")
+	folders.HandleFunc("/{id:[0-9]+}/chats/{chatId:[0-9]+}", rt.folderController.RemoveChatFromFolder).Methods("DELETE")
 
 	// WebSocket endpoint - authentication handled in controller via query param
 	r.HandleFunc("/ws", rt.wsController.HandleWebSocket)

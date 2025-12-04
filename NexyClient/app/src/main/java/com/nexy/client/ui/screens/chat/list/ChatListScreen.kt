@@ -21,14 +21,23 @@ fun ChatListScreen(
     onNavigateToCreateGroup: () -> Unit = {},
     onNavigateToSearchGroups: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
+    onNavigateToFolders: () -> Unit = {},
     onLogout: () -> Unit = {},
+    refreshTrigger: Long = 0L,
     viewModel: ChatListViewModel = hiltViewModel(),
     themeViewModel: ThemeViewModel = hiltViewModel(),
     settingsViewModel: com.nexy.client.ui.screens.settings.SettingsViewModel = hiltViewModel()
 ) {
+    // Trigger refresh when refreshTrigger changes
+    LaunchedEffect(refreshTrigger) {
+        if (refreshTrigger > 0) {
+            viewModel.refreshChats()
+        }
+    }
     val uiState by viewModel.uiState.collectAsState()
     val isDarkTheme by themeViewModel.isDarkTheme.collectAsState()
     val pinCode by settingsViewModel.pinCode.collectAsState()
+    val folders by viewModel.folders.collectAsState()
     
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
@@ -44,7 +53,6 @@ fun ChatListScreen(
     LaunchedEffect(uiState.error) {
         uiState.error?.let { error ->
             snackbarHostState.showSnackbar(error)
-            // Optional: clear error in ViewModel
         }
     }
     
@@ -84,8 +92,10 @@ fun ChatListScreen(
                 padding = padding,
                 chats = uiState.chats,
                 isLoading = uiState.isLoading,
+                folders = folders,
                 onChatClick = onChatClick,
-                onNavigateToSearch = onNavigateToSearch
+                onNavigateToSearch = onNavigateToSearch,
+                onNavigateToFolders = onNavigateToFolders
             )
         }
         
