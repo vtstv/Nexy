@@ -21,6 +21,7 @@ class CallViewModel @Inject constructor(
 ) : ViewModel() {
 
     val callState = webRTCClient.callState
+    val callStats = webRTCClient.callStats
 
     private val _remoteUser = MutableStateFlow<User?>(null)
     val remoteUser: StateFlow<User?> = _remoteUser.asStateFlow()

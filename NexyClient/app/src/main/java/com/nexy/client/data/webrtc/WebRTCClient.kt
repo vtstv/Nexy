@@ -33,6 +33,15 @@ sealed class CallState {
     object Ended : CallState()
 }
 
+data class CallStats(
+    val inboundBytes: String = "0",
+    val inboundPackets: String = "0",
+    val outboundBytes: String = "0",
+    val outboundPackets: String = "0",
+    val iceState: String = "UNKNOWN",
+    val signalingState: String = "UNKNOWN"
+)
+
 @Singleton
 class WebRTCClient @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -47,6 +56,7 @@ class WebRTCClient @Inject constructor(
     private var currentCallId: String? = null
     private var currentRecipientId: Int? = null
     private var isInitialized = false
+    private var statsJob: kotlinx.coroutines.Job? = null
     
     private val eglBase = EglBase.create()
     
@@ -56,6 +66,9 @@ class WebRTCClient @Inject constructor(
 
     private val _callState = MutableStateFlow<CallState>(CallState.Idle)
     val callState: StateFlow<CallState> = _callState.asStateFlow()
+
+    private val _callStats = MutableStateFlow(CallStats())
+    val callStats: StateFlow<CallStats> = _callStats.asStateFlow()
 
     init {
         observeIncomingMessages()
@@ -168,6 +181,7 @@ class WebRTCClient @Inject constructor(
             setAudioMode(true)
             createPeerConnection(senderId)
             createOffer(senderId)
+            startStatsLogging()
         } catch (e: Exception) {
             Log.e(TAG, "Error starting call", e)
             _callState.value = CallState.Idle
@@ -194,6 +208,7 @@ class WebRTCClient @Inject constructor(
             createPeerConnection(senderId)
             setRemoteDescription(remoteSdp)
             createAnswer(senderId)
+            startStatsLogging()
         } catch (e: Exception) {
             Log.e(TAG, "Error answering call", e)
             _callState.value = CallState.Idle
@@ -236,10 +251,12 @@ class WebRTCClient @Inject constructor(
             peerConnection = peerConnectionFactory?.createPeerConnection(rtcConfig, object : PeerConnection.Observer {
                 override fun onSignalingChange(state: PeerConnection.SignalingState?) {
                     Log.d(TAG, "onSignalingChange: $state")
+                    _callStats.value = _callStats.value.copy(signalingState = state.toString())
                 }
 
                 override fun onIceConnectionChange(state: PeerConnection.IceConnectionState?) {
                     Log.d(TAG, "onIceConnectionChange: $state")
+                    _callStats.value = _callStats.value.copy(iceState = state.toString())
                 }
 
                 override fun onIceConnectionReceivingChange(receiving: Boolean) {}
@@ -371,6 +388,7 @@ class WebRTCClient @Inject constructor(
     }
     
     private fun closeConnection() {
+        stopStatsLogging()
         peerConnection?.close()
         peerConnection = null
         localAudioTrack = null
@@ -379,11 +397,52 @@ class WebRTCClient @Inject constructor(
         setAudioMode(false)
     }
 
+    private fun startStatsLogging() {
+        stopStatsLogging()
+        statsJob = CoroutineScope(Dispatchers.IO).launch {
+            while (true) {
+                kotlinx.coroutines.delay(1000)
+                peerConnection?.getStats { report ->
+                    var inboundBytes = _callStats.value.inboundBytes
+                    var inboundPackets = _callStats.value.inboundPackets
+                    var outboundBytes = _callStats.value.outboundBytes
+                    var outboundPackets = _callStats.value.outboundPackets
+
+                    for (stats in report.statsMap.values) {
+                        if (stats.type == "inbound-rtp" && stats.members["kind"] == "audio") {
+                            inboundBytes = stats.members["bytesReceived"]?.toString() ?: inboundBytes
+                            inboundPackets = stats.members["packetsReceived"]?.toString() ?: inboundPackets
+                            Log.d(TAG, "Stats Inbound: bytes=$inboundBytes, packets=$inboundPackets")
+                        }
+                        if (stats.type == "outbound-rtp" && stats.members["kind"] == "audio") {
+                            outboundBytes = stats.members["bytesSent"]?.toString() ?: outboundBytes
+                            outboundPackets = stats.members["packetsSent"]?.toString() ?: outboundPackets
+                            Log.d(TAG, "Stats Outbound: bytes=$outboundBytes, packets=$outboundPackets")
+                        }
+                    }
+                    _callStats.value = _callStats.value.copy(
+                        inboundBytes = inboundBytes,
+                        inboundPackets = inboundPackets,
+                        outboundBytes = outboundBytes,
+                        outboundPackets = outboundPackets
+                    )
+                }
+            }
+        }
+    }
+
+    private fun stopStatsLogging() {
+        statsJob?.cancel()
+        statsJob = null
+    }
+
     fun toggleMute(isMuted: Boolean) {
+        Log.d(TAG, "toggleMute: $isMuted")
         localAudioTrack?.setEnabled(!isMuted)
     }
 
     fun toggleSpeaker(isSpeakerOn: Boolean) {
+        Log.d(TAG, "toggleSpeaker: $isSpeakerOn")
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         audioManager.isSpeakerphoneOn = isSpeakerOn
     }
@@ -397,5 +456,6 @@ class WebRTCClient @Inject constructor(
             audioManager.mode = AudioManager.MODE_NORMAL
             audioManager.isSpeakerphoneOn = false
         }
+        Log.d(TAG, "setAudioMode: active=$active, mode=${audioManager.mode}, speaker=${audioManager.isSpeakerphoneOn}")
     }
 }

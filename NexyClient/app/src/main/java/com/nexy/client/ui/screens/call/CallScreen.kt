@@ -6,6 +6,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.VolumeOff
@@ -18,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nexy.client.data.webrtc.CallState
 import com.nexy.client.data.webrtc.WebRTCClient
@@ -29,10 +31,12 @@ fun CallScreen(
     onDismiss: () -> Unit
 ) {
     val callState by viewModel.callState.collectAsState()
+    val callStats by viewModel.callStats.collectAsState()
     val remoteUser by viewModel.remoteUser.collectAsState()
     val callDuration by viewModel.callDuration.collectAsState()
     var isMuted by remember { mutableStateOf(false) }
     var isSpeakerOn by remember { mutableStateOf(false) }
+    var showDebugInfo by remember { mutableStateOf(false) }
 
     // Handle state changes
     LaunchedEffect(callState) {
@@ -61,6 +65,36 @@ fun CallScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.padding(top = 64.dp)
             ) {
+                // Debug Info Toggle
+                IconButton(
+                    onClick = { showDebugInfo = !showDebugInfo },
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = "Debug Info",
+                        tint = if (showDebugInfo) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                if (showDebugInfo) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            Text("ICE State: ${callStats.iceState}", fontSize = 12.sp)
+                            Text("Signaling: ${callStats.signalingState}", fontSize = 12.sp)
+                            Text("Inbound: ${callStats.inboundBytes} bytes / ${callStats.inboundPackets} pkts", fontSize = 12.sp)
+                            Text("Outbound: ${callStats.outboundBytes} bytes / ${callStats.outboundPackets} pkts", fontSize = 12.sp)
+                        }
+                    }
+                }
+
                 Box(
                     modifier = Modifier
                         .size(120.dp)
