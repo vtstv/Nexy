@@ -7,6 +7,7 @@ import com.nexy.client.data.local.AuthTokenManager
 import com.nexy.client.data.local.dao.ChatDao
 import com.nexy.client.data.local.dao.MessageDao
 import com.nexy.client.data.models.Chat
+import com.nexy.client.data.models.ChatMember
 import com.nexy.client.data.repository.ChatInfo
 import com.nexy.client.data.websocket.NexyWebSocketClient
 import kotlinx.coroutines.Dispatchers
@@ -98,17 +99,31 @@ class ChatOperations @Inject constructor(
         return withContext(Dispatchers.IO) {
             try {
                 val currentUserId = tokenManager.getUserId()
-                if (currentUserId == null) {
-                    return@withContext Result.failure(Exception("User not logged in"))
-                }
-                
-                val response = apiService.removeMember(chatId, currentUserId)
-                if (response.isSuccessful) {
-                    chatDao.deleteChatById(chatId)
-                    messageDao.deleteMessagesByChatId(chatId)
-                    Result.success(Unit)
+                if (currentUserId != null) {
+                    val response = apiService.removeMember(chatId, currentUserId)
+                    if (response.isSuccessful) {
+                        chatDao.deleteChatById(chatId)
+                        Result.success(Unit)
+                    } else {
+                        Result.failure(Exception("Failed to leave group"))
+                    }
                 } else {
-                    Result.failure(Exception("Failed to leave group: ${response.code()}"))
+                    Result.failure(Exception("User not logged in"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
+    suspend fun getGroupMembers(chatId: Int, query: String? = null): Result<List<ChatMember>> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.getGroupMembers(chatId, query)
+                if (response.isSuccessful && response.body() != null) {
+                    Result.success(response.body()!!)
+                } else {
+                    Result.failure(Exception("Failed to get group members"))
                 }
             } catch (e: Exception) {
                 Result.failure(e)

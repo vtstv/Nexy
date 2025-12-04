@@ -41,12 +41,24 @@ interface NexyApiService {
     @POST("chats")
     suspend fun createChat(@Body chat: Chat): Response<Chat>
     
+    @GET("chats/groups/{chatId}/members")
+    suspend fun getGroupMembers(
+        @Path("chatId") chatId: Int,
+        @Query("q") query: String? = null
+    ): Response<List<ChatMember>>
+    
     // Message history - server uses query params instead of path
     @GET("messages/history")
     suspend fun getMessages(
         @Query("chat_id") chatId: Int,
         @Query("limit") limit: Int = 50,
         @Query("offset") offset: Int = 0
+    ): Response<List<Message>>
+    
+    @GET("chats/{chatId}/messages/search")
+    suspend fun searchMessages(
+        @Path("chatId") chatId: Int,
+        @Query("q") query: String
     ): Response<List<Message>>
     
     @POST("messages/delete")

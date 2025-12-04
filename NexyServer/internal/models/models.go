@@ -94,6 +94,7 @@ type Message struct {
 	ReplyToID   *int      `json:"reply_to_id,omitempty"`
 	IsEdited    bool      `json:"is_edited"`
 	IsDeleted   bool      `json:"is_deleted"`
+	Status      string    `json:"status,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }

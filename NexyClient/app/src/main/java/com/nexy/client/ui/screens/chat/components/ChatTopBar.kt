@@ -28,6 +28,10 @@ fun ChatTopBar(
     chatAvatarUrl: String? = null,
     chatType: ChatType = ChatType.PRIVATE,
     isCreator: Boolean = false,
+    isSearching: Boolean = false,
+    searchQuery: String = "",
+    onSearchClick: () -> Unit = {},
+    onSearchQueryChange: (String) -> Unit = {},
     onNavigateBack: () -> Unit,
     onClearChat: () -> Unit,
     onDeleteChat: () -> Unit,
@@ -42,68 +46,92 @@ fun ChatTopBar(
     
     TopAppBar(
         title = { 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onChatInfoClick)
-            ) {
-                // Avatar placeholder
-                Box(
+            if (isSearching) {
+                TextField(
+                    value = searchQuery,
+                    onValueChange = onSearchQueryChange,
+                    placeholder = { Text("Search...") },
+                    singleLine = true,
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .size(40.dp)
-                        .background(
-                            MaterialTheme.colorScheme.primaryContainer,
-                            CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .clickable(onClick = onChatInfoClick)
                 ) {
-                    val avatarUrl = ServerConfig.getFileUrl(chatAvatarUrl)
-                    if (avatarUrl != null) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(avatarUrl)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
+                    // Avatar placeholder
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(
+                                MaterialTheme.colorScheme.primaryContainer,
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val avatarUrl = ServerConfig.getFileUrl(chatAvatarUrl)
+                        if (avatarUrl != null) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(avatarUrl)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Text(
+                                text = chatName.take(1).uppercase(),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
                         Text(
-                            text = chatName.take(1).uppercase(),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            text = chatName,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            text = "Tap for info",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(
-                        text = chatName,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = "Tap for info",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                 }
             }
         },
         navigationIcon = {
             if (showBackButton) {
-                IconButton(onClick = onNavigateBack) {
+                IconButton(onClick = {
+                    if (isSearching) onSearchClick() else onNavigateBack()
+                }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                 }
             }
         },
         actions = {
-            if (onCallClick != null) {
+            if (!isSearching) {
+                IconButton(onClick = onSearchClick) {
+                    Icon(Icons.Default.Search, contentDescription = "Search")
+                }
+            }
+            
+            if (onCallClick != null && !isSearching) {
                 IconButton(onClick = onCallClick) {
-                    Icon(Icons.Default.Call, "Call")
+                    Icon(Icons.Default.Call, contentDescription = "Call")
                 }
             }
             

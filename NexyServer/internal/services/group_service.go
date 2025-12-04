@@ -174,7 +174,7 @@ func (s *GroupService) UpdateGroup(ctx context.Context, groupID, userID int, nam
 	return chat, nil
 }
 
-func (s *GroupService) GetGroupMembers(ctx context.Context, groupID, userID int) ([]*models.ChatMember, error) {
+func (s *GroupService) GetGroupMembers(ctx context.Context, groupID, userID int, query string) ([]*models.ChatMember, error) {
 	chat, err := s.chatRepo.GetByID(ctx, groupID)
 	if err != nil {
 		return nil, err
@@ -187,6 +187,10 @@ func (s *GroupService) GetGroupMembers(ctx context.Context, groupID, userID int)
 
 	if !isMember && chat.GroupType != "public_group" {
 		return nil, errors.New("access denied")
+	}
+
+	if query != "" {
+		return s.chatRepo.GetChatMembersWithSearch(ctx, groupID, query)
 	}
 
 	members, err := s.chatRepo.GetChatMembersFull(ctx, groupID)

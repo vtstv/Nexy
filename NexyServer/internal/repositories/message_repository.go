@@ -83,11 +83,15 @@ func (r *MessageRepository) GetByID(ctx context.Context, id int) (*models.Messag
 
 func (r *MessageRepository) GetByChatID(ctx context.Context, chatID int, limit, offset int) ([]*models.Message, error) {
 	query := `
-		SELECT id, message_id, chat_id, sender_id, message_type, content, media_url, media_type,
-			   file_size, reply_to_id, is_edited, is_deleted, created_at, updated_at
-		FROM messages
-		WHERE chat_id = $1 AND is_deleted = false
-		ORDER BY created_at DESC
+		SELECT m.id, m.message_id, m.chat_id, m.sender_id, m.message_type, m.content, m.media_url, m.media_type,
+			   m.file_size, m.reply_to_id, m.is_edited, m.is_deleted, m.created_at, m.updated_at,
+			   COALESCE(
+				   (SELECT status FROM message_status ms WHERE ms.message_id = m.id AND ms.user_id != m.sender_id ORDER BY CASE status WHEN 'read' THEN 3 WHEN 'delivered' THEN 2 ELSE 1 END DESC LIMIT 1),
+				   'sent'
+			   ) as status
+		FROM messages m
+		WHERE m.chat_id = $1 AND m.is_deleted = false
+		ORDER BY m.created_at DESC
 		LIMIT $2 OFFSET $3`
 
 	rows, err := r.db.QueryContext(ctx, query, chatID, limit, offset)
@@ -103,6 +107,7 @@ func (r *MessageRepository) GetByChatID(ctx context.Context, chatID int, limit, 
 		var fileSize sql.NullInt64
 		var mediaURL sql.NullString
 		var mediaType sql.NullString
+		var status string
 		err := rows.Scan(
 			&msg.ID,
 			&msg.MessageID,
@@ -118,10 +123,12 @@ func (r *MessageRepository) GetByChatID(ctx context.Context, chatID int, limit, 
 			&msg.IsDeleted,
 			&msg.CreatedAt,
 			&msg.UpdatedAt,
+			&status,
 		)
 		if err != nil {
 			return nil, err
 		}
+		msg.Status = status
 		if mediaURL.Valid {
 			msg.MediaURL = mediaURL.String
 		}
@@ -206,4 +213,118 @@ func (r *MessageRepository) DeleteMessage(ctx context.Context, messageID string,
 	}
 
 	return nil
+}
+
+func (r *MessageRepository) GetByUUID(ctx context.Context, uuid string) (*models.Message, error) {
+	msg := &models.Message{}
+	query := `
+		SELECT id, message_id, chat_id, sender_id, message_type, content, media_url, media_type, 
+			   file_size, reply_to_id, is_edited, is_deleted, created_at, updated_at
+		FROM messages
+		WHERE message_id = $1`
+
+	var replyToID sql.NullInt64
+	var fileSize sql.NullInt64
+	var mediaURL sql.NullString
+	var mediaType sql.NullString
+	err := r.db.QueryRowContext(ctx, query, uuid).Scan(
+		&msg.ID,
+		&msg.MessageID,
+		&msg.ChatID,
+		&msg.SenderID,
+		&msg.MessageType,
+		&msg.Content,
+		&mediaURL,
+		&mediaType,
+		&fileSize,
+		&replyToID,
+		&msg.IsEdited,
+		&msg.IsDeleted,
+		&msg.CreatedAt,
+		&msg.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if mediaURL.Valid {
+		msg.MediaURL = mediaURL.String
+	}
+	if mediaType.Valid {
+		msg.MediaType = mediaType.String
+	}
+	if fileSize.Valid {
+		msg.FileSize = &fileSize.Int64
+	}
+	if replyToID.Valid {
+		id := int(replyToID.Int64)
+		msg.ReplyToID = &id
+	}
+	return msg, nil
+}
+
+func (r *MessageRepository) SearchMessages(ctx context.Context, chatID int, queryStr string) ([]*models.Message, error) {
+	query := `
+		SELECT m.id, m.message_id, m.chat_id, m.sender_id, m.message_type, m.content, m.media_url, m.media_type,
+			   m.file_size, m.reply_to_id, m.is_edited, m.is_deleted, m.created_at, m.updated_at,
+			   COALESCE(
+				   (SELECT status FROM message_status ms WHERE ms.message_id = m.id AND ms.user_id != m.sender_id ORDER BY CASE status WHEN 'read' THEN 3 WHEN 'delivered' THEN 2 ELSE 1 END DESC LIMIT 1),
+				   'sent'
+			   ) as status
+		FROM messages m
+		WHERE m.chat_id = $1 AND m.is_deleted = false AND m.content ILIKE $2
+		ORDER BY m.created_at DESC
+		LIMIT 50`
+
+	rows, err := r.db.QueryContext(ctx, query, chatID, "%"+queryStr+"%")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var messages []*models.Message
+	for rows.Next() {
+		msg := &models.Message{}
+		var replyToID sql.NullInt64
+		var fileSize sql.NullInt64
+		var mediaURL sql.NullString
+		var mediaType sql.NullString
+		var status string
+		err := rows.Scan(
+			&msg.ID,
+			&msg.MessageID,
+			&msg.ChatID,
+			&msg.SenderID,
+			&msg.MessageType,
+			&msg.Content,
+			&mediaURL,
+			&mediaType,
+			&fileSize,
+			&replyToID,
+			&msg.IsEdited,
+			&msg.IsDeleted,
+			&msg.CreatedAt,
+			&msg.UpdatedAt,
+			&status,
+		)
+		if err != nil {
+			return nil, err
+		}
+		msg.Status = status
+		if mediaURL.Valid {
+			msg.MediaURL = mediaURL.String
+		}
+		if mediaType.Valid {
+			msg.MediaType = mediaType.String
+		}
+		if fileSize.Valid {
+			msg.FileSize = &fileSize.Int64
+		}
+		if replyToID.Valid {
+			id := int(replyToID.Int64)
+			msg.ReplyToID = &id
+		}
+		messages = append(messages, msg)
+	}
+
+	return messages, rows.Err()
 }

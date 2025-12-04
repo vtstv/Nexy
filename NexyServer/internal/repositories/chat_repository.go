@@ -658,3 +658,56 @@ func (r *ChatRepository) UpdateInviteLink(ctx context.Context, link *models.Chat
 	_, err := r.db.ExecContext(ctx, query, link.UsageCount, link.IsRevoked, link.ID)
 	return err
 }
+
+func (r *ChatRepository) GetChatMembersWithSearch(ctx context.Context, chatID int, queryStr string) ([]*models.ChatMember, error) {
+	query := `
+		SELECT cm.id, cm.chat_id, cm.user_id, cm.role, cm.permissions, cm.joined_at,
+			   u.id, u.username, u.email, u.display_name, u.avatar_url, u.bio, u.read_receipts_enabled, u.created_at, u.updated_at
+		FROM chat_members cm
+		JOIN users u ON cm.user_id = u.id
+		WHERE cm.chat_id = $1 AND (u.username ILIKE $2 OR u.display_name ILIKE $2)`
+
+	rows, err := r.db.QueryContext(ctx, query, chatID, "%"+queryStr+"%")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var members []*models.ChatMember
+	for rows.Next() {
+		member := &models.ChatMember{}
+		user := &models.User{}
+		var permissions []byte
+
+		err := rows.Scan(
+			&member.ID,
+			&member.ChatID,
+			&member.UserID,
+			&member.Role,
+			&permissions,
+			&member.JoinedAt,
+			&user.ID,
+			&user.Username,
+			&user.Email,
+			&user.DisplayName,
+			&user.AvatarURL,
+			&user.Bio,
+			&user.ReadReceiptsEnabled,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(permissions) > 0 {
+			var perms models.ChatPermissions
+			if err := json.Unmarshal(permissions, &perms); err == nil {
+				member.Permissions = &perms
+			}
+		}
+		member.User = user
+		members = append(members, member)
+	}
+	return members, nil
+}

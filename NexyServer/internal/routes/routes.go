@@ -87,6 +87,7 @@ func (rt *Router) Setup() *mux.Router {
 	chats.Use(rt.authMiddleware.Authenticate)
 	chats.HandleFunc("", rt.userController.GetUserChats).Methods("GET")
 	chats.HandleFunc("/{id:[0-9]+}", rt.userController.GetChat).Methods("GET")
+	chats.HandleFunc("/{id:[0-9]+}/messages/search", rt.messageController.SearchMessages).Methods("GET")
 	chats.HandleFunc("/create", rt.userController.CreatePrivateChat).Methods("POST")
 
 	// Group endpoints

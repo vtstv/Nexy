@@ -136,6 +136,35 @@ class GroupInfoViewModel @Inject constructor(
     private suspend fun getCurrentUserId(): Int? {
         return userRepository.getCurrentUser().getOrNull()?.id
     }
+
+    fun toggleSearch() {
+        _uiState.value = _uiState.value.copy(
+            isSearching = !_uiState.value.isSearching,
+            searchQuery = "",
+            searchResults = emptyList()
+        )
+    }
+
+    fun updateSearchQuery(query: String) {
+        _uiState.value = _uiState.value.copy(searchQuery = query)
+        if (query.length > 2) {
+            searchMembers(query)
+        } else {
+            _uiState.value = _uiState.value.copy(searchResults = emptyList())
+        }
+    }
+
+    private fun searchMembers(query: String) {
+        val chat = uiState.value.chat ?: return
+        viewModelScope.launch {
+            val result = chatRepository.getGroupMembers(chat.id, query)
+            if (result.isSuccess) {
+                val members = result.getOrNull() ?: emptyList()
+                val users = members.mapNotNull { it.user }
+                _uiState.value = _uiState.value.copy(searchResults = users)
+            }
+        }
+    }
 }
 
 data class GroupInfoUiState(
@@ -145,5 +174,8 @@ data class GroupInfoUiState(
     val isMember: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null,
-    val isLeftGroup: Boolean = false
+    val isLeftGroup: Boolean = false,
+    val isSearching: Boolean = false,
+    val searchQuery: String = "",
+    val searchResults: List<User> = emptyList()
 )

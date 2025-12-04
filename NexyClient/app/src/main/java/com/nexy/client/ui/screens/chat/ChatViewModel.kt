@@ -30,7 +30,10 @@ data class ChatUiState(
     val groupType: GroupType? = null,
     val participantIds: List<Int> = emptyList(),
     val isSelfChat: Boolean = false,
-    val isCreator: Boolean = false
+    val isCreator: Boolean = false,
+    val isSearching: Boolean = false,
+    val searchQuery: String = "",
+    val searchResults: List<Message> = emptyList()
 )
 
 @HiltViewModel
@@ -86,6 +89,32 @@ class ChatViewModel @Inject constructor(
     // Method to set chatId programmatically
     fun setChatId(newChatId: Int, savedStateHandle: SavedStateHandle) {
         savedStateHandle["chatId"] = newChatId
+    }
+    
+    fun toggleSearch() {
+        _uiState.value = _uiState.value.copy(
+            isSearching = !_uiState.value.isSearching,
+            searchQuery = "",
+            searchResults = emptyList()
+        )
+    }
+
+    fun updateSearchQuery(query: String) {
+        _uiState.value = _uiState.value.copy(searchQuery = query)
+        if (query.length > 2) {
+            searchMessages(query)
+        } else {
+            _uiState.value = _uiState.value.copy(searchResults = emptyList())
+        }
+    }
+
+    private fun searchMessages(query: String) {
+        viewModelScope.launch {
+            val result = messageOps.searchMessages(chatId, query)
+            if (result.isSuccess) {
+                _uiState.value = _uiState.value.copy(searchResults = result.getOrDefault(emptyList()))
+            }
+        }
     }
     
     private fun loadCurrentUser() {

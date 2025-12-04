@@ -134,7 +134,8 @@ func (c *GroupController) GetGroupMembers(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	members, err := c.groupService.GetGroupMembers(r.Context(), groupID, userID)
+	query := r.URL.Query().Get("q")
+	members, err := c.groupService.GetGroupMembers(r.Context(), groupID, userID, query)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return

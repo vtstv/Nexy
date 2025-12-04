@@ -247,4 +247,32 @@ class MessageOperations @Inject constructor(
     private fun generateMessageId(): String {
         return "${System.currentTimeMillis()}-${(0..999999).random()}"
     }
+
+    suspend fun searchMessages(chatId: Int, query: String): Result<List<Message>> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.searchMessages(chatId, query)
+                if (response.isSuccessful && response.body() != null) {
+                    val messages = response.body()!!
+                    // Decrypt messages if needed (only in production)
+                    val decryptedMessages = if (!BuildConfig.DEBUG) {
+                        messages.map { message ->
+                            if (message.encrypted && message.content.startsWith("{\"ciphertext\"")) {
+                                decryptMessage(message)
+                            } else {
+                                message
+                            }
+                        }
+                    } else {
+                        messages
+                    }
+                    Result.success(decryptedMessages)
+                } else {
+                    Result.failure(Exception("Failed to search messages"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
 }

@@ -70,12 +70,15 @@ fun MessageBubble(
                     model = avatarUrl,
                     contentDescription = "Sender avatar",
                     modifier = Modifier
-                        .size(96.dp)
+                        .padding(bottom = 8.dp)
+                        .size(32.dp)
                         .clip(CircleShape)
                 )
             } else {
                 Surface(
-                    modifier = Modifier.size(96.dp),
+                    modifier = Modifier
+                        .padding(bottom = 8.dp)
+                        .size(32.dp),
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.primaryContainer
                 ) {
@@ -84,13 +87,13 @@ fun MessageBubble(
                             text = (message.sender?.displayName?.firstOrNull()?.uppercaseChar()
                                 ?: message.sender?.username?.firstOrNull()?.uppercaseChar()
                                 ?: '?').toString(),
-                            style = MaterialTheme.typography.labelMedium,
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
                 }
             }
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(4.dp))
         }
 
         Box {

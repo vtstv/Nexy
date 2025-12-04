@@ -17,6 +17,10 @@ class MessageOperationsHandler @Inject constructor(
         return chatRepository.loadMessages(chatId)
     }
 
+    suspend fun searchMessages(chatId: Int, query: String): Result<List<Message>> {
+        return chatRepository.searchMessages(chatId, query)
+    }
+
     suspend fun sendMessage(
         chatId: Int,
         userId: Int,

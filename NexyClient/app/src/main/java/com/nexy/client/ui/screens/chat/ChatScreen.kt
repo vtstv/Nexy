@@ -81,6 +81,10 @@ fun ChatScreen(
                 chatAvatarUrl = uiState.chatAvatarUrl,
                 chatType = uiState.chatType,
                 isCreator = uiState.isCreator,
+                isSearching = uiState.isSearching,
+                searchQuery = uiState.searchQuery,
+                onSearchClick = viewModel::toggleSearch,
+                onSearchQueryChange = viewModel::updateSearchQuery,
                 onNavigateBack = onNavigateBack,
                 onClearChat = viewModel::clearChat,
                 onDeleteChat = {
@@ -144,44 +148,69 @@ fun ChatScreen(
                         })
                     }
             ) {
-                Box(modifier = Modifier.weight(1f)) {
-                    MessageList(
-                        messages = uiState.messages,
-                        currentUserId = uiState.currentUserId,
-                        listState = listState,
-                        chatType = uiState.chatType,
-                        fontScale = fontScale,
-                        incomingTextColor = incomingTextColor,
-                        outgoingTextColor = outgoingTextColor,
-                        onDeleteMessage = viewModel::deleteMessage,
-                        onReplyMessage = { message -> replyToMessage = message },
-                        onDownloadFile = { fileId, fileName ->
-                            viewModel.downloadFile(context, fileId, fileName)
-                        },
-                        onOpenFile = { fileName ->
-                            viewModel.openFile(context, fileName)
-                        },
-                        onSaveFile = { fileName ->
-                            viewModel.saveFile(context, fileName)
+                if (uiState.isSearching) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        if (uiState.searchResults.isEmpty() && uiState.searchQuery.length > 2) {
+                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                 Text("No results found")
+                             }
+                        } else {
+                            MessageList(
+                                messages = uiState.searchResults,
+                                currentUserId = uiState.currentUserId,
+                                listState = rememberLazyListState(),
+                                chatType = uiState.chatType,
+                                fontScale = fontScale,
+                                incomingTextColor = incomingTextColor,
+                                outgoingTextColor = outgoingTextColor,
+                                onDeleteMessage = {},
+                                onReplyMessage = {},
+                                onDownloadFile = { _, _ -> },
+                                onOpenFile = {},
+                                onSaveFile = {}
+                            )
                         }
+                    }
+                } else {
+                    Box(modifier = Modifier.weight(1f)) {
+                        MessageList(
+                            messages = uiState.messages,
+                            currentUserId = uiState.currentUserId,
+                            listState = listState,
+                            chatType = uiState.chatType,
+                            fontScale = fontScale,
+                            incomingTextColor = incomingTextColor,
+                            outgoingTextColor = outgoingTextColor,
+                            onDeleteMessage = viewModel::deleteMessage,
+                            onReplyMessage = { message -> replyToMessage = message },
+                            onDownloadFile = { fileId, fileName ->
+                                viewModel.downloadFile(context, fileId, fileName)
+                            },
+                            onOpenFile = { fileName ->
+                                viewModel.openFile(context, fileName)
+                            },
+                            onSaveFile = { fileName ->
+                                viewModel.saveFile(context, fileName)
+                            }
+                        )
+                    }
+                    
+                    MessageInput(
+                        text = uiState.messageText,
+                        onTextChange = viewModel::onMessageTextChange,
+                        onSend = {
+                            viewModel.sendMessage(replyToId = replyToMessage?.serverId)
+                            replyToMessage = null
+                        },
+                        onSendFile = { fileUri, fileName ->
+                            viewModel.sendFileMessage(context, fileUri, fileName)
+                        },
+                        showEmojiPicker = showEmojiPicker,
+                        onToggleEmojiPicker = { showEmojiPicker = !showEmojiPicker },
+                        replyToMessage = replyToMessage,
+                        onCancelReply = { replyToMessage = null }
                     )
                 }
-                
-                MessageInput(
-                    text = uiState.messageText,
-                    onTextChange = viewModel::onMessageTextChange,
-                    onSend = {
-                        viewModel.sendMessage(replyToId = replyToMessage?.serverId)
-                        replyToMessage = null
-                    },
-                    onSendFile = { fileUri, fileName ->
-                        viewModel.sendFileMessage(context, fileUri, fileName)
-                    },
-                    showEmojiPicker = showEmojiPicker,
-                    onToggleEmojiPicker = { showEmojiPicker = !showEmojiPicker },
-                    replyToMessage = replyToMessage,
-                    onCancelReply = { replyToMessage = null }
-                )
             }
         }
     }

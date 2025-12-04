@@ -5,6 +5,7 @@ package services
 
 import (
 	"context"
+	"errors"
 
 	"github.com/vtstv/nexy/internal/models"
 	"github.com/vtstv/nexy/internal/repositories"
@@ -48,4 +49,13 @@ func (s *MessageService) UpdateMessageStatus(ctx context.Context, messageID, use
 func (s *MessageService) DeleteMessage(ctx context.Context, messageID string, userID int) error {
 	// Verify user owns the message before deleting
 	return s.messageRepo.DeleteMessage(ctx, messageID, userID)
+}
+
+func (s *MessageService) SearchMessages(ctx context.Context, chatID, userID int, query string) ([]*models.Message, error) {
+	isMember, err := s.chatRepo.IsMember(ctx, chatID, userID)
+	if err != nil || !isMember {
+		return nil, errors.New("access denied")
+	}
+
+	return s.messageRepo.SearchMessages(ctx, chatID, query)
 }

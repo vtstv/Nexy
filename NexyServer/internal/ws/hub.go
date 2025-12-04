@@ -42,6 +42,8 @@ type Hub struct {
 
 type MessageRepository interface {
 	CreateMessageFromWebSocket(ctx context.Context, messageID string, chatID, senderID int, bodyJSON []byte) error
+	GetByUUID(ctx context.Context, uuid string) (*models.Message, error)
+	UpdateStatus(ctx context.Context, status *models.MessageStatus) error
 }
 
 type ChatRepository interface {
@@ -207,28 +209,54 @@ func (h *Hub) handleChatMessage(message *NexyMessage) {
 }
 
 func (h *Hub) handleStatusMessage(message *NexyMessage) {
-	if message.Header.Type == TypeRead && message.Header.RecipientID != nil {
+	if message.Header.Type == TypeRead {
 		ctx := context.Background()
 
-		// Check Sender (Reader)
-		sender, err := h.userRepo.GetByID(ctx, message.Header.SenderID)
-		if err != nil {
-			log.Printf("Error getting sender for read receipt check: %v", err)
-			return
+		var readBody ReadBody
+		if err := json.Unmarshal(message.Body, &readBody); err != nil {
+			log.Printf("Error unmarshalling read body: %v", err)
+		} else {
+			targetMessageID := readBody.MessageID
+
+			// Update status in DB
+			msg, err := h.messageRepo.GetByUUID(ctx, targetMessageID)
+			if err != nil {
+				log.Printf("Error getting message for read receipt: %v", err)
+			} else if msg != nil {
+				status := &models.MessageStatus{
+					MessageID: msg.ID,
+					UserID:    message.Header.SenderID,
+					Status:    "read",
+				}
+				if err := h.messageRepo.UpdateStatus(ctx, status); err != nil {
+					log.Printf("Failed to update read status in DB: %v", err)
+				} else {
+					log.Printf("Updated read status for message %s by user %d", targetMessageID, message.Header.SenderID)
+				}
+			}
 		}
 
-		// Check Recipient (Original Sender)
-		recipient, err := h.userRepo.GetByID(ctx, *message.Header.RecipientID)
-		if err != nil {
-			log.Printf("Error getting recipient for read receipt check: %v", err)
-			return
-		}
+		if message.Header.RecipientID != nil {
+			// Check Sender (Reader)
+			sender, err := h.userRepo.GetByID(ctx, message.Header.SenderID)
+			if err != nil {
+				log.Printf("Error getting sender for read receipt check: %v", err)
+				return
+			}
 
-		// If either has disabled read receipts, do not send
-		if !sender.ReadReceiptsEnabled || !recipient.ReadReceiptsEnabled {
-			log.Printf("Read receipt suppressed: Sender(%v)=%v, Recipient(%v)=%v",
-				sender.ID, sender.ReadReceiptsEnabled, recipient.ID, recipient.ReadReceiptsEnabled)
-			return
+			// Check Recipient (Original Sender)
+			recipient, err := h.userRepo.GetByID(ctx, *message.Header.RecipientID)
+			if err != nil {
+				log.Printf("Error getting recipient for read receipt check: %v", err)
+				return
+			}
+
+			// If either has disabled read receipts, do not send
+			if !sender.ReadReceiptsEnabled || !recipient.ReadReceiptsEnabled {
+				log.Printf("Read receipt suppressed: Sender(%v)=%v, Recipient(%v)=%v",
+					sender.ID, sender.ReadReceiptsEnabled, recipient.ID, recipient.ReadReceiptsEnabled)
+				return
+			}
 		}
 	}
 

@@ -176,7 +176,7 @@ class NexyWebSocketClient(
                 senderId = senderId,
                 chatId = chatId
             ),
-            body = mapOf("read_message_id" to messageId)
+            body = mapOf("message_id" to messageId)
         )
         sendMessage(message)
     }

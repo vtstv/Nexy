@@ -44,6 +44,9 @@ class ChatRepository @Inject constructor(
     suspend fun loadMessages(chatId: Int, limit: Int = 50, offset: Int = 0): Result<List<Message>> = 
         messageOperations.loadMessages(chatId, limit, offset)
     
+    suspend fun searchMessages(chatId: Int, query: String): Result<List<Message>> = 
+        messageOperations.searchMessages(chatId, query)
+
     suspend fun sendMessage(
         chatId: Int, 
         senderId: Int, 
@@ -98,6 +101,9 @@ class ChatRepository @Inject constructor(
     suspend fun removeMember(groupId: Int, userId: Int): Result<Unit> = chatOperations.removeMember(groupId, userId)
     
     suspend fun addGroupMember(groupId: Int, userId: Int): Result<Unit> = chatOperations.addGroupMember(groupId, userId)
+
+    suspend fun getGroupMembers(chatId: Int, query: String? = null): Result<List<ChatMember>> = 
+        chatOperations.getGroupMembers(chatId, query)
 
     suspend fun createGroupInviteLink(groupId: Int): Result<InviteLink> = chatOperations.createGroupInviteLink(groupId)
     
