@@ -19,5 +19,8 @@ data class UpdateProfileRequest(
     val password: String?,
 
     @SerializedName("read_receipts_enabled")
-    val readReceiptsEnabled: Boolean? = null
+    val readReceiptsEnabled: Boolean? = null,
+
+    @SerializedName("typing_indicators_enabled")
+    val typingIndicatorsEnabled: Boolean? = null
 )

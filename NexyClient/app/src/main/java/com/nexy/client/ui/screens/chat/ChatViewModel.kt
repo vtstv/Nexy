@@ -14,6 +14,8 @@ import com.nexy.client.ui.screens.chat.handlers.ChatStateManager
 import com.nexy.client.ui.screens.chat.handlers.FileOperationsHandler
 import com.nexy.client.ui.screens.chat.handlers.MessageOperationsHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -34,7 +36,8 @@ data class ChatUiState(
     val isSearching: Boolean = false,
     val searchQuery: String = "",
     val searchResults: List<Message> = emptyList(),
-    val editingMessage: Message? = null
+    val editingMessage: Message? = null,
+    val isTyping: Boolean = false
 )
 
 @HiltViewModel
@@ -54,6 +57,10 @@ class ChatViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
     
+    private var typingDebounceJob: Job? = null
+    private var lastTypingSent = 0L
+    private val TYPING_DEBOUNCE = 2000L // 2 seconds
+    
     init {
         android.util.Log.d("ChatViewModel", "ViewModel init: chatId=$chatId (from SavedStateHandle)")
         if (chatId <= 0) {
@@ -67,6 +74,15 @@ class ChatViewModel @Inject constructor(
             loadCurrentUser()
             loadChatName()
             loadMessages()
+        }
+        
+        // Observe typing events
+        viewModelScope.launch {
+            messageOps.observeTypingEvents().collect { (eventChatId, isTyping) ->
+                if (eventChatId == chatId) {
+                    _uiState.value = _uiState.value.copy(isTyping = isTyping)
+                }
+            }
         }
     }
     
@@ -159,6 +175,10 @@ class ChatViewModel @Inject constructor(
                         messages = messages,
                         isLoading = false
                     )
+                    // Mark chat as read when messages are loaded/updated
+                    if (messages.isNotEmpty()) {
+                        messageOps.markAsRead(chatId)
+                    }
                 }
         }
         
@@ -201,6 +221,29 @@ class ChatViewModel @Inject constructor(
     
     fun onMessageTextChange(text: TextFieldValue) {
         _uiState.value = _uiState.value.copy(messageText = text)
+    }
+    
+    fun onMessageTextChanged(text: TextFieldValue) {
+        _uiState.value = _uiState.value.copy(messageText = text)
+        
+        // Handle typing indicator
+        if (text.text.isNotEmpty()) {
+            if (!_uiState.value.isTyping) {
+                // Send start typing
+                messageOps.sendTyping(chatId, true)
+            }
+            
+            // Reset debounce timer
+            typingDebounceJob?.cancel()
+            typingDebounceJob = viewModelScope.launch {
+                delay(2000) // 2 seconds debounce
+                messageOps.sendTyping(chatId, false)
+            }
+        } else {
+            // Text cleared, send stop typing immediately
+            typingDebounceJob?.cancel()
+            messageOps.sendTyping(chatId, false)
+        }
     }
     
     fun sendMessage(replyToId: Int? = null) {
@@ -427,6 +470,29 @@ class ChatViewModel @Inject constructor(
                     error = "Error saving file: ${e.message}"
                 )
             }
+        }
+    }
+
+    fun onMessageTextChanged(text: String) {
+        _uiState.value = _uiState.value.copy(messageText = TextFieldValue(text))
+        
+        // Handle typing indicator
+        if (text.isNotEmpty()) {
+            if (!_uiState.value.isTyping) {
+                // Send start typing
+                messageOps.sendTyping(chatId, true)
+            }
+            
+            // Reset debounce timer
+            typingDebounceJob?.cancel()
+            typingDebounceJob = viewModelScope.launch {
+                delay(2000) // 2 seconds debounce
+                messageOps.sendTyping(chatId, false)
+            }
+        } else {
+            // Text cleared, send stop typing immediately
+            typingDebounceJob?.cancel()
+            messageOps.sendTyping(chatId, false)
         }
     }
 }

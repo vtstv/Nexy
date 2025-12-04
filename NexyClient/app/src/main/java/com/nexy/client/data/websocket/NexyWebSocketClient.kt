@@ -209,6 +209,25 @@ class NexyWebSocketClient(
         sendMessage(message)
     }
     
+    fun sendTyping(chatId: Int, isTyping: Boolean) {
+        val body = mapOf(
+            "chat_id" to chatId,
+            "is_typing" to isTyping
+        )
+        
+        val message = NexyMessage(
+            header = NexyHeader(
+                type = "typing",
+                messageId = generateMessageId(),
+                timestamp = System.currentTimeMillis() / 1000,
+                chatId = chatId
+            ),
+            body = body
+        )
+        
+        sendMessage(message)
+    }
+    
     private fun sendMessage(message: NexyMessage) {
         if (webSocket == null) {
             Log.e(TAG, "Cannot send message: WebSocket is null. Attempting to reconnect...")

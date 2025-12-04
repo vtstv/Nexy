@@ -30,6 +30,7 @@ fun ChatTopBar(
     isCreator: Boolean = false,
     isSearching: Boolean = false,
     searchQuery: String = "",
+    isTyping: Boolean = false,
     onSearchClick: () -> Unit = {},
     onSearchQueryChange: (String) -> Unit = {},
     onNavigateBack: () -> Unit,
@@ -104,11 +105,20 @@ fun ChatTopBar(
                             text = chatName,
                             style = MaterialTheme.typography.titleMedium
                         )
-                        Text(
-                            text = "Tap for info",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        if (isTyping) {
+                            Text(
+                                text = "Typing...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                            )
+                        } else {
+                            Text(
+                                text = "Tap for info",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }

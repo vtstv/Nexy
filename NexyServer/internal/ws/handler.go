@@ -112,3 +112,7 @@ func (r *NexyChatRepo) CreatePrivateChat(ctx context.Context, user1ID, user2ID i
 		ParticipantIds: []int{user1ID, user2ID},
 	}, nil
 }
+
+func (r *NexyChatRepo) GetChatMembers(ctx context.Context, chatID int) ([]*models.ChatMember, error) {
+	return r.repo.GetChatMembersFull(ctx, chatID)
+}

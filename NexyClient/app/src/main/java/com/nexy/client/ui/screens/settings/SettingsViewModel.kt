@@ -79,6 +79,9 @@ class SettingsViewModel @Inject constructor(
     private val _readReceiptsEnabled = MutableStateFlow(true)
     val readReceiptsEnabled: StateFlow<Boolean> = _readReceiptsEnabled.asStateFlow()
 
+    private val _typingIndicatorsEnabled = MutableStateFlow(true)
+    val typingIndicatorsEnabled: StateFlow<Boolean> = _typingIndicatorsEnabled.asStateFlow()
+
     init {
         loadSettings()
         calculateCacheSize()
@@ -97,6 +100,7 @@ class SettingsViewModel @Inject constructor(
             if (userId != null && userId > 0) {
                 userRepository.getUserById(userId).onSuccess { user ->
                     _readReceiptsEnabled.value = user.readReceiptsEnabled
+                    _typingIndicatorsEnabled.value = user.typingIndicatorsEnabled
                 }
             }
         }
@@ -114,7 +118,8 @@ class SettingsViewModel @Inject constructor(
                          avatarUrl = user.avatarUrl,
                          email = user.email,
                          password = null,
-                         readReceiptsEnabled = enabled
+                         readReceiptsEnabled = enabled,
+                         typingIndicatorsEnabled = null
                      )
                 }
             }
@@ -283,6 +288,26 @@ class SettingsViewModel @Inject constructor(
                     if (now - file.lastModified() > maxAge) {
                         file.delete()
                     }
+                }
+            }
+        }
+    }
+
+    fun setTypingIndicatorsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            _typingIndicatorsEnabled.value = enabled
+            val userId = stateManager.loadCurrentUserId()
+            if (userId != null && userId > 0) {
+                userRepository.getUserById(userId).onSuccess { user ->
+                    userRepository.updateProfile(
+                        displayName = user.displayName ?: "",
+                        bio = user.bio ?: "",
+                        avatarUrl = user.avatarUrl,
+                        email = user.email,
+                        password = null,
+                        readReceiptsEnabled = null,
+                        typingIndicatorsEnabled = enabled
+                    )
                 }
             }
         }

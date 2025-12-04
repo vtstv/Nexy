@@ -117,6 +117,12 @@ class ChatRepository @Inject constructor(
     suspend fun transferOwnership(groupId: Int, newOwnerId: Int): Result<Unit> {
         return chatOperations.transferOwnership(groupId, newOwnerId)
     }
+
+    fun sendTyping(chatId: Int, isTyping: Boolean) {
+        messageOperations.sendTyping(chatId, isTyping)
+    }
+
+    fun observeTypingEvents() = messageOperations.observeTypingEvents()
 }
 
 // ChatInfo data class for UI

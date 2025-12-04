@@ -26,6 +26,9 @@ data class User(
 
     @SerializedName("read_receipts_enabled")
     val readReceiptsEnabled: Boolean = true,
+
+    @SerializedName("typing_indicators_enabled")
+    val typingIndicatorsEnabled: Boolean = true,
     
     @SerializedName("public_key")
     val publicKey: String? = null,

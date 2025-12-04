@@ -21,7 +21,7 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 	query := `
 		INSERT INTO users (username, email, password_hash, display_name, avatar_url, bio)
 		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, read_receipts_enabled, created_at, updated_at`
+		RETURNING id, read_receipts_enabled, typing_indicators_enabled, created_at, updated_at`
 
 	return r.db.QueryRowContext(ctx, query,
 		user.Username,
@@ -30,13 +30,13 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 		user.DisplayName,
 		user.AvatarURL,
 		user.Bio,
-	).Scan(&user.ID, &user.ReadReceiptsEnabled, &user.CreatedAt, &user.UpdatedAt)
+	).Scan(&user.ID, &user.ReadReceiptsEnabled, &user.TypingIndicatorsEnabled, &user.CreatedAt, &user.UpdatedAt)
 }
 
 func (r *UserRepository) GetByID(ctx context.Context, id int) (*models.User, error) {
 	user := &models.User{}
 	query := `
-		SELECT id, username, email, password_hash, display_name, avatar_url, bio, read_receipts_enabled, created_at, updated_at
+		SELECT id, username, email, password_hash, display_name, avatar_url, bio, read_receipts_enabled, typing_indicators_enabled, created_at, updated_at
 		FROM users
 		WHERE id = $1`
 
@@ -51,6 +51,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id int) (*models.User, err
 		&avatarURL,
 		&bio,
 		&user.ReadReceiptsEnabled,
+		&user.TypingIndicatorsEnabled,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -69,7 +70,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id int) (*models.User, err
 func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.User, error) {
 	user := &models.User{}
 	query := `
-		SELECT id, username, email, password_hash, display_name, avatar_url, bio, read_receipts_enabled, created_at, updated_at
+		SELECT id, username, email, password_hash, display_name, avatar_url, bio, read_receipts_enabled, typing_indicators_enabled, created_at, updated_at
 		FROM users
 		WHERE email = $1`
 
@@ -84,6 +85,7 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.
 		&avatarURL,
 		&bio,
 		&user.ReadReceiptsEnabled,
+		&user.TypingIndicatorsEnabled,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -102,7 +104,7 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.
 func (r *UserRepository) GetByUsername(ctx context.Context, username string) (*models.User, error) {
 	user := &models.User{}
 	query := `
-		SELECT id, username, email, password_hash, display_name, avatar_url, bio, read_receipts_enabled, created_at, updated_at
+		SELECT id, username, email, password_hash, display_name, avatar_url, bio, read_receipts_enabled, typing_indicators_enabled, created_at, updated_at
 		FROM users
 		WHERE username = $1`
 
@@ -115,6 +117,7 @@ func (r *UserRepository) GetByUsername(ctx context.Context, username string) (*m
 		&user.AvatarURL,
 		&user.Bio,
 		&user.ReadReceiptsEnabled,
+		&user.TypingIndicatorsEnabled,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -126,7 +129,7 @@ func (r *UserRepository) GetByUsername(ctx context.Context, username string) (*m
 
 func (r *UserRepository) Search(ctx context.Context, query string, limit int) ([]*models.User, error) {
 	sqlQuery := `
-		SELECT id, username, email, display_name, avatar_url, bio, read_receipts_enabled, created_at, updated_at
+		SELECT id, username, email, display_name, avatar_url, bio, read_receipts_enabled, typing_indicators_enabled, created_at, updated_at
 		FROM users
 		WHERE username ILIKE $1 OR display_name ILIKE $1 OR email ILIKE $1
 		LIMIT $2`
@@ -150,6 +153,7 @@ func (r *UserRepository) Search(ctx context.Context, query string, limit int) ([
 			&avatarURL,
 			&bio,
 			&user.ReadReceiptsEnabled,
+			&user.TypingIndicatorsEnabled,
 			&user.CreatedAt,
 			&user.UpdatedAt,
 		)
@@ -171,8 +175,8 @@ func (r *UserRepository) Search(ctx context.Context, query string, limit int) ([
 func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
 	query := `
 		UPDATE users
-		SET display_name = $1, avatar_url = $2, bio = $3, read_receipts_enabled = $4, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $5
+		SET display_name = $1, avatar_url = $2, bio = $3, read_receipts_enabled = $4, typing_indicators_enabled = $5, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $6
 		RETURNING updated_at`
 
 	return r.db.QueryRowContext(ctx, query,
@@ -180,6 +184,7 @@ func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
 		user.AvatarURL,
 		user.Bio,
 		user.ReadReceiptsEnabled,
+		user.TypingIndicatorsEnabled,
 		user.ID,
 	).Scan(&user.UpdatedAt)
 }

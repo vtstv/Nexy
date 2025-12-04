@@ -27,12 +27,13 @@ func NewUserController(userService *services.UserService, qrService *services.QR
 }
 
 type UpdateProfileRequest struct {
-	DisplayName         string `json:"display_name"`
-	Bio                 string `json:"bio"`
-	AvatarURL           string `json:"avatar_url"`
-	Email               string `json:"email"`
-	Password            string `json:"password"`
-	ReadReceiptsEnabled *bool  `json:"read_receipts_enabled"`
+	DisplayName             string `json:"display_name"`
+	Bio                     string `json:"bio"`
+	AvatarURL               string `json:"avatar_url"`
+	Email                   string `json:"email"`
+	Password                string `json:"password"`
+	ReadReceiptsEnabled     *bool  `json:"read_receipts_enabled"`
+	TypingIndicatorsEnabled *bool  `json:"typing_indicators_enabled"`
 }
 
 func (c *UserController) GetMe(w http.ResponseWriter, r *http.Request) {
@@ -83,7 +84,7 @@ func (c *UserController) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := c.userService.UpdateProfile(r.Context(), userID, req.DisplayName, req.Bio, req.AvatarURL, req.Email, req.Password, req.ReadReceiptsEnabled)
+	user, err := c.userService.UpdateProfile(r.Context(), userID, req.DisplayName, req.Bio, req.AvatarURL, req.Email, req.Password, req.ReadReceiptsEnabled, req.TypingIndicatorsEnabled)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

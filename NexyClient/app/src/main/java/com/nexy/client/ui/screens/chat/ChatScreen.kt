@@ -83,6 +83,7 @@ fun ChatScreen(
                 isCreator = uiState.isCreator,
                 isSearching = uiState.isSearching,
                 searchQuery = uiState.searchQuery,
+                isTyping = uiState.isTyping,
                 onSearchClick = viewModel::toggleSearch,
                 onSearchQueryChange = viewModel::updateSearchQuery,
                 onNavigateBack = onNavigateBack,

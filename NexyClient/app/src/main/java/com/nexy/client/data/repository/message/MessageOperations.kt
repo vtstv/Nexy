@@ -9,6 +9,7 @@ import com.nexy.client.data.models.Message
 import com.nexy.client.data.models.MessageStatus
 import com.nexy.client.data.models.MessageType
 import com.nexy.client.data.websocket.NexyWebSocketClient
+import com.nexy.client.data.websocket.WebSocketMessageHandler
 import com.nexy.client.e2e.E2EManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -27,6 +28,7 @@ class MessageOperations @Inject constructor(
     private val userDao: UserDao,
     private val apiService: NexyApiService,
     private val webSocketClient: NexyWebSocketClient,
+    private val webSocketMessageHandler: WebSocketMessageHandler,
     private val messageMappers: MessageMappers,
     private val e2eManager: E2EManager
 ) {
@@ -288,4 +290,10 @@ class MessageOperations @Inject constructor(
             }
         }
     }
+
+    fun sendTyping(chatId: Int, isTyping: Boolean) {
+        webSocketClient.sendTyping(chatId, isTyping)
+    }
+
+    fun observeTypingEvents() = webSocketMessageHandler.typingEvents
 }

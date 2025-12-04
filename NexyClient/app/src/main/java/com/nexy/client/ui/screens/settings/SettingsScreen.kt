@@ -69,6 +69,7 @@ fun SettingsScreen(
     val voiceMessagesEnabled by viewModel.voiceMessagesEnabled.collectAsState()
     val isBackgroundServiceEnabled by viewModel.isBackgroundServiceEnabled.collectAsState()
     val readReceiptsEnabled by viewModel.readReceiptsEnabled.collectAsState()
+    val typingIndicatorsEnabled by viewModel.typingIndicatorsEnabled.collectAsState()
     
     var showPinDialog by remember { mutableStateOf(false) }
     var showCacheDialog by remember { mutableStateOf(false) }
@@ -168,6 +169,17 @@ fun SettingsScreen(
                             Switch(
                                 checked = readReceiptsEnabled,
                                 onCheckedChange = { viewModel.setReadReceiptsEnabled(it) }
+                            )
+                        }
+                    )
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text("Typing Indicators") },
+                        supportingContent = { Text("Show when you are typing") },
+                        trailingContent = {
+                            Switch(
+                                checked = typingIndicatorsEnabled,
+                                onCheckedChange = { viewModel.setTypingIndicatorsEnabled(it) }
                             )
                         }
                     )

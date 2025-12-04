@@ -62,6 +62,7 @@ type Encryption struct {
 }
 
 type TypingBody struct {
+	ChatID   int  `json:"chat_id"`
 	IsTyping bool `json:"is_typing"`
 }
 

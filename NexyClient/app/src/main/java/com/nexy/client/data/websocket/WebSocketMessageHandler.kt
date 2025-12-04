@@ -19,6 +19,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.asSharedFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -40,6 +41,9 @@ class WebSocketMessageHandler @Inject constructor(
     
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     
+    private val _typingEvents = kotlinx.coroutines.flow.MutableSharedFlow<Pair<Int, Boolean>>()
+    val typingEvents = _typingEvents.asSharedFlow()
+
     fun handleIncomingMessage(nexyMessage: NexyMessage) {
         scope.launch {
             try {
@@ -49,6 +53,7 @@ class WebSocketMessageHandler @Inject constructor(
                     "ack" -> handleAck(nexyMessage)
                     "read" -> handleReadReceipt(nexyMessage)
                     "edit" -> handleEditMessage(nexyMessage)
+                    "typing" -> handleTyping(nexyMessage)
                     else -> Log.d(TAG, "Ignoring message type: ${nexyMessage.header.type}")
                 }
             } catch (e: Exception) {
@@ -247,6 +252,14 @@ class WebSocketMessageHandler @Inject constructor(
         Log.d(TAG, "Handling edit message: messageId=$messageId, newContent=$content")
         
         messageDao.updateMessageContent(messageId, content, true)
+    }
+    
+    private suspend fun handleTyping(nexyMessage: NexyMessage) {
+        val body = nexyMessage.body ?: return
+        val chatId = (body["chat_id"] as? Double)?.toInt() ?: return
+        val isTyping = body["is_typing"] as? Boolean ?: return
+        
+        _typingEvents.emit(Pair(chatId, isTyping))
     }
     
     private fun convertTimestamp(timestamp: Long): String {

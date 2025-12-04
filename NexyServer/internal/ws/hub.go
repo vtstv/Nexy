@@ -29,15 +29,17 @@ type Client struct {
 }
 
 type Hub struct {
-	clients     map[int]*Client
-	register    chan *Client
-	unregister  chan *Client
-	broadcast   chan *NexyMessage
-	redis       *redis.Client
-	mu          sync.RWMutex
-	messageRepo MessageRepository
-	chatRepo    ChatRepository
-	userRepo    UserRepository
+	clients      map[int]*Client
+	register     chan *Client
+	unregister   chan *Client
+	broadcast    chan *NexyMessage
+	redis        *redis.Client
+	mu           sync.RWMutex
+	typingStatus map[int]map[int]bool // UserID -> ChatID -> isTyping
+	typingMu     sync.Mutex
+	messageRepo  MessageRepository
+	chatRepo     ChatRepository
+	userRepo     UserRepository
 }
 
 type MessageRepository interface {
@@ -45,12 +47,14 @@ type MessageRepository interface {
 	GetByUUID(ctx context.Context, uuid string) (*models.Message, error)
 	UpdateStatus(ctx context.Context, status *models.MessageStatus) error
 	Update(ctx context.Context, msg *models.Message) error
+	MarkMessagesAsRead(ctx context.Context, chatID, userID, lastMessageID int) error
 }
 
 type ChatRepository interface {
 	IsMember(ctx context.Context, chatID, userID int) (bool, error)
 	GetPrivateChatBetween(ctx context.Context, user1ID, user2ID int) (*Chat, error)
 	CreatePrivateChat(ctx context.Context, user1ID, user2ID int) (*Chat, error)
+	GetChatMembers(ctx context.Context, chatID int) ([]*models.ChatMember, error)
 }
 
 type UserRepository interface {
@@ -66,14 +70,15 @@ type Chat struct {
 
 func NewHub(redisClient *redis.Client, messageRepo MessageRepository, chatRepo ChatRepository, userRepo UserRepository) *Hub {
 	return &Hub{
-		clients:     make(map[int]*Client),
-		register:    make(chan *Client),
-		unregister:  make(chan *Client),
-		broadcast:   make(chan *NexyMessage, 256),
-		redis:       redisClient,
-		messageRepo: messageRepo,
-		chatRepo:    chatRepo,
-		userRepo:    userRepo,
+		clients:      make(map[int]*Client),
+		register:     make(chan *Client),
+		unregister:   make(chan *Client),
+		broadcast:    make(chan *NexyMessage, 256),
+		redis:        redisClient,
+		messageRepo:  messageRepo,
+		chatRepo:     chatRepo,
+		userRepo:     userRepo,
+		typingStatus: make(map[int]map[int]bool),
 	}
 }
 
@@ -119,6 +124,38 @@ func (h *Hub) unregisterClient(client *Client) {
 	h.broadcastToAll(offlineMsg)
 
 	log.Printf("Client disconnected: user_id=%d", client.userID)
+
+	// Check if user was typing in any chats and broadcast stop typing
+	h.typingMu.Lock()
+	if chats, ok := h.typingStatus[client.userID]; ok {
+		for chatID := range chats {
+			// Create stop typing message
+			typingBody := TypingBody{
+				ChatID:   chatID,
+				IsTyping: false,
+			}
+			bodyBytes, _ := json.Marshal(typingBody)
+
+			stopTypingMsg := &NexyMessage{
+				Header: NexyHeader{
+					Type:      TypeTyping,
+					Timestamp: time.Now().Unix(),
+					SenderID:  client.userID,
+					ChatID:    &chatID,
+				},
+				Body: bodyBytes,
+			}
+
+			// We need to release the lock before calling handleTypingMessage to avoid deadlock
+			// But handleTypingMessage will try to acquire the lock again.
+			// So we should just broadcast directly or call a helper that doesn't lock.
+			// Actually, handleTypingMessage does logic we want (checking permissions).
+			// Let's just queue it to be handled.
+			go h.handleTypingMessage(stopTypingMsg)
+		}
+		delete(h.typingStatus, client.userID)
+	}
+	h.typingMu.Unlock()
 }
 
 func (h *Hub) handleBroadcast(message *NexyMessage) {
@@ -127,7 +164,9 @@ func (h *Hub) handleBroadcast(message *NexyMessage) {
 		h.handleChatMessage(message)
 	case TypeEdit:
 		h.handleEditMessage(message)
-	case TypeTyping, TypeDelivered, TypeRead:
+	case TypeTyping:
+		h.handleTypingMessage(message)
+	case TypeDelivered, TypeRead:
 		h.handleStatusMessage(message)
 	case TypeCallOffer, TypeCallAnswer, TypeICECandidate, TypeCallCancel, TypeCallEnd, TypeCallBusy:
 		h.handleSignalingMessage(message)
@@ -264,41 +303,68 @@ func (h *Hub) handleStatusMessage(message *NexyMessage) {
 			if err != nil {
 				log.Printf("Error getting message for read receipt: %v", err)
 			} else if msg != nil {
-				status := &models.MessageStatus{
-					MessageID: msg.ID,
-					UserID:    message.Header.SenderID,
-					Status:    "read",
-				}
-				if err := h.messageRepo.UpdateStatus(ctx, status); err != nil {
-					log.Printf("Failed to update read status in DB: %v", err)
+				// Mark this message and all previous unread messages in this chat as read
+				if err := h.messageRepo.MarkMessagesAsRead(ctx, msg.ChatID, message.Header.SenderID, msg.ID); err != nil {
+					log.Printf("Failed to mark messages as read in DB: %v", err)
 				} else {
-					log.Printf("Updated read status for message %s by user %d", targetMessageID, message.Header.SenderID)
+					log.Printf("Marked messages up to %s as read by user %d", targetMessageID, message.Header.SenderID)
+				}
+
+				// Broadcast to chat members (Privacy: Only if sender has read receipts enabled)
+				// Check Sender (Reader)
+				sender, err := h.userRepo.GetByID(ctx, message.Header.SenderID)
+				if err != nil {
+					log.Printf("Error getting sender for read receipt check: %v", err)
+					return
+				}
+
+				if !sender.ReadReceiptsEnabled {
+					log.Printf("Read receipt suppressed by sender %d settings", sender.ID)
+					return
+				}
+
+				// Get chat members to broadcast to
+				members, err := h.chatRepo.GetChatMembers(ctx, msg.ChatID)
+				if err != nil {
+					log.Printf("Error getting chat members for read receipt broadcast: %v", err)
+					return
+				}
+
+				data, _ := json.Marshal(message)
+				h.mu.RLock()
+				defer h.mu.RUnlock()
+
+				for _, member := range members {
+					// Skip sender (the one who read it)
+					if member.UserID == message.Header.SenderID {
+						continue
+					}
+
+					// Check if recipient is connected
+					client, ok := h.clients[member.UserID]
+					if !ok {
+						continue
+					}
+
+					// Check if recipient has read receipts enabled (Reciprocal privacy)
+					recipient, err := h.userRepo.GetByID(ctx, member.UserID)
+					if err != nil {
+						continue
+					}
+
+					if !recipient.ReadReceiptsEnabled {
+						continue
+					}
+
+					select {
+					case client.send <- data:
+					default:
+						go h.unregisterClient(client)
+					}
 				}
 			}
 		}
-
-		if message.Header.RecipientID != nil {
-			// Check Sender (Reader)
-			sender, err := h.userRepo.GetByID(ctx, message.Header.SenderID)
-			if err != nil {
-				log.Printf("Error getting sender for read receipt check: %v", err)
-				return
-			}
-
-			// Check Recipient (Original Sender)
-			recipient, err := h.userRepo.GetByID(ctx, *message.Header.RecipientID)
-			if err != nil {
-				log.Printf("Error getting recipient for read receipt check: %v", err)
-				return
-			}
-
-			// If either has disabled read receipts, do not send
-			if !sender.ReadReceiptsEnabled || !recipient.ReadReceiptsEnabled {
-				log.Printf("Read receipt suppressed: Sender(%v)=%v, Recipient(%v)=%v",
-					sender.ID, sender.ReadReceiptsEnabled, recipient.ID, recipient.ReadReceiptsEnabled)
-				return
-			}
-		}
+		return
 	}
 
 	if message.Header.RecipientID != nil {
@@ -365,6 +431,92 @@ func (h *Hub) broadcastToChatMembers(chatID int, message *NexyMessage) {
 			}
 		} else {
 			// log.Printf("User %d is NOT a member of chat %d", client.userID, chatID)
+		}
+	}
+}
+
+func (h *Hub) handleTypingMessage(message *NexyMessage) {
+	ctx := context.Background()
+	senderID := message.Header.SenderID
+
+	// Check if sender has typing indicators enabled
+	sender, err := h.userRepo.GetByID(ctx, senderID)
+	if err != nil {
+		log.Printf("Error getting sender for typing status: %v", err)
+		return
+	}
+
+	if !sender.TypingIndicatorsEnabled {
+		// If sender disabled typing indicators, do not broadcast
+		return
+	}
+
+	var typingBody TypingBody
+	if err := json.Unmarshal(message.Body, &typingBody); err != nil {
+		log.Printf("Error unmarshalling typing body: %v", err)
+		return
+	}
+
+	log.Printf("Handling typing message from user %d for chat %d. IsTyping: %v", senderID, typingBody.ChatID, typingBody.IsTyping)
+
+	// Update typing status in memory
+	h.typingMu.Lock()
+	if typingBody.IsTyping {
+		if _, ok := h.typingStatus[senderID]; !ok {
+			h.typingStatus[senderID] = make(map[int]bool)
+		}
+		h.typingStatus[senderID][typingBody.ChatID] = true
+	} else {
+		if chats, ok := h.typingStatus[senderID]; ok {
+			delete(chats, typingBody.ChatID)
+			if len(chats) == 0 {
+				delete(h.typingStatus, senderID)
+			}
+		}
+	}
+	h.typingMu.Unlock()
+
+	// Broadcast to chat members who also have typing indicators enabled
+	members, err := h.chatRepo.GetChatMembers(ctx, typingBody.ChatID)
+	if err != nil {
+		log.Printf("Error getting chat members for typing broadcast: %v", err)
+		return
+	}
+
+	data, _ := json.Marshal(message)
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for _, member := range members {
+		// Skip sender
+		if member.UserID == senderID {
+			continue
+		}
+
+		// Check if recipient is connected
+		client, ok := h.clients[member.UserID]
+		if !ok {
+			// log.Printf("User %d not connected, skipping typing broadcast", member.UserID)
+			continue
+		}
+
+		// Check if recipient has typing indicators enabled
+		// Optimization: We could cache this or fetch in bulk, but for now fetch individually
+		recipient, err := h.userRepo.GetByID(ctx, member.UserID)
+		if err != nil {
+			log.Printf("Error getting recipient %d for typing check: %v", member.UserID, err)
+			continue
+		}
+
+		if !recipient.TypingIndicatorsEnabled {
+			// log.Printf("Recipient %d has typing indicators disabled", member.UserID)
+			continue
+		}
+
+		select {
+		case client.send <- data:
+		default:
+			go h.unregisterClient(client)
 		}
 	}
 }

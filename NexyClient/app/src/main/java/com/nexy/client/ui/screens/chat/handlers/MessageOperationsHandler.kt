@@ -58,4 +58,10 @@ class MessageOperationsHandler @Inject constructor(
     suspend fun markAsRead(chatId: Int) {
         chatRepository.markChatAsRead(chatId)
     }
+
+    fun sendTyping(chatId: Int, isTyping: Boolean) {
+        chatRepository.sendTyping(chatId, isTyping)
+    }
+
+    fun observeTypingEvents() = chatRepository.observeTypingEvents()
 }
