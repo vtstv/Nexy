@@ -122,7 +122,7 @@ class ChatRepository @Inject constructor(
         messageOperations.sendTyping(chatId, isTyping)
     }
 
-    fun observeTypingEvents() = messageOperations.observeTypingEvents()
+    fun observeTypingEvents(): kotlinx.coroutines.flow.Flow<Triple<Int, Boolean, Int?>> = messageOperations.observeTypingEvents()
 }
 
 // ChatInfo data class for UI

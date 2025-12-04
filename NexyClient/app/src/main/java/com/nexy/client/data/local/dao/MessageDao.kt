@@ -30,7 +30,7 @@ interface MessageDao {
     suspend fun updateMessageStatus(messageId: String, status: String)
     
     @Query("UPDATE messages SET status = 'READ' WHERE chatId = :chatId AND timestamp <= :timestamp AND status != 'READ' AND senderId = :currentUserId")
-    suspend fun markMessagesAsReadUpTo(chatId: Int, timestamp: Long, currentUserId: Int)
+    suspend fun markMessagesAsReadUpTo(chatId: Int, timestamp: Long, currentUserId: Int): Int
 
     @Query("UPDATE messages SET content = :content, isEdited = :isEdited WHERE id = :messageId")
     suspend fun updateMessageContent(messageId: String, content: String, isEdited: Boolean)

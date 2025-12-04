@@ -39,6 +39,10 @@ class MessageOperations @Inject constructor(
     
     fun getMessagesByChatId(chatId: Int): Flow<List<Message>> {
         return messageDao.getMessagesByChatId(chatId).map { entities ->
+            if (entities.isNotEmpty()) {
+                val lastMsg = entities.last()
+                Log.d(TAG, "Flow emitted ${entities.size} messages for chat $chatId. Last msg: ${lastMsg.message.id}, status: ${lastMsg.message.status}")
+            }
             entities.map { entity -> messageMappers.messageWithSenderToModel(entity) }
         }
     }
@@ -87,7 +91,26 @@ class MessageOperations @Inject constructor(
                                 createdAt = sender.createdAt
                             ))
                         }
-                        messageDao.insertMessage(messageMappers.modelToEntity(message))
+                        
+                        val entity = messageMappers.modelToEntity(message)
+                        val existing = messageDao.getMessageById(message.id)
+                        
+                        if (existing != null) {
+                            // Smart Merge: Preserve READ status if local is READ but server is SENT/DELIVERED
+                            // This handles cases where server sync is lagging or buggy
+                            val existingStatus = try { MessageStatus.valueOf(existing.status) } catch (e: Exception) { MessageStatus.SENT }
+                            val newStatus = try { MessageStatus.valueOf(entity.status) } catch (e: Exception) { MessageStatus.SENT }
+                            
+                            val finalStatus = if (existingStatus.ordinal > newStatus.ordinal) {
+                                existing.status
+                            } else {
+                                entity.status
+                            }
+                            
+                            messageDao.updateMessage(entity.copy(status = finalStatus))
+                        } else {
+                            messageDao.insertMessage(entity)
+                        }
                     }
                     
                     Result.success(decryptedMessages)
@@ -295,5 +318,5 @@ class MessageOperations @Inject constructor(
         webSocketClient.sendTyping(chatId, isTyping)
     }
 
-    fun observeTypingEvents() = webSocketMessageHandler.typingEvents
+    fun observeTypingEvents(): kotlinx.coroutines.flow.SharedFlow<Triple<Int, Boolean, Int?>> = webSocketMessageHandler.typingEvents
 }

@@ -41,7 +41,7 @@ class WebSocketMessageHandler @Inject constructor(
     
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     
-    private val _typingEvents = kotlinx.coroutines.flow.MutableSharedFlow<Pair<Int, Boolean>>()
+    private val _typingEvents = kotlinx.coroutines.flow.MutableSharedFlow<Triple<Int, Boolean, Int?>>()
     val typingEvents = _typingEvents.asSharedFlow()
 
     fun handleIncomingMessage(nexyMessage: NexyMessage) {
@@ -246,11 +246,25 @@ class WebSocketMessageHandler @Inject constructor(
         // Find the message to get its timestamp and chatId
         val message = messageDao.getMessageById(messageId)
         if (message != null) {
-            Log.d(TAG, "Marking messages in chat ${message.chatId} up to ${message.timestamp} as READ")
-            // Only mark messages sent by ME as read (because the other person read them)
             val currentUserId = tokenManager.getUserId()
+            Log.d(TAG, "Processing Read Receipt: msgId=$messageId, chatId=${message.chatId}, timestamp=${message.timestamp}, msgSender=${message.senderId}, currentUserId=$currentUserId")
+            
             if (currentUserId != null) {
-                messageDao.markMessagesAsReadUpTo(message.chatId, message.timestamp, currentUserId)
+                if (message.senderId == currentUserId) {
+                    Log.d(TAG, "Executing markMessagesAsReadUpTo for user $currentUserId")
+                    val updatedCount = messageDao.markMessagesAsReadUpTo(message.chatId, message.timestamp, currentUserId)
+                    Log.d(TAG, "Marked $updatedCount messages as READ")
+                    
+                    // Fallback: If bulk update failed (e.g. due to timestamp issues), ensure at least this message is updated
+                    if (updatedCount == 0) {
+                        Log.w(TAG, "markMessagesAsReadUpTo updated 0 rows! Force updating current message $messageId")
+                        messageDao.updateMessageStatus(messageId, MessageStatus.READ.name)
+                    }
+                } else {
+                    Log.d(TAG, "Skipping markMessagesAsReadUpTo: Message sender ${message.senderId} != current user $currentUserId")
+                }
+            } else {
+                Log.e(TAG, "Cannot mark as read: currentUserId is null")
             }
         } else {
             Log.w(TAG, "Message $messageId not found for read receipt, updating status only if exists")
@@ -284,9 +298,10 @@ class WebSocketMessageHandler @Inject constructor(
         }
 
         val isTyping = body["is_typing"] as? Boolean ?: return
+        val senderId = nexyMessage.header.senderId
         
-        Log.d(TAG, "Received typing event: chatId=$chatId, isTyping=$isTyping")
-        _typingEvents.emit(Pair(chatId, isTyping))
+        Log.d(TAG, "Received typing event: chatId=$chatId, isTyping=$isTyping, senderId=$senderId")
+        _typingEvents.emit(Triple(chatId, isTyping, senderId))
     }
     
     private fun convertTimestamp(timestamp: Long): String {

@@ -31,6 +31,7 @@ fun ChatTopBar(
     isSearching: Boolean = false,
     searchQuery: String = "",
     isTyping: Boolean = false,
+    typingUser: String? = null,
     onSearchClick: () -> Unit = {},
     onSearchQueryChange: (String) -> Unit = {},
     onNavigateBack: () -> Unit,
@@ -106,8 +107,9 @@ fun ChatTopBar(
                             style = MaterialTheme.typography.titleMedium
                         )
                         if (isTyping) {
+                            val typingText = if (typingUser != null) "$typingUser is typing..." else "Typing..."
                             Text(
-                                text = "Typing...",
+                                text = typingText,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.primary,
                                 fontStyle = androidx.compose.ui.text.font.FontStyle.Italic

@@ -48,6 +48,11 @@ class ChatStateManager @Inject constructor(
             isCreator = chat.createdBy == currentUserId
         )
     }
+
+    suspend fun getUserName(userId: Int): String? {
+        val userResult = userRepository.getUserById(userId)
+        return userResult.getOrNull()?.displayName ?: userResult.getOrNull()?.username
+    }
 }
 
 data class ChatInfo(

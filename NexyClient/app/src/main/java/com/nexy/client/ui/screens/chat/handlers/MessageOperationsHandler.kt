@@ -63,5 +63,5 @@ class MessageOperationsHandler @Inject constructor(
         chatRepository.sendTyping(chatId, isTyping)
     }
 
-    fun observeTypingEvents() = chatRepository.observeTypingEvents()
+    fun observeTypingEvents(): kotlinx.coroutines.flow.Flow<Triple<Int, Boolean, Int?>> = chatRepository.observeTypingEvents()
 }

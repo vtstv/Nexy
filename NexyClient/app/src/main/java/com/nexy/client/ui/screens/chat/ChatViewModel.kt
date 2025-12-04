@@ -37,7 +37,8 @@ data class ChatUiState(
     val searchQuery: String = "",
     val searchResults: List<Message> = emptyList(),
     val editingMessage: Message? = null,
-    val isTyping: Boolean = false
+    val isTyping: Boolean = false,
+    val typingUser: String? = null
 )
 
 @HiltViewModel
@@ -78,9 +79,21 @@ class ChatViewModel @Inject constructor(
         
         // Observe typing events
         viewModelScope.launch {
-            messageOps.observeTypingEvents().collect { (eventChatId, isTyping) ->
+            messageOps.observeTypingEvents().collect { (eventChatId, isTyping, senderId) ->
                 if (eventChatId == chatId) {
-                    _uiState.value = _uiState.value.copy(isTyping = isTyping)
+                    var typingUserName: String? = null
+                    if (isTyping && senderId != null && _uiState.value.chatType == ChatType.GROUP) {
+                        // Try to find user name
+                        // Ideally we should have a user cache or repository call here
+                        // For now, we'll try to fetch it or just use "Someone" if not found immediately
+                        // In a real app, we'd look up the user in the local DB
+                        typingUserName = stateManager.getUserName(senderId) ?: "Someone"
+                    }
+                    
+                    _uiState.value = _uiState.value.copy(
+                        isTyping = isTyping,
+                        typingUser = typingUserName
+                    )
                 }
             }
         }
