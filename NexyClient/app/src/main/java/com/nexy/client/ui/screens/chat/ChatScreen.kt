@@ -63,15 +63,25 @@ fun ChatScreen(
         hasScrolledToBottom.value = false // Reset scroll flag when changing chat
     }
     
-    // Called each time screen becomes visible - reset unread divider
-    LaunchedEffect(Unit) {
-        viewModel.onChatOpened()
-    }
-    
-    // Called when leaving the chat - mark as read immediately (like Telegram's onPause)
-    DisposableEffect(Unit) {
+    // Use LifecycleEventObserver for reliable pause/resume detection (like Telegram's paused flag)
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    android.util.Log.d("ChatScreen", "ON_RESUME - chat is now visible")
+                    viewModel.onChatOpened()
+                }
+                Lifecycle.Event.ON_PAUSE -> {
+                    android.util.Log.d("ChatScreen", "ON_PAUSE - chat is no longer visible")
+                    viewModel.onChatClosed()
+                }
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
-            viewModel.onChatClosed()
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
     
@@ -82,6 +92,17 @@ fun ChatScreen(
             // With reverseLayout = true, index 0 is the bottom (newest message)
             listState.scrollToItem(0)
             hasScrolledToBottom.value = true
+        }
+    }
+    
+    // Track when user is at bottom of list (seeing newest messages) - Telegram style read receipts
+    // With reverseLayout=true, firstVisibleItemIndex=0 means user is at the bottom (newest messages)
+    val isAtBottom = remember { derivedStateOf { listState.firstVisibleItemIndex <= 2 } }
+    
+    // When new messages arrive and user is at bottom, mark as read
+    LaunchedEffect(uiState.messages.size, isAtBottom.value) {
+        if (uiState.messages.isNotEmpty() && isAtBottom.value) {
+            viewModel.onUserSawNewMessages()
         }
     }
     

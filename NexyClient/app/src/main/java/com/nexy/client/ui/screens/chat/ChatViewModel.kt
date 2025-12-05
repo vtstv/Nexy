@@ -198,22 +198,17 @@ class ChatViewModel @Inject constructor(
                 
                 // Mark as read AFTER messages are loaded (like Telegram's !firstLoading check)
                 // Only mark as read if chat is currently active (user is viewing this chat)
+                // NOTE: We only mark as read on initial load or when user explicitly scrolls to see messages
+                // NOT when new messages arrive - that's handled by scroll position
                 if (!isChatActive) {
                     android.util.Log.d("ChatViewModel", "Chat not active, skipping markAsRead")
                 } else if (firstLoading && messages.isNotEmpty()) {
                     firstLoading = false
                     android.util.Log.d("ChatViewModel", "Messages loaded, marking as read now")
                     markAsReadInternal()
-                } else if (!firstLoading && newestMessage != null && previousLastMessageId != null) {
-                    // Check if there's a NEW message from someone else (not firstLoading)
-                    // This handles the case when user is already in chat and receives new message
-                    if (newestMessage.id != previousLastMessageId && 
-                        currentUserId != null && 
-                        newestMessage.senderId != currentUserId) {
-                        android.util.Log.d("ChatViewModel", "New message from other user while chat is open, marking as read: ${newestMessage.id}")
-                        markAsReadInternal()
-                    }
                 }
+                // Removed: auto-marking new messages as read
+                // This should be triggered by scroll position (user actually seeing the message)
             }
         }
         
@@ -268,6 +263,15 @@ class ChatViewModel @Inject constructor(
     private suspend fun markAsReadInternal() {
         android.util.Log.d("ChatViewModel", "markAsRead called")
         messageOps.markAsRead(chatId)
+    }
+    
+    // Called when user scrolls to see new messages (Telegram style - mark as read when visible)
+    fun onUserSawNewMessages() {
+        if (!isChatActive) return
+        android.util.Log.d("ChatViewModel", "User saw new messages, marking as read")
+        viewModelScope.launch {
+            markAsReadInternal()
+        }
     }
     // endregion
 
