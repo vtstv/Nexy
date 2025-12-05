@@ -48,7 +48,7 @@ class ChatStateManager @Inject constructor(
             chatType = chat.type,
             groupType = chat.groupType,
             participantIds = chat.participantIds ?: emptyList(),
-            isSelfChat = chat.participantIds?.size == 1 && chat.participantIds.contains(currentUserId),
+            isSelfChat = chat.type == ChatType.PRIVATE && chat.participantIds?.size == 1 && chat.participantIds.contains(currentUserId),
             isCreator = chat.createdBy == currentUserId,
             isMember = chat.isMember || (chat.participantIds?.contains(currentUserId) == true),
             mutedUntil = chat.mutedUntil,
