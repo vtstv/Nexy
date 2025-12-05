@@ -211,9 +211,9 @@ func (h *Hub) handleStatusMessage(message *NexyMessage, unregisterFunc func(*Cli
 		if message.Header.ChatID != nil {
 			var readBody ReadBody
 			if err := json.Unmarshal(message.Body, &readBody); err == nil {
-				log.Printf("Processing read receipt: chatID=%d, senderID=%d, messageID=%s", 
+				log.Printf("Processing read receipt: chatID=%d, senderID=%d, messageID=%s",
 					*message.Header.ChatID, message.Header.SenderID, readBody.MessageID)
-				
+
 				// Get message to mark as read
 				msg, err := h.messageRepo.GetByUUID(ctx, readBody.MessageID)
 				if err != nil {
@@ -243,7 +243,7 @@ func (h *Hub) handleStatusMessage(message *NexyMessage, unregisterFunc func(*Cli
 					log.Printf("Error getting chat members for read receipt broadcast: %v", err)
 					return
 				}
-				
+
 				log.Printf("Broadcasting read receipt to %d members", len(members))
 
 				data, _ := json.Marshal(message)
