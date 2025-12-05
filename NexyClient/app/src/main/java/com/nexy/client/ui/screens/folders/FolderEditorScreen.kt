@@ -4,17 +4,10 @@
 package com.nexy.client.ui.screens.folders
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -23,12 +16,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.nexy.client.data.models.Chat
-import com.nexy.client.data.models.ChatType
+import com.nexy.client.ui.screens.folders.components.ColorPickerDialog
+import com.nexy.client.ui.screens.folders.components.DeleteFolderDialog
+import com.nexy.client.ui.screens.folders.components.IconPickerDialog
+import com.nexy.client.ui.screens.folders.components.IncludedChatItem
+import com.nexy.client.ui.screens.folders.components.parseColor
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -267,177 +261,13 @@ fun FolderEditorScreen(
         
         // Delete confirmation dialog
         if (showDeleteDialog && folderId != null) {
-            AlertDialog(
-                onDismissRequest = { showDeleteDialog = false },
-                title = { Text("Delete Folder") },
-                text = { Text("Are you sure you want to delete this folder? This action cannot be undone.") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            viewModel.deleteFolder(folderId)
-                            onNavigateBack()
-                        }
-                    ) {
-                        Text("Delete", color = MaterialTheme.colorScheme.error)
-                    }
+            DeleteFolderDialog(
+                onConfirm = {
+                    viewModel.deleteFolder(folderId)
+                    onNavigateBack()
                 },
-                dismissButton = {
-                    TextButton(onClick = { showDeleteDialog = false }) {
-                        Text("Cancel")
-                    }
-                }
+                onDismiss = { showDeleteDialog = false }
             )
         }
-    }
-}
-
-@Composable
-private fun IconPickerDialog(
-    selectedIcon: String,
-    onIconSelected: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val icons = listOf(
-        "📁", "📂", "📌", "⭐", "❤️", "💼", "🎯", "🎮",
-        "🎵", "📷", "🎬", "📚", "✈️", "🏠", "💰", "🛒",
-        "👥", "👤", "💬", "📱", "💻", "🔒", "🔑", "⚙️",
-        "🎁", "🎉", "🌟", "🔥", "💡", "📝", "✅", "❌"
-    )
-    
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Choose Icon") },
-        text = {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(8),
-                modifier = Modifier.height(200.dp)
-            ) {
-                items(icons) { emoji ->
-                    Box(
-                        modifier = Modifier
-                            .aspectRatio(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(
-                                if (emoji == selectedIcon) 
-                                    MaterialTheme.colorScheme.primaryContainer 
-                                else Color.Transparent
-                            )
-                            .clickable { onIconSelected(emoji) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = emoji,
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
-}
-
-@Composable
-private fun ColorPickerDialog(
-    selectedColor: String,
-    onColorSelected: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val colors = listOf(
-        "#F44336", "#E91E63", "#9C27B0", "#673AB7",
-        "#3F51B5", "#2196F3", "#03A9F4", "#00BCD4",
-        "#009688", "#4CAF50", "#8BC34A", "#CDDC39",
-        "#FFEB3B", "#FFC107", "#FF9800", "#FF5722"
-    )
-    
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Choose Color") },
-        text = {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(4),
-                modifier = Modifier.height(200.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(colors) { color ->
-                    Box(
-                        modifier = Modifier
-                            .aspectRatio(1f)
-                            .clip(CircleShape)
-                            .background(parseColor(color))
-                            .then(
-                                if (color == selectedColor) {
-                                    Modifier.border(3.dp, Color.White, CircleShape)
-                                } else Modifier
-                            )
-                            .clickable { onColorSelected(color) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (color == selectedColor) {
-                            Icon(
-                                Icons.Default.Check,
-                                contentDescription = "Selected",
-                                tint = Color.White
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
-}
-
-@Composable
-private fun IncludedChatItem(
-    chat: Chat,
-    onRemove: () -> Unit
-) {
-    ListItem(
-        headlineContent = { Text(chat.name ?: chat.username ?: "Chat") },
-        supportingContent = {
-            val typeLabel = when (chat.type) {
-                ChatType.GROUP -> "Group"
-                ChatType.PRIVATE -> "Contact"
-            }
-            Text(typeLabel, style = MaterialTheme.typography.bodySmall)
-        },
-        leadingContent = {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = (chat.name ?: chat.username ?: "?").take(1).uppercase(),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            }
-        },
-        trailingContent = {
-            IconButton(onClick = onRemove) {
-                Icon(Icons.Default.Close, contentDescription = "Remove")
-            }
-        }
-    )
-}
-
-private fun parseColor(hexColor: String): Color {
-    return try {
-        Color(android.graphics.Color.parseColor(hexColor))
-    } catch (e: Exception) {
-        Color(0xFF2196F3)
     }
 }
