@@ -196,7 +196,7 @@ private fun ContactItem(
                     fontWeight = FontWeight.Medium
                 )
             }
-            // Online status using new Telegram-style component
+            // Online status component
             contact.contactUser.onlineStatus?.let { status ->
                 if (status.isNotEmpty()) {
                     OnlineStatusIndicator(

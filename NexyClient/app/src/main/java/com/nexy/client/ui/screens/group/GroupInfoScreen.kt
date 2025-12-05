@@ -32,6 +32,7 @@ import coil.compose.AsyncImage
 import com.nexy.client.data.models.GroupType
 import com.nexy.client.data.models.User
 import com.nexy.client.ServerConfig
+import com.nexy.client.ui.components.OnlineStatusIndicator
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -234,19 +235,32 @@ fun ParticipantItem(
     isOwner: Boolean = false,
     onClick: () -> Unit
 ) {
+    // Show displayName if available, otherwise username
+    val displayName = if (!user.displayName.isNullOrEmpty()) user.displayName else user.username
+    
     ListItem(
-        headlineContent = { Text(user.displayName ?: user.username) },
+        headlineContent = { Text(displayName) },
         supportingContent = { 
             if (isOwner) {
                 Text("Owner", color = MaterialTheme.colorScheme.primary)
-            } else if (user.status != null) {
-                Text(user.status.name.lowercase().replaceFirstChar { it.uppercase() })
+            } else {
+                // Show online status component
+                user.onlineStatus?.let { status ->
+                    if (status.isNotEmpty()) {
+                        OnlineStatusIndicator(
+                            onlineStatus = status,
+                            showDot = true,
+                            showText = true
+                        )
+                    }
+                }
             }
         },
         leadingContent = {
-            if (user.avatarUrl != null) {
+            val avatarUrl = ServerConfig.getFileUrl(user.avatarUrl)
+            if (avatarUrl != null) {
                 AsyncImage(
-                    model = user.avatarUrl,
+                    model = avatarUrl,
                     contentDescription = null,
                     modifier = Modifier
                         .size(40.dp)
@@ -261,7 +275,7 @@ fun ParticipantItem(
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
-                            text = (user.displayName?.firstOrNull() ?: user.username.firstOrNull())?.toString() ?: "?",
+                            text = displayName.firstOrNull()?.toString() ?: "?",
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )

@@ -174,7 +174,7 @@ func (rt *Router) Setup() *mux.Router {
 	sessions.HandleFunc("/{id:[0-9]+}", rt.sessionController.DeleteSession).Methods("DELETE")
 	sessions.HandleFunc("/others", rt.sessionController.DeleteAllOtherSessions).Methods("DELETE")
 
-	// Folders endpoints (chat folders like Telegram)
+	// Folders endpoints (chat folders)
 	folders := api.PathPrefix("/folders").Subrouter()
 	folders.Use(rt.authMiddleware.Authenticate)
 	folders.HandleFunc("", rt.folderController.GetFolders).Methods("GET")
