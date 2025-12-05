@@ -3,10 +3,14 @@
  */
 package com.nexy.client.ui.screens.folders
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -14,10 +18,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nexy.client.data.models.ChatFolder
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,9 +42,32 @@ fun FolderListScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     
     var folderToDelete by remember { mutableStateOf<ChatFolder?>(null) }
+    
+    // Drag and drop state
+    var draggedItemIndex by remember { mutableIntStateOf(-1) }
+    var draggedOverIndex by remember { mutableIntStateOf(-1) }
+    var isDragging by remember { mutableStateOf(false) }
+    var dragOffset by remember { mutableFloatStateOf(0f) }
+    
+    val scope = rememberCoroutineScope()
+    var reorderJob by remember { mutableStateOf<Job?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.loadFolders()
+    }
+    
+    // Save order when dragging ends
+    LaunchedEffect(isDragging) {
+        if (!isDragging && draggedItemIndex != -1) {
+            // Debounce the save
+            reorderJob?.cancel()
+            reorderJob = scope.launch {
+                delay(300)
+                viewModel.saveFolderOrder()
+            }
+            draggedItemIndex = -1
+            draggedOverIndex = -1
+        }
     }
 
     Scaffold(
@@ -61,7 +95,7 @@ fun FolderListScreen(
             // Description
             item {
                 Text(
-                    text = "Create folders for different groups of chats and quickly switch between them.",
+                    text = "Create folders for different groups of chats and quickly switch between them.\nLong press and drag to reorder folders.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -118,11 +152,47 @@ fun FolderListScreen(
                     )
                 }
             } else {
-                itemsIndexed(folders) { _, folder ->
-                    FolderListItem(
+                itemsIndexed(
+                    items = folders,
+                    key = { _, folder -> folder.id }
+                ) { index, folder ->
+                    val isBeingDragged = draggedItemIndex == index
+                    val elevation by animateDpAsState(
+                        targetValue = if (isBeingDragged) 8.dp else 0.dp,
+                        label = "elevation"
+                    )
+                    
+                    DraggableFolderItem(
                         folder = folder,
+                        index = index,
+                        isDragging = isBeingDragged,
+                        dragOffset = if (isBeingDragged) dragOffset else 0f,
+                        isDropTarget = draggedOverIndex == index && !isBeingDragged,
                         onClick = { onEditFolder(folder.id) },
-                        onDelete = { folderToDelete = folder }
+                        onDelete = { folderToDelete = folder },
+                        onDragStart = { idx ->
+                            draggedItemIndex = idx
+                            isDragging = true
+                        },
+                        onDrag = { offset, idx ->
+                            dragOffset = offset
+                            // Calculate which item we're over
+                            val itemHeight = 72f // approximate height of list item
+                            val targetIndex = (idx + (offset / itemHeight).toInt()).coerceIn(0, folders.size - 1)
+                            if (targetIndex != draggedOverIndex && targetIndex != draggedItemIndex) {
+                                draggedOverIndex = targetIndex
+                                // Immediately swap items for visual feedback
+                                viewModel.moveFolderLocally(draggedItemIndex, targetIndex)
+                                draggedItemIndex = targetIndex
+                            }
+                        },
+                        onDragEnd = {
+                            isDragging = false
+                            dragOffset = 0f
+                        },
+                        modifier = Modifier
+                            .shadow(elevation)
+                            .zIndex(if (isBeingDragged) 1f else 0f)
                     )
                     HorizontalDivider()
                 }
@@ -158,22 +228,53 @@ fun FolderListScreen(
 }
 
 @Composable
-private fun FolderListItem(
+private fun DraggableFolderItem(
     folder: ChatFolder,
+    index: Int,
+    isDragging: Boolean,
+    dragOffset: Float,
+    isDropTarget: Boolean,
     onClick: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onDragStart: (Int) -> Unit,
+    onDrag: (Float, Int) -> Unit,
+    onDragEnd: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
+    val backgroundColor = when {
+        isDragging -> MaterialTheme.colorScheme.surfaceContainerHigh
+        isDropTarget -> MaterialTheme.colorScheme.surfaceContainerLow
+        else -> MaterialTheme.colorScheme.surface
+    }
+    
     ListItem(
         headlineContent = { Text(folder.name) },
         supportingContent = {
             val chatCount = folder.includedChatIds?.size ?: 0
-            Text("$chatCount chats")
+            val filters = mutableListOf<String>()
+            if (folder.includeContacts == true) filters.add("Private chats")
+            if (folder.includeGroups == true) filters.add("Groups")
+            
+            val description = if (filters.isNotEmpty()) {
+                filters.joinToString(" • ") + if (chatCount > 0) " + $chatCount chats" else ""
+            } else {
+                "$chatCount chats"
+            }
+            Text(description)
         },
         leadingContent = {
-            Text(
-                text = folder.icon,
-                style = MaterialTheme.typography.headlineSmall
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.DragHandle,
+                    contentDescription = "Drag to reorder",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = folder.icon,
+                    style = MaterialTheme.typography.headlineSmall
+                )
+            }
         },
         trailingContent = {
             IconButton(onClick = onDelete) {
@@ -183,6 +284,22 @@ private fun FolderListItem(
                 )
             }
         },
-        modifier = Modifier.clickable { onClick() }
+        modifier = modifier
+            .background(backgroundColor)
+            .graphicsLayer {
+                translationY = if (isDragging) dragOffset else 0f
+            }
+            .pointerInput(Unit) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = { onDragStart(index) },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        onDrag(dragAmount.y, index)
+                    },
+                    onDragEnd = { onDragEnd() },
+                    onDragCancel = { onDragEnd() }
+                )
+            }
+            .clickable { onClick() }
     )
 }

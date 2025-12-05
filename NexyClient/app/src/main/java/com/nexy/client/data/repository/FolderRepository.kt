@@ -4,6 +4,7 @@ import com.nexy.client.data.api.NexyApiService
 import com.nexy.client.data.models.AddChatsToFolderRequest
 import com.nexy.client.data.models.ChatFolder
 import com.nexy.client.data.models.CreateFolderRequest
+import com.nexy.client.data.models.ReorderFoldersRequest
 import com.nexy.client.data.models.UpdateFolderRequest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -213,5 +214,41 @@ class FolderRepository @Inject constructor(
     
     fun getFolder(folderId: Int): ChatFolder? {
         return _folders.value.find { it.id == folderId }
+    }
+
+    suspend fun reorderFolders(folderIds: List<Int>): Result<Unit> {
+        return try {
+            // Create positions map: folderId -> new position
+            val positions = folderIds.mapIndexed { index, folderId -> 
+                folderId to index 
+            }.toMap()
+            
+            val request = ReorderFoldersRequest(positions = positions)
+            val response = apiService.reorderFolders(request)
+            
+            if (response.isSuccessful) {
+                // Update local state with new order
+                val currentFolders = _folders.value
+                val reorderedFolders = folderIds.mapNotNull { id ->
+                    currentFolders.find { it.id == id }?.copy(position = folderIds.indexOf(id))
+                }
+                _folders.value = reorderedFolders
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Failed to reorder folders"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // Move folder from one position to another (for drag-and-drop)
+    fun moveFolderLocally(fromIndex: Int, toIndex: Int) {
+        val currentList = _folders.value.toMutableList()
+        if (fromIndex in currentList.indices && toIndex in currentList.indices) {
+            val item = currentList.removeAt(fromIndex)
+            currentList.add(toIndex, item)
+            _folders.value = currentList
+        }
     }
 }

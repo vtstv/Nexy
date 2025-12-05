@@ -167,6 +167,17 @@ class FolderViewModel @Inject constructor(
         }
     }
 
+    fun moveFolderLocally(fromIndex: Int, toIndex: Int) {
+        folderRepository.moveFolderLocally(fromIndex, toIndex)
+    }
+
+    fun saveFolderOrder() {
+        viewModelScope.launch {
+            val folderIds = folderRepository.folders.value.map { it.id }
+            folderRepository.reorderFolders(folderIds)
+        }
+    }
+
     fun clearError() {
         // Error is now managed by repository
     }

@@ -4,11 +4,14 @@
 package controllers
 
 import (
+	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 
 	"github.com/vtstv/nexy/internal/middleware"
+	"github.com/vtstv/nexy/internal/models"
 	"github.com/vtstv/nexy/internal/repositories"
 	"github.com/vtstv/nexy/internal/services"
 )
@@ -16,12 +19,14 @@ import (
 type AuthController struct {
 	authService *services.AuthService
 	sessionRepo *repositories.SessionRepository
+	folderRepo  *repositories.FolderRepository
 }
 
-func NewAuthController(authService *services.AuthService, sessionRepo *repositories.SessionRepository) *AuthController {
+func NewAuthController(authService *services.AuthService, sessionRepo *repositories.SessionRepository, folderRepo *repositories.FolderRepository) *AuthController {
 	return &AuthController{
 		authService: authService,
 		sessionRepo: sessionRepo,
+		folderRepo:  folderRepo,
 	}
 }
 
@@ -64,6 +69,9 @@ func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	// Create default folders for new user
+	c.createDefaultFolders(r.Context(), user.ID)
 
 	accessToken, refreshToken, _, err := c.authService.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
@@ -181,4 +189,32 @@ func (c *AuthController) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// createDefaultFolders creates default folders for a new user
+func (c *AuthController) createDefaultFolders(ctx context.Context, userID int) {
+	defaultFolders := []models.ChatFolder{
+		{
+			UserID:          userID,
+			Name:            "Private",
+			Icon:            "👤",
+			Color:           "blue",
+			Position:        0,
+			IncludeContacts: true,
+		},
+		{
+			UserID:        userID,
+			Name:          "Groups",
+			Icon:          "👥",
+			Color:         "green",
+			Position:      1,
+			IncludeGroups: true,
+		},
+	}
+
+	for _, folder := range defaultFolders {
+		if err := c.folderRepo.Create(ctx, &folder); err != nil {
+			log.Printf("Failed to create default folder '%s' for user %d: %v", folder.Name, userID, err)
+		}
+	}
 }

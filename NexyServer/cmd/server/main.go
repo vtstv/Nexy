@@ -60,7 +60,7 @@ func main() {
 	hub := nexy.NewHub(redisClient.Client, messageRepo, nexyChatRepo, userRepo)
 	go hub.Run()
 
-	authController := controllers.NewAuthController(authService, sessionRepo)
+	authController := controllers.NewAuthController(authService, sessionRepo, folderRepo)
 	userController := controllers.NewUserController(userService, qrService)
 	groupController := controllers.NewGroupController(groupService)
 	inviteController := controllers.NewInviteController(inviteService)
