@@ -338,4 +338,53 @@ class ChatOperations @Inject constructor(
             }
         }
     }
+    
+    suspend fun pinChat(chatId: Int): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val pinnedAt = System.currentTimeMillis()
+                chatDao.setPinned(chatId, true, pinnedAt)
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to pin chat", e)
+                Result.failure(e)
+            }
+        }
+    }
+    
+    suspend fun unpinChat(chatId: Int): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                chatDao.setPinned(chatId, false, 0L)
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to unpin chat", e)
+                Result.failure(e)
+            }
+        }
+    }
+    
+    suspend fun hideChat(chatId: Int): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                chatDao.setHidden(chatId, true)
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to hide chat", e)
+                Result.failure(e)
+            }
+        }
+    }
+    
+    suspend fun unhideChat(chatId: Int): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                chatDao.setHidden(chatId, false)
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to unhide chat", e)
+                Result.failure(e)
+            }
+        }
+    }
 }

@@ -9,7 +9,7 @@ import javax.inject.Singleton
 @Singleton
 class ChatMappers @Inject constructor() {
 
-    fun modelToEntity(chat: Chat) = ChatEntity(
+    fun modelToEntity(chat: Chat, existingEntity: ChatEntity? = null) = ChatEntity(
         id = chat.id,
         type = chat.type.name,
         name = chat.name,
@@ -21,7 +21,10 @@ class ChatMappers @Inject constructor() {
         updatedAt = parseTimestamp(chat.updatedAt),
         muted = chat.muted || isMuted(chat.mutedUntil),
         lastReadMessageId = chat.lastReadMessageId,
-        firstUnreadMessageId = chat.firstUnreadMessageId
+        firstUnreadMessageId = chat.firstUnreadMessageId,
+        isPinned = existingEntity?.isPinned ?: chat.isPinned,
+        pinnedAt = existingEntity?.pinnedAt ?: chat.pinnedAt,
+        isHidden = existingEntity?.isHidden ?: chat.isHidden
     )
 
     fun entityToModel(entity: ChatEntity) = Chat(
@@ -38,7 +41,10 @@ class ChatMappers @Inject constructor() {
             .format(java.util.Date(entity.updatedAt)),
         muted = entity.muted,
         lastReadMessageId = entity.lastReadMessageId,
-        firstUnreadMessageId = entity.firstUnreadMessageId
+        firstUnreadMessageId = entity.firstUnreadMessageId,
+        isPinned = entity.isPinned,
+        pinnedAt = entity.pinnedAt,
+        isHidden = entity.isHidden
     )
 
     private fun parseTimestamp(timestamp: String?): Long {

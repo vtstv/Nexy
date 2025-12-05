@@ -40,6 +40,14 @@ class ChatRepository @Inject constructor(
 
     suspend fun unmuteChat(chatId: Int): Result<Unit> = chatOperations.unmuteChat(chatId)
     
+    suspend fun pinChat(chatId: Int): Result<Unit> = chatOperations.pinChat(chatId)
+    
+    suspend fun unpinChat(chatId: Int): Result<Unit> = chatOperations.unpinChat(chatId)
+    
+    suspend fun hideChat(chatId: Int): Result<Unit> = chatOperations.hideChat(chatId)
+    
+    suspend fun unhideChat(chatId: Int): Result<Unit> = chatOperations.unhideChat(chatId)
+    
     // ===== MESSAGE OPERATIONS DELEGATION =====
     
     fun getMessagesByChatId(chatId: Int): Flow<List<Message>> = messageOperations.getMessagesByChatId(chatId)

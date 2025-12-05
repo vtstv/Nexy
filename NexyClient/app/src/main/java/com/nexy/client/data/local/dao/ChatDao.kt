@@ -6,10 +6,10 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ChatDao {
-    @Query("SELECT * FROM chats ORDER BY updatedAt DESC")
+    @Query("SELECT * FROM chats WHERE isHidden = 0 ORDER BY isPinned DESC, pinnedAt DESC, updatedAt DESC")
     fun getAllChats(): Flow<List<ChatEntity>>
     
-    @Query("SELECT * FROM chats ORDER BY updatedAt DESC")
+    @Query("SELECT * FROM chats WHERE isHidden = 0 ORDER BY isPinned DESC, pinnedAt DESC, updatedAt DESC")
     suspend fun getAllChatsSync(): List<ChatEntity>
     
     @Query("SELECT * FROM chats WHERE id = :chatId")
@@ -41,6 +41,12 @@ interface ChatDao {
 
     @Query("UPDATE chats SET lastMessageId = :messageId, updatedAt = :timestamp WHERE id = :chatId")
     suspend fun updateLastMessage(chatId: Int, messageId: String, timestamp: Long)
+    
+    @Query("UPDATE chats SET isPinned = :isPinned, pinnedAt = :pinnedAt WHERE id = :chatId")
+    suspend fun setPinned(chatId: Int, isPinned: Boolean, pinnedAt: Long)
+    
+    @Query("UPDATE chats SET isHidden = :isHidden WHERE id = :chatId")
+    suspend fun setHidden(chatId: Int, isHidden: Boolean)
     
     @Delete
     suspend fun deleteChat(chat: ChatEntity)

@@ -20,7 +20,7 @@ import com.nexy.client.data.local.entity.UserEntity
         ChatEntity::class,
         PendingMessageEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class NexyDatabase : RoomDatabase() {
@@ -32,7 +32,6 @@ abstract class NexyDatabase : RoomDatabase() {
     companion object {
         val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                // Add online status columns to users table
                 db.execSQL("ALTER TABLE users ADD COLUMN onlineStatus TEXT")
                 db.execSQL("ALTER TABLE users ADD COLUMN lastSeen TEXT")
                 db.execSQL("ALTER TABLE users ADD COLUMN showOnlineStatus INTEGER NOT NULL DEFAULT 1")
@@ -41,7 +40,6 @@ abstract class NexyDatabase : RoomDatabase() {
         
         val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                // Add lastReadMessageId and firstUnreadMessageId columns to chats table (unread tracking)
                 db.execSQL("ALTER TABLE chats ADD COLUMN lastReadMessageId INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("ALTER TABLE chats ADD COLUMN firstUnreadMessageId TEXT")
             }
@@ -70,6 +68,14 @@ abstract class NexyDatabase : RoomDatabase() {
                         errorMessage TEXT
                     )
                 """)
+            }
+        }
+        
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE chats ADD COLUMN isPinned INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE chats ADD COLUMN pinnedAt INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE chats ADD COLUMN isHidden INTEGER NOT NULL DEFAULT 0")
             }
         }
     }

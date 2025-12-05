@@ -12,6 +12,8 @@ import com.nexy.client.data.repository.ChatRepository
 import com.nexy.client.data.repository.FolderRepository
 import com.nexy.client.data.repository.UserRepository
 import com.nexy.client.data.websocket.NexyWebSocketClient
+import com.nexy.client.ui.screens.chat.list.selection.ChatSelectionState
+import com.nexy.client.ui.screens.chat.list.selection.MuteDuration
 import com.nexy.client.utils.PinManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -48,6 +50,9 @@ class ChatListViewModel @Inject constructor(
     
     private val _uiState = MutableStateFlow(ChatListUiState())
     val uiState: StateFlow<ChatListUiState> = _uiState.asStateFlow()
+    
+    private val _selectionState = MutableStateFlow(ChatSelectionState())
+    val selectionState: StateFlow<ChatSelectionState> = _selectionState.asStateFlow()
     
     val folders: StateFlow<List<ChatFolder>> = folderRepository.folders
     
@@ -304,6 +309,97 @@ class ChatListViewModel @Inject constructor(
         viewModelScope.launch {
             val folderIds = folderRepository.folders.value.map { it.id }
             folderRepository.reorderFolders(folderIds)
+        }
+    }
+    
+    // Selection mode methods
+    fun enterSelectionMode(chatId: Int) {
+        _selectionState.value = _selectionState.value.enterSelectionMode(chatId)
+    }
+    
+    fun toggleChatSelection(chatId: Int) {
+        _selectionState.value = _selectionState.value.toggleSelection(chatId)
+    }
+    
+    fun clearSelection() {
+        _selectionState.value = _selectionState.value.clearSelection()
+    }
+    
+    fun muteSelectedChats(duration: MuteDuration) {
+        viewModelScope.launch {
+            val selectedIds = _selectionState.value.selectedChatIds.toList()
+            selectedIds.forEach { chatId ->
+                chatRepository.muteChat(chatId, duration.apiValue, null)
+            }
+            clearSelection()
+            refreshChats()
+        }
+    }
+    
+    fun unmuteSelectedChats() {
+        viewModelScope.launch {
+            val selectedIds = _selectionState.value.selectedChatIds.toList()
+            selectedIds.forEach { chatId ->
+                chatRepository.unmuteChat(chatId)
+            }
+            clearSelection()
+            refreshChats()
+        }
+    }
+    
+    fun deleteChat(chatId: Int) {
+        viewModelScope.launch {
+            chatRepository.hideChat(chatId)
+            _refreshTrigger.value = System.currentTimeMillis()
+        }
+    }
+    
+    fun muteChat(chatId: Int, duration: MuteDuration) {
+        viewModelScope.launch {
+            chatRepository.muteChat(chatId, duration.apiValue, null)
+            refreshChats()
+        }
+    }
+    
+    fun unmuteChat(chatId: Int) {
+        viewModelScope.launch {
+            chatRepository.unmuteChat(chatId)
+            refreshChats()
+        }
+    }
+    
+    fun pinChat(chatId: Int) {
+        viewModelScope.launch {
+            chatRepository.pinChat(chatId)
+            _refreshTrigger.value = System.currentTimeMillis()
+        }
+    }
+    
+    fun unpinChat(chatId: Int) {
+        viewModelScope.launch {
+            chatRepository.unpinChat(chatId)
+            _refreshTrigger.value = System.currentTimeMillis()
+        }
+    }
+    
+    fun hideSelectedChats() {
+        viewModelScope.launch {
+            val selectedIds = _selectionState.value.selectedChatIds.toList()
+            selectedIds.forEach { chatId ->
+                chatRepository.hideChat(chatId)
+            }
+            clearSelection()
+            _refreshTrigger.value = System.currentTimeMillis()
+        }
+    }
+    
+    fun addSelectedChatsToFolder(folderId: Int) {
+        viewModelScope.launch {
+            val selectedIds = _selectionState.value.selectedChatIds.toList()
+            selectedIds.forEach { chatId ->
+                addChatToFolder(chatId, folderId)
+            }
+            clearSelection()
         }
     }
     
