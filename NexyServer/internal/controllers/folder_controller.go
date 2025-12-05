@@ -21,18 +21,28 @@ func NewFolderController(folderRepo *repositories.FolderRepository) *FolderContr
 }
 
 type CreateFolderRequest struct {
-	Name          string `json:"name"`
-	Icon          string `json:"icon"`
-	Color         string `json:"color"`
-	IncludedChats []int  `json:"included_chats"`
+	Name               string `json:"name"`
+	Icon               string `json:"icon"`
+	Color              string `json:"color"`
+	IncludeContacts    bool   `json:"include_contacts"`
+	IncludeNonContacts bool   `json:"include_non_contacts"`
+	IncludeGroups      bool   `json:"include_groups"`
+	IncludeChannels    bool   `json:"include_channels"`
+	IncludeBots        bool   `json:"include_bots"`
+	IncludedChats      []int  `json:"included_chats"`
 }
 
 type UpdateFolderRequest struct {
-	Name          string `json:"name"`
-	Icon          string `json:"icon"`
-	Color         string `json:"color"`
-	Position      int    `json:"position"`
-	IncludedChats *[]int `json:"included_chats,omitempty"`
+	Name               string `json:"name"`
+	Icon               string `json:"icon"`
+	Color              string `json:"color"`
+	Position           int    `json:"position"`
+	IncludeContacts    *bool  `json:"include_contacts,omitempty"`
+	IncludeNonContacts *bool  `json:"include_non_contacts,omitempty"`
+	IncludeGroups      *bool  `json:"include_groups,omitempty"`
+	IncludeChannels    *bool  `json:"include_channels,omitempty"`
+	IncludeBots        *bool  `json:"include_bots,omitempty"`
+	IncludedChats      *[]int `json:"included_chats,omitempty"`
 }
 
 type ReorderFoldersRequest struct {
@@ -49,6 +59,7 @@ func (c *FolderController) GetFolders(w http.ResponseWriter, r *http.Request) {
 
 	folders, err := c.folderRepo.GetAllFoldersWithChats(r.Context(), userID)
 	if err != nil {
+		log.Printf("GetFolders error: %v", err)
 		http.Error(w, "Failed to get folders", http.StatusInternalServerError)
 		return
 	}
@@ -115,11 +126,16 @@ func (c *FolderController) CreateFolder(w http.ResponseWriter, r *http.Request) 
 	position := len(existingFolders)
 
 	folder := &models.ChatFolder{
-		UserID:   userID,
-		Name:     req.Name,
-		Icon:     req.Icon,
-		Color:    req.Color,
-		Position: position,
+		UserID:             userID,
+		Name:               req.Name,
+		Icon:               req.Icon,
+		Color:              req.Color,
+		Position:           position,
+		IncludeContacts:    req.IncludeContacts,
+		IncludeNonContacts: req.IncludeNonContacts,
+		IncludeGroups:      req.IncludeGroups,
+		IncludeChannels:    req.IncludeChannels,
+		IncludeBots:        req.IncludeBots,
 	}
 
 	if folder.Icon == "" {
@@ -130,6 +146,7 @@ func (c *FolderController) CreateFolder(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := c.folderRepo.Create(r.Context(), folder); err != nil {
+		log.Printf("CreateFolder error: %v", err)
 		http.Error(w, "Failed to create folder", http.StatusInternalServerError)
 		return
 	}
@@ -180,12 +197,34 @@ func (c *FolderController) UpdateFolder(w http.ResponseWriter, r *http.Request) 
 	}
 
 	folder := &models.ChatFolder{
-		ID:       folderID,
-		UserID:   userID,
-		Name:     req.Name,
-		Icon:     req.Icon,
-		Color:    req.Color,
-		Position: req.Position,
+		ID:                 folderID,
+		UserID:             userID,
+		Name:               req.Name,
+		Icon:               req.Icon,
+		Color:              req.Color,
+		Position:           req.Position,
+		IncludeContacts:    existing.IncludeContacts,
+		IncludeNonContacts: existing.IncludeNonContacts,
+		IncludeGroups:      existing.IncludeGroups,
+		IncludeChannels:    existing.IncludeChannels,
+		IncludeBots:        existing.IncludeBots,
+	}
+
+	// Update filter flags if provided
+	if req.IncludeContacts != nil {
+		folder.IncludeContacts = *req.IncludeContacts
+	}
+	if req.IncludeNonContacts != nil {
+		folder.IncludeNonContacts = *req.IncludeNonContacts
+	}
+	if req.IncludeGroups != nil {
+		folder.IncludeGroups = *req.IncludeGroups
+	}
+	if req.IncludeChannels != nil {
+		folder.IncludeChannels = *req.IncludeChannels
+	}
+	if req.IncludeBots != nil {
+		folder.IncludeBots = *req.IncludeBots
 	}
 
 	if err := c.folderRepo.Update(r.Context(), folder); err != nil {

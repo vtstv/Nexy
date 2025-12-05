@@ -48,6 +48,14 @@ fun ChatSelectorScreen(
     }
     var selection by remember(initialSelection) { mutableStateOf(initialSelection) }
     
+    // Filter flags state
+    var includeAllPrivate by remember(currentFolder) { 
+        mutableStateOf(currentFolder?.includeContacts == true || currentFolder?.includeNonContacts == true) 
+    }
+    var includeAllGroups by remember(currentFolder) { 
+        mutableStateOf(currentFolder?.includeGroups == true) 
+    }
+    
     val groupedChats = remember(selectableChats) {
         selectableChats.groupBy { it.chat.type }
             .mapKeys { (type, _) ->
@@ -64,8 +72,20 @@ fun ChatSelectorScreen(
                 title = { 
                     Column {
                         Text("Add Chats")
+                        val filterInfo = buildString {
+                            if (includeAllPrivate) append("All Private")
+                            if (includeAllGroups) {
+                                if (isNotEmpty()) append(" + ")
+                                append("All Groups")
+                            }
+                            if (selection.isNotEmpty()) {
+                                if (isNotEmpty()) append(" + ")
+                                append("${selection.size} chats")
+                            }
+                            if (isEmpty()) append("No selection")
+                        }
                         Text(
-                            "${selection.size} selected",
+                            filterInfo,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -79,6 +99,15 @@ fun ChatSelectorScreen(
                 actions = {
                     IconButton(
                         onClick = {
+                            viewModel.updateFolder(
+                                folderId = folderId,
+                                name = currentFolder?.name ?: "",
+                                icon = currentFolder?.icon ?: "📁",
+                                color = currentFolder?.color ?: "#2196F3",
+                                includeContacts = includeAllPrivate,
+                                includeNonContacts = includeAllPrivate,
+                                includeGroups = includeAllGroups
+                            )
                             viewModel.updateFolderChats(folderId, selection.toList())
                             onNavigateBack()
                         }
@@ -123,20 +152,57 @@ fun ChatSelectorScreen(
                     }
                 }
 
-                // Chat types section
+                // Auto-include filters section
                 item {
                     Text(
-                        text = "Chat types",
+                        text = "Auto-include filters",
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                 }
 
-                // Quick filter buttons for chat types
+                // Toggle for All Private Chats
+                item {
+                    ChatTypeToggle(
+                        label = "All Private Chats",
+                        description = "Automatically include all private chats",
+                        icon = Icons.Default.Person,
+                        iconColor = Color(0xFF2196F3),
+                        isChecked = includeAllPrivate,
+                        onCheckedChange = { includeAllPrivate = it }
+                    )
+                }
+
+                // Toggle for All Groups
+                item {
+                    ChatTypeToggle(
+                        label = "All Groups",
+                        description = "Automatically include all groups",
+                        icon = Icons.Default.Group,
+                        iconColor = Color(0xFF4CAF50),
+                        isChecked = includeAllGroups,
+                        onCheckedChange = { includeAllGroups = it }
+                    )
+                }
+
+                item {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                }
+
+                // Quick selection buttons
+                item {
+                    Text(
+                        text = "Quick selection",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                }
+
                 item {
                     ChatTypeQuickFilter(
-                        label = "All Private Chats",
+                        label = "Select all Private Chats",
                         icon = Icons.Default.Person,
                         iconColor = Color(0xFF2196F3),
                         isSelected = false,
@@ -151,7 +217,7 @@ fun ChatSelectorScreen(
 
                 item {
                     ChatTypeQuickFilter(
-                        label = "All Groups",
+                        label = "Select all Groups",
                         icon = Icons.Default.Group,
                         iconColor = Color(0xFF4CAF50),
                         isSelected = false,
@@ -252,6 +318,50 @@ private fun SelectedChatChip(
 }
 
 @Composable
+private fun ChatTypeToggle(
+    label: String,
+    description: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconColor: Color,
+    isChecked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    ListItem(
+        headlineContent = { Text(label) },
+        supportingContent = { 
+            Text(
+                description, 
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            ) 
+        },
+        leadingContent = {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(iconColor.copy(alpha = 0.2f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = iconColor,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        },
+        trailingContent = {
+            Switch(
+                checked = isChecked,
+                onCheckedChange = onCheckedChange
+            )
+        },
+        modifier = Modifier.clickable { onCheckedChange(!isChecked) }
+    )
+}
+
+@Composable
 private fun ChatTypeQuickFilter(
     label: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -293,6 +403,13 @@ private fun ChatTypeQuickFilter(
                     }
                 }
             }
+        },
+        trailingContent = {
+            Icon(
+                Icons.Default.Add,
+                contentDescription = "Add all",
+                tint = MaterialTheme.colorScheme.primary
+            )
         },
         modifier = Modifier.clickable { onClick() }
     )

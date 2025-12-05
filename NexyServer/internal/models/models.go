@@ -151,14 +151,19 @@ type ContactWithUser struct {
 
 // Chat Folders
 type ChatFolder struct {
-	ID        int       `json:"id"`
-	UserID    int       `json:"user_id"`
-	Name      string    `json:"name"`
-	Icon      string    `json:"icon"`
-	Color     string    `json:"color"`
-	Position  int       `json:"position"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID                 int       `json:"id"`
+	UserID             int       `json:"user_id"`
+	Name               string    `json:"name"`
+	Icon               string    `json:"icon"`
+	Color              string    `json:"color"`
+	Position           int       `json:"position"`
+	IncludeContacts    bool      `json:"include_contacts"`
+	IncludeNonContacts bool      `json:"include_non_contacts"`
+	IncludeGroups      bool      `json:"include_groups"`
+	IncludeChannels    bool      `json:"include_channels"`
+	IncludeBots        bool      `json:"include_bots"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
 }
 
 type ChatFolderWithChats struct {

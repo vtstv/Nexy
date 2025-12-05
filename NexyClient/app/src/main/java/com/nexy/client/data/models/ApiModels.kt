@@ -244,7 +244,22 @@ data class CreateFolderRequest(
     val icon: String = "📁",
     
     @SerializedName("color")
-    val color: String = "#2196F3"
+    val color: String = "#2196F3",
+    
+    @SerializedName("include_contacts")
+    val includeContacts: Boolean = false,
+    
+    @SerializedName("include_non_contacts")
+    val includeNonContacts: Boolean = false,
+    
+    @SerializedName("include_groups")
+    val includeGroups: Boolean = false,
+    
+    @SerializedName("include_channels")
+    val includeChannels: Boolean = false,
+    
+    @SerializedName("include_bots")
+    val includeBots: Boolean = false
 )
 
 data class UpdateFolderRequest(
@@ -255,7 +270,22 @@ data class UpdateFolderRequest(
     val icon: String,
     
     @SerializedName("color")
-    val color: String
+    val color: String,
+    
+    @SerializedName("include_contacts")
+    val includeContacts: Boolean? = null,
+    
+    @SerializedName("include_non_contacts")
+    val includeNonContacts: Boolean? = null,
+    
+    @SerializedName("include_groups")
+    val includeGroups: Boolean? = null,
+    
+    @SerializedName("include_channels")
+    val includeChannels: Boolean? = null,
+    
+    @SerializedName("include_bots")
+    val includeBots: Boolean? = null
 )
 
 data class AddChatsToFolderRequest(

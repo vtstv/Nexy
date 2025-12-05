@@ -104,18 +104,39 @@ class FolderViewModel @Inject constructor(
         _savedFolderId.value = null
     }
 
-    fun createFolder(name: String, icon: String, color: String) {
+    fun createFolder(
+        name: String, 
+        icon: String, 
+        color: String,
+        includeContacts: Boolean = false,
+        includeNonContacts: Boolean = false,
+        includeGroups: Boolean = false
+    ) {
         viewModelScope.launch {
-            val result = folderRepository.createFolder(name, icon, color)
+            val result = folderRepository.createFolder(
+                name, icon, color,
+                includeContacts, includeNonContacts, includeGroups
+            )
             result.onSuccess { folder ->
                 _savedFolderId.value = folder.id
             }
         }
     }
 
-    fun updateFolder(folderId: Int, name: String, icon: String, color: String) {
+    fun updateFolder(
+        folderId: Int, 
+        name: String, 
+        icon: String, 
+        color: String,
+        includeContacts: Boolean? = null,
+        includeNonContacts: Boolean? = null,
+        includeGroups: Boolean? = null
+    ) {
         viewModelScope.launch {
-            val result = folderRepository.updateFolder(folderId, name, icon, color)
+            val result = folderRepository.updateFolder(
+                folderId, name, icon, color,
+                includeContacts, includeNonContacts, includeGroups
+            )
             result.onSuccess {
                 _savedFolderId.value = folderId
             }

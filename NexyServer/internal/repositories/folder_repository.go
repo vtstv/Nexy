@@ -18,8 +18,8 @@ func NewFolderRepository(db *database.DB) *FolderRepository {
 
 func (r *FolderRepository) Create(ctx context.Context, folder *models.ChatFolder) error {
 	query := `
-		INSERT INTO chat_folders (user_id, name, icon, color, position)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO chat_folders (user_id, name, icon, color, position, include_contacts, include_non_contacts, include_groups, include_channels, include_bots)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		RETURNING id, created_at, updated_at`
 
 	return r.db.QueryRowContext(ctx, query,
@@ -28,12 +28,17 @@ func (r *FolderRepository) Create(ctx context.Context, folder *models.ChatFolder
 		folder.Icon,
 		folder.Color,
 		folder.Position,
+		folder.IncludeContacts,
+		folder.IncludeNonContacts,
+		folder.IncludeGroups,
+		folder.IncludeChannels,
+		folder.IncludeBots,
 	).Scan(&folder.ID, &folder.CreatedAt, &folder.UpdatedAt)
 }
 
 func (r *FolderRepository) GetByUserID(ctx context.Context, userID int) ([]models.ChatFolder, error) {
 	query := `
-		SELECT id, user_id, name, icon, color, position, created_at, updated_at
+		SELECT id, user_id, name, icon, color, position, include_contacts, include_non_contacts, include_groups, include_channels, include_bots, created_at, updated_at
 		FROM chat_folders
 		WHERE user_id = $1
 		ORDER BY position ASC`
@@ -49,6 +54,7 @@ func (r *FolderRepository) GetByUserID(ctx context.Context, userID int) ([]model
 		var f models.ChatFolder
 		err := rows.Scan(
 			&f.ID, &f.UserID, &f.Name, &f.Icon, &f.Color, &f.Position,
+			&f.IncludeContacts, &f.IncludeNonContacts, &f.IncludeGroups, &f.IncludeChannels, &f.IncludeBots,
 			&f.CreatedAt, &f.UpdatedAt,
 		)
 		if err != nil {
@@ -61,13 +67,14 @@ func (r *FolderRepository) GetByUserID(ctx context.Context, userID int) ([]model
 
 func (r *FolderRepository) GetByID(ctx context.Context, folderID int) (*models.ChatFolder, error) {
 	query := `
-		SELECT id, user_id, name, icon, color, position, created_at, updated_at
+		SELECT id, user_id, name, icon, color, position, include_contacts, include_non_contacts, include_groups, include_channels, include_bots, created_at, updated_at
 		FROM chat_folders
 		WHERE id = $1`
 
 	var f models.ChatFolder
 	err := r.db.QueryRowContext(ctx, query, folderID).Scan(
 		&f.ID, &f.UserID, &f.Name, &f.Icon, &f.Color, &f.Position,
+		&f.IncludeContacts, &f.IncludeNonContacts, &f.IncludeGroups, &f.IncludeChannels, &f.IncludeBots,
 		&f.CreatedAt, &f.UpdatedAt,
 	)
 	if err != nil {
@@ -79,11 +86,14 @@ func (r *FolderRepository) GetByID(ctx context.Context, folderID int) (*models.C
 func (r *FolderRepository) Update(ctx context.Context, folder *models.ChatFolder) error {
 	query := `
 		UPDATE chat_folders 
-		SET name = $1, icon = $2, color = $3, position = $4, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $5 AND user_id = $6`
+		SET name = $1, icon = $2, color = $3, position = $4, 
+		    include_contacts = $5, include_non_contacts = $6, include_groups = $7, include_channels = $8, include_bots = $9,
+		    updated_at = CURRENT_TIMESTAMP
+		WHERE id = $10 AND user_id = $11`
 
 	_, err := r.db.ExecContext(ctx, query,
 		folder.Name, folder.Icon, folder.Color, folder.Position,
+		folder.IncludeContacts, folder.IncludeNonContacts, folder.IncludeGroups, folder.IncludeChannels, folder.IncludeBots,
 		folder.ID, folder.UserID,
 	)
 	return err

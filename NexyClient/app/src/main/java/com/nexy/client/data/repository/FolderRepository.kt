@@ -46,19 +46,28 @@ class FolderRepository @Inject constructor(
         }
     }
 
-    suspend fun createFolder(name: String, icon: String, color: String): Result<ChatFolder> {
+    suspend fun createFolder(
+        name: String, 
+        icon: String, 
+        color: String,
+        includeContacts: Boolean = false,
+        includeNonContacts: Boolean = false,
+        includeGroups: Boolean = false
+    ): Result<ChatFolder> {
         _isLoading.value = true
         return try {
             val request = CreateFolderRequest(
                 name = name,
                 icon = icon,
-                color = color
+                color = color,
+                includeContacts = includeContacts,
+                includeNonContacts = includeNonContacts,
+                includeGroups = includeGroups
             )
             val response = apiService.createFolder(request)
             if (response.isSuccessful) {
                 val folder = response.body()
                 if (folder != null) {
-                    // Update local state immediately
                     val currentList = _folders.value.toMutableList()
                     currentList.add(folder)
                     _folders.value = currentList
@@ -76,34 +85,42 @@ class FolderRepository @Inject constructor(
         }
     }
 
-    suspend fun updateFolder(folderId: Int, name: String, icon: String, color: String): Result<Unit> {
+    suspend fun updateFolder(
+        folderId: Int, 
+        name: String, 
+        icon: String, 
+        color: String,
+        includeContacts: Boolean? = null,
+        includeNonContacts: Boolean? = null,
+        includeGroups: Boolean? = null
+    ): Result<Unit> {
         _isLoading.value = true
         return try {
             val request = UpdateFolderRequest(
                 name = name,
                 icon = icon,
-                color = color
+                color = color,
+                includeContacts = includeContacts,
+                includeNonContacts = includeNonContacts,
+                includeGroups = includeGroups
             )
             val response = apiService.updateFolder(folderId, request)
             if (response.isSuccessful) {
-                // Update local state immediately
                 val currentList = _folders.value.toMutableList()
                 val index = currentList.indexOfFirst { it.id == folderId }
                 if (index != -1) {
-                    // We don't get the full updated object back usually, or maybe we do?
-                    // Assuming we need to reload or patch locally.
-                    // Ideally the server returns the updated object.
-                    // If not, we might need to reload.
-                    // Let's reload to be safe for now, but we can also optimistically update if we knew the structure.
-                    // But wait, the user wants "immediate" update.
-                    // If I reload, it takes a round trip.
-                    // Let's try to update locally with the data we sent, preserving other fields if possible.
                     val oldFolder = currentList[index]
-                    val newFolder = oldFolder.copy(name = name, icon = icon, color = color)
+                    val newFolder = oldFolder.copy(
+                        name = name, 
+                        icon = icon, 
+                        color = color,
+                        includeContacts = includeContacts ?: oldFolder.includeContacts,
+                        includeNonContacts = includeNonContacts ?: oldFolder.includeNonContacts,
+                        includeGroups = includeGroups ?: oldFolder.includeGroups
+                    )
                     currentList[index] = newFolder
                     _folders.value = currentList
                 }
-                // Also reload to ensure consistency
                 loadFolders() 
                 Result.success(Unit)
             } else {
