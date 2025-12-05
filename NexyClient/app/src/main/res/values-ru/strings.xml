@@ -37,4 +37,7 @@
     <string name="no_chats">Нет чатов</string>
     <string name="start_conversation">Начать общение</string>
     <string name="select_chat">Выберите чат для начала общения</string>
+    <string name="ui_scale">Масштаб интерфейса</string>
+    <string name="reset">Сброс</string>
+    <string name="preview">Предпросмотр</string>
 </resources>

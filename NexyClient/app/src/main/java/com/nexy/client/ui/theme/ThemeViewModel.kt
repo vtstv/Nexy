@@ -29,6 +29,7 @@ class ThemeViewModel @Inject constructor(
     private val DARK_THEME_KEY = booleanPreferencesKey("dark_theme")
     private val THEME_STYLE_KEY = stringPreferencesKey("theme_style")
     private val FONT_SCALE_KEY = androidx.datastore.preferences.core.floatPreferencesKey("font_scale")
+    private val UI_SCALE_KEY = androidx.datastore.preferences.core.floatPreferencesKey("ui_scale")
     private val INCOMING_TEXT_COLOR_KEY = androidx.datastore.preferences.core.longPreferencesKey("incoming_text_color")
     private val OUTGOING_TEXT_COLOR_KEY = androidx.datastore.preferences.core.longPreferencesKey("outgoing_text_color")
     
@@ -40,6 +41,9 @@ class ThemeViewModel @Inject constructor(
 
     private val _fontScale = MutableStateFlow(1.0f)
     val fontScale: StateFlow<Float> = _fontScale.asStateFlow()
+
+    private val _uiScale = MutableStateFlow(1.0f)
+    val uiScale: StateFlow<Float> = _uiScale.asStateFlow()
 
     private val _incomingTextColor = MutableStateFlow(0xFF000000) // Default Black (will be adjusted based on theme usually, but here we store specific override)
     val incomingTextColor: StateFlow<Long> = _incomingTextColor.asStateFlow()
@@ -62,6 +66,7 @@ class ThemeViewModel @Inject constructor(
                     ThemeStyle.Pink
                 }
                 _fontScale.value = preferences[FONT_SCALE_KEY] ?: 1.0f
+                _uiScale.value = preferences[UI_SCALE_KEY] ?: 1.0f
                 
                 // Default colors if not set. 
                 // For dark theme, default text is usually white/light. For light theme, black/dark.
@@ -96,6 +101,15 @@ class ThemeViewModel @Inject constructor(
             _fontScale.value = scale
             context.dataStore.edit { preferences ->
                 preferences[FONT_SCALE_KEY] = scale
+            }
+        }
+    }
+
+    fun setUiScale(scale: Float) {
+        viewModelScope.launch {
+            _uiScale.value = scale
+            context.dataStore.edit { preferences ->
+                preferences[UI_SCALE_KEY] = scale
             }
         }
     }

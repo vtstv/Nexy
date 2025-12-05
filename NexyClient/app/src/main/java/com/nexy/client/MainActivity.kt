@@ -73,6 +73,7 @@ class MainActivity : AppCompatActivity() {
             
             val isDarkTheme by themeViewModel.isDarkTheme.collectAsState()
             val themeStyle by themeViewModel.themeStyle.collectAsState()
+            val uiScale by themeViewModel.uiScale.collectAsState()
             
             val pinCode by settingsViewModel.pinCode.collectAsState()
             val isLocked by pinManager.isLocked.collectAsState()
@@ -83,7 +84,8 @@ class MainActivity : AppCompatActivity() {
             
             NexyClientTheme(
                 darkTheme = isDarkTheme,
-                themeStyle = themeStyle
+                themeStyle = themeStyle,
+                uiScale = uiScale
             ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),

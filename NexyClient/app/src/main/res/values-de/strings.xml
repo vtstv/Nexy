@@ -37,4 +37,7 @@
     <string name="no_chats">Noch keine Chats</string>
     <string name="start_conversation">Unterhaltung beginnen</string>
     <string name="select_chat">Wählen Sie einen Chat aus</string>
+    <string name="ui_scale">UI-Skalierung</string>
+    <string name="reset">Zurücksetzen</string>
+    <string name="preview">Vorschau</string>
 </resources>

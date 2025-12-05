@@ -62,6 +62,7 @@ fun SettingsScreen(
     val themeStyle by themeViewModel.themeStyle.collectAsState()
     val isDarkTheme by themeViewModel.isDarkTheme.collectAsState()
     val fontScale by themeViewModel.fontScale.collectAsState()
+    val uiScale by themeViewModel.uiScale.collectAsState()
     val incomingTextColor by themeViewModel.incomingTextColor.collectAsState()
     val outgoingTextColor by themeViewModel.outgoingTextColor.collectAsState()
     
@@ -165,8 +166,10 @@ fun SettingsScreen(
                     AppearanceSection(
                         isDarkTheme = isDarkTheme,
                         themeStyle = themeStyle,
+                        uiScale = uiScale,
                         onToggleTheme = { themeViewModel.toggleTheme() },
-                        onThemeStyleChange = { themeViewModel.setThemeStyle(it) }
+                        onThemeStyleChange = { themeViewModel.setThemeStyle(it) },
+                        onUiScaleChange = { themeViewModel.setUiScale(it) }
                     )
                 }
                 SettingsCategory.CHAT -> {

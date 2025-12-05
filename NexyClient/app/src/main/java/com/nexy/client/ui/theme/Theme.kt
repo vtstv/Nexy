@@ -7,7 +7,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+
+// CompositionLocal for UI Scale
+val LocalUiScale = compositionLocalOf { 1.0f }
 
 enum class ThemeStyle {
     Pink, Blue, Green, Purple, Orange, Teal
@@ -261,12 +268,25 @@ private fun getLightColorScheme(style: ThemeStyle) = when(style) {
 fun NexyClientTheme(
     darkTheme: Boolean = true,
     themeStyle: ThemeStyle = ThemeStyle.Pink,
+    uiScale: Float = 1.0f,
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) getDarkColorScheme(style = themeStyle) else getLightColorScheme(style = themeStyle)
     
-    MaterialTheme(
-        colorScheme = colorScheme,
-        content = content
+    // Scale density for UI elements
+    val currentDensity = LocalDensity.current
+    val scaledDensity = Density(
+        density = currentDensity.density * uiScale,
+        fontScale = currentDensity.fontScale
     )
+    
+    CompositionLocalProvider(
+        LocalDensity provides scaledDensity,
+        LocalUiScale provides uiScale
+    ) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            content = content
+        )
+    }
 }
