@@ -50,9 +50,10 @@ func (r *ChatRepository) Create(ctx context.Context, chat *models.Chat) error {
 func (r *ChatRepository) GetByID(ctx context.Context, id int) (*models.Chat, error) {
 	chat := &models.Chat{}
 	query := `
-		SELECT id, type, group_type, name, username, description, avatar_url, created_by, default_permissions, created_at, updated_at
-		FROM chats
-		WHERE id = $1`
+		SELECT c.id, c.type, c.group_type, c.name, c.username, c.description, c.avatar_url, c.created_by, c.default_permissions, c.created_at, c.updated_at,
+			(SELECT COUNT(*) FROM chat_members WHERE chat_id = c.id) as member_count
+		FROM chats c
+		WHERE c.id = $1`
 
 	var createdBy sql.NullInt64
 	var username, description, groupType sql.NullString
@@ -70,6 +71,7 @@ func (r *ChatRepository) GetByID(ctx context.Context, id int) (*models.Chat, err
 		&defaultPermissions,
 		&chat.CreatedAt,
 		&chat.UpdatedAt,
+		&chat.MemberCount,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
