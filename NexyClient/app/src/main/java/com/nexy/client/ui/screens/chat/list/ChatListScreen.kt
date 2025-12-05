@@ -95,7 +95,16 @@ fun ChatListScreen(
                 folders = folders,
                 onChatClick = onChatClick,
                 onNavigateToSearch = onNavigateToSearch,
-                onNavigateToFolders = onNavigateToFolders
+                onNavigateToFolders = onNavigateToFolders,
+                onAddChatToFolder = { chatId, folderId -> 
+                    viewModel.addChatToFolder(chatId, folderId)
+                },
+                onMoveFolderLocally = { from, to ->
+                    viewModel.moveFolderLocally(from, to)
+                },
+                onSaveFolderOrder = {
+                    viewModel.saveFolderOrder()
+                }
             )
         }
         

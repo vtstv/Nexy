@@ -266,6 +266,34 @@ class ChatListViewModel @Inject constructor(
     fun lockApp() {
         pinManager.lockImmediately()
     }
+
+    fun addChatToFolder(chatId: Int, folderId: Int) {
+        viewModelScope.launch {
+            val folder = folderRepository.getFolder(folderId) ?: return@launch
+            val currentChats = folder.includedChatIds?.toMutableList() ?: mutableListOf()
+            if (!currentChats.contains(chatId)) {
+                currentChats.add(chatId)
+                folderRepository.updateFolderChats(folderId, currentChats)
+            }
+        }
+    }
+
+    fun removeChatFromFolder(chatId: Int, folderId: Int) {
+        viewModelScope.launch {
+            folderRepository.removeChatFromFolder(folderId, chatId)
+        }
+    }
+
+    fun moveFolderLocally(fromIndex: Int, toIndex: Int) {
+        folderRepository.moveFolderLocally(fromIndex, toIndex)
+    }
+
+    fun saveFolderOrder() {
+        viewModelScope.launch {
+            val folderIds = folderRepository.folders.value.map { it.id }
+            folderRepository.reorderFolders(folderIds)
+        }
+    }
     
     override fun onCleared() {
         super.onCleared()

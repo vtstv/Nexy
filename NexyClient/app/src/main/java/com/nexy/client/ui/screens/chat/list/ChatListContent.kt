@@ -3,30 +3,60 @@
  */
 package com.nexy.client.ui.screens.chat.list
 
-import androidx.compose.foundation.clickable
+import android.util.Log
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import com.nexy.client.R
 import com.nexy.client.data.models.ChatType
 import com.nexy.client.data.models.ChatFolder as ApiFolderModel
 import com.nexy.client.ui.screens.chat.ChatWithInfo
+import kotlin.math.roundToInt
+
+private const val TAG = "ChatListContent"
 
 // Built-in folder type for filtering
 sealed class FolderTab {
     object All : FolderTab()
     data class Custom(val folder: ApiFolderModel) : FolderTab()
 }
+
+// Drag state holder
+data class DragState(
+    val isDragging: Boolean = false,
+    val draggedChatId: Int? = null,
+    val draggedFolderIndex: Int = -1,
+    val dragOffset: Offset = Offset.Zero,
+    val startPosition: Offset = Offset.Zero
+)
 
 @Composable
 fun ChatListContent(
@@ -36,14 +66,37 @@ fun ChatListContent(
     folders: List<ApiFolderModel> = emptyList(),
     onChatClick: (Int) -> Unit,
     onNavigateToSearch: () -> Unit,
-    onNavigateToFolders: () -> Unit = {}
+    onNavigateToFolders: () -> Unit = {},
+    onAddChatToFolder: (chatId: Int, folderId: Int) -> Unit = { _, _ -> },
+    onMoveFolderLocally: (fromIndex: Int, toIndex: Int) -> Unit = { _, _ -> },
+    onSaveFolderOrder: () -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    var selectedTabIndex by remember { mutableStateOf(0) }
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
+    
+    // Drag state
+    var dragState by remember { mutableStateOf(DragState()) }
+    var folderTabPositions by remember { mutableStateOf<Map<Int, Pair<Float, Float>>>(emptyMap()) }
+    var accumulatedFolderOffset by remember { mutableFloatStateOf(0f) }
+    
+    val haptic = LocalHapticFeedback.current
+    val density = LocalDensity.current
+    val tabWidthPx = with(density) { 100.dp.toPx() }
 
     // Create folder tabs: All + user folders
     val folderTabs = remember(folders) {
         listOf(FolderTab.All) + folders.map { FolderTab.Custom(it) }
+    }
+    
+    // Find which folder tab is under the drag position
+    fun findFolderUnderDrag(position: Offset): Int? {
+        folderTabPositions.forEach { (index, bounds) ->
+            val (x, width) = bounds
+            if (position.x >= x && position.x <= x + width && index > 0) {
+                return index
+            }
+        }
+        return null
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(padding)) {
@@ -69,38 +122,128 @@ fun ChatListContent(
             shape = MaterialTheme.shapes.medium
         )
 
-        // Dynamic folder tabs
-        ScrollableTabRow(
-            selectedTabIndex = selectedTabIndex,
-            edgePadding = 8.dp
-        ) {
-            folderTabs.forEachIndexed { index, tab ->
-                Tab(
-                    selected = selectedTabIndex == index,
-                    onClick = { selectedTabIndex = index },
-                    text = { 
-                        Text(
-                            when (tab) {
-                                is FolderTab.All -> stringResource(R.string.folder_all)
-                                is FolderTab.Custom -> tab.folder.name
+        // Dynamic folder tabs with drag support
+        Box {
+            ScrollableTabRow(
+                selectedTabIndex = selectedTabIndex,
+                edgePadding = 8.dp
+            ) {
+                folderTabs.forEachIndexed { index, tab ->
+                    val isDropTarget = dragState.isDragging && 
+                        dragState.draggedChatId != null && 
+                        findFolderUnderDrag(dragState.dragOffset + dragState.startPosition) == index
+                    
+                    val isDraggingFolder = dragState.draggedFolderIndex == index
+                    
+                    val backgroundColor by animateColorAsState(
+                        targetValue = when {
+                            isDropTarget -> MaterialTheme.colorScheme.primaryContainer
+                            isDraggingFolder -> MaterialTheme.colorScheme.surfaceContainerHigh
+                            else -> MaterialTheme.colorScheme.surface
+                        },
+                        label = "tabBg"
+                    )
+                    
+                    val scale by animateFloatAsState(
+                        targetValue = if (isDropTarget) 1.1f else 1f,
+                        label = "tabScale"
+                    )
+                    
+                    Tab(
+                        selected = selectedTabIndex == index,
+                        onClick = { 
+                            if (!dragState.isDragging) {
+                                selectedTabIndex = index 
                             }
+                        },
+                        text = { 
+                            Text(
+                                when (tab) {
+                                    is FolderTab.All -> stringResource(R.string.folder_all)
+                                    is FolderTab.Custom -> tab.folder.name
+                                },
+                                modifier = Modifier.scale(scale)
+                            )
+                        },
+                        modifier = Modifier
+                            .background(backgroundColor)
+                            .onGloballyPositioned { coords ->
+                                val pos = coords.positionInRoot()
+                                folderTabPositions = folderTabPositions + (index to Pair(pos.x, coords.size.width.toFloat()))
+                            }
+                            .then(
+                                if (tab is FolderTab.Custom) {
+                                    Modifier.pointerInput(index, folders.size) {
+                                        detectDragGesturesAfterLongPress(
+                                            onDragStart = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                dragState = dragState.copy(
+                                                    isDragging = true,
+                                                    draggedFolderIndex = index - 1, // -1 because "All" is at 0
+                                                    dragOffset = Offset.Zero
+                                                )
+                                                accumulatedFolderOffset = 0f
+                                            },
+                                            onDrag = { change, dragAmount ->
+                                                change.consume()
+                                                accumulatedFolderOffset += dragAmount.x
+                                                
+                                                val currentIdx = dragState.draggedFolderIndex
+                                                if (currentIdx >= 0) {
+                                                    val threshold = tabWidthPx * 0.5f
+                                                    when {
+                                                        accumulatedFolderOffset > threshold && currentIdx < folders.size - 1 -> {
+                                                            onMoveFolderLocally(currentIdx, currentIdx + 1)
+                                                            dragState = dragState.copy(draggedFolderIndex = currentIdx + 1)
+                                                            accumulatedFolderOffset -= tabWidthPx
+                                                        }
+                                                        accumulatedFolderOffset < -threshold && currentIdx > 0 -> {
+                                                            onMoveFolderLocally(currentIdx, currentIdx - 1)
+                                                            dragState = dragState.copy(draggedFolderIndex = currentIdx - 1)
+                                                            accumulatedFolderOffset += tabWidthPx
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            onDragEnd = {
+                                                onSaveFolderOrder()
+                                                dragState = DragState()
+                                                accumulatedFolderOffset = 0f
+                                            },
+                                            onDragCancel = {
+                                                dragState = DragState()
+                                                accumulatedFolderOffset = 0f
+                                            }
+                                        )
+                                    }
+                                } else Modifier
+                            )
+                    )
+                }
+                
+                // Add folder tab (icon only)
+                Tab(
+                    selected = false,
+                    onClick = onNavigateToFolders,
+                    icon = {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = "Edit folders",
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 )
             }
             
-            // Add folder tab (icon only)
-            Tab(
-                selected = false,
-                onClick = onNavigateToFolders,
-                icon = {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = "Edit folders",
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            )
+            // Drop indicator when dragging chat
+            if (dragState.isDragging && dragState.draggedChatId != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                )
+            }
         }
 
         // Chat list
@@ -159,15 +302,118 @@ fun ChatListContent(
                     .sortedByDescending { it.chat.updatedAt }
                 
                 LazyColumn {
-                    items(filteredChats) { chatWithInfo ->
-                        ChatListItem(
+                    items(filteredChats, key = { it.chat.id }) { chatWithInfo ->
+                        val isDragging = dragState.draggedChatId == chatWithInfo.chat.id
+                        
+                        DraggableChatListItem(
                             chatWithInfo = chatWithInfo,
-                            onClick = { onChatClick(chatWithInfo.chat.id) }
+                            isDragging = isDragging,
+                            dragOffset = if (isDragging) dragState.dragOffset else Offset.Zero,
+                            onClick = { 
+                                if (!dragState.isDragging) {
+                                    onChatClick(chatWithInfo.chat.id) 
+                                }
+                            },
+                            onDragStart = { startPos ->
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                dragState = DragState(
+                                    isDragging = true,
+                                    draggedChatId = chatWithInfo.chat.id,
+                                    startPosition = startPos,
+                                    dragOffset = Offset.Zero
+                                )
+                            },
+                            onDrag = { offset ->
+                                dragState = dragState.copy(
+                                    dragOffset = dragState.dragOffset + offset
+                                )
+                            },
+                            onDragEnd = {
+                                val targetFolder = findFolderUnderDrag(dragState.dragOffset + dragState.startPosition)
+                                if (targetFolder != null && targetFolder > 0) {
+                                    val folderTab = folderTabs[targetFolder]
+                                    if (folderTab is FolderTab.Custom) {
+                                        Log.d(TAG, "Adding chat ${chatWithInfo.chat.id} to folder ${folderTab.folder.id}")
+                                        onAddChatToFolder(chatWithInfo.chat.id, folderTab.folder.id)
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    }
+                                }
+                                dragState = DragState()
+                            },
+                            onDragCancel = {
+                                dragState = DragState()
+                            }
                         )
                         HorizontalDivider()
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun DraggableChatListItem(
+    chatWithInfo: ChatWithInfo,
+    isDragging: Boolean,
+    dragOffset: Offset,
+    onClick: () -> Unit,
+    onDragStart: (Offset) -> Unit,
+    onDrag: (Offset) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit
+) {
+    var itemPosition by remember { mutableStateOf(Offset.Zero) }
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isDragging) 1.05f else 1f,
+        label = "itemScale"
+    )
+    
+    val elevation = if (isDragging) 8.dp else 0.dp
+    val zIndex = if (isDragging) 10f else 0f
+    
+    val backgroundColor by animateColorAsState(
+        targetValue = if (isDragging) 
+            MaterialTheme.colorScheme.surfaceContainerHigh 
+        else 
+            MaterialTheme.colorScheme.surface,
+        label = "itemBg"
+    )
+
+    Box(
+        modifier = Modifier
+            .zIndex(zIndex)
+            .graphicsLayer {
+                if (isDragging) {
+                    translationX = dragOffset.x
+                    translationY = dragOffset.y
+                    scaleX = scale
+                    scaleY = scale
+                    shadowElevation = with(LocalDensity) { elevation.toPx() }
+                }
+            }
+            .onGloballyPositioned { coords ->
+                itemPosition = coords.positionInRoot()
+            }
+            .background(backgroundColor)
+            .pointerInput(chatWithInfo.chat.id) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = { offset ->
+                        onDragStart(itemPosition + offset)
+                    },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        onDrag(dragAmount)
+                    },
+                    onDragEnd = onDragEnd,
+                    onDragCancel = onDragCancel
+                )
+            }
+    ) {
+        ChatListItem(
+            chatWithInfo = chatWithInfo,
+            onClick = onClick
+        )
     }
 }
