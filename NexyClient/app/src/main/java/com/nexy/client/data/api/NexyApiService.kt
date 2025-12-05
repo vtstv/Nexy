@@ -188,6 +188,9 @@ interface NexyApiService {
     @POST("chats/groups/join")
     suspend fun joinGroupByInvite(@Body request: JoinByInviteRequest): Response<Chat>
     
+    @POST("chats/groups/validate-invite")
+    suspend fun validateGroupInvite(@Body request: JoinByInviteRequest): Response<InvitePreviewResponse>
+    
     @GET("turn/ice-servers")
     suspend fun getICEServers(): Response<ICEConfigResponse>
 

@@ -98,6 +98,10 @@ class ChatRepository @Inject constructor(
         return chatOperations.validateInviteCode(code)
     }
     
+    suspend fun validateGroupInvite(code: String): Result<InvitePreviewResponse> {
+        return chatOperations.validateGroupInvite(code)
+    }
+    
     suspend fun joinByInviteCode(code: String): Result<JoinChatResponse> {
         return chatOperations.joinByInviteCode(code)
     }
@@ -113,7 +117,8 @@ class ChatRepository @Inject constructor(
     suspend fun getGroupMembers(chatId: Int, query: String? = null): Result<List<ChatMember>> = 
         chatOperations.getGroupMembers(chatId, query)
 
-    suspend fun createGroupInviteLink(groupId: Int): Result<InviteLink> = chatOperations.createGroupInviteLink(groupId)
+    suspend fun createGroupInviteLink(groupId: Int, usageLimit: Int? = null, expiresIn: Int? = null): Result<InviteLink> = 
+        chatOperations.createGroupInviteLink(groupId, usageLimit, expiresIn)
     
     suspend fun joinPublicGroup(groupId: Int): Result<Chat> {
         return chatOperations.joinPublicGroup(groupId)

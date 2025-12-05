@@ -103,3 +103,48 @@ func (s *GroupService) JoinGroupByInvite(ctx context.Context, inviteCode string,
 
 	return chat, nil
 }
+
+// InvitePreviewResponse contains invite validation info with chat preview
+type InvitePreviewResponse struct {
+	Valid        bool   `json:"valid"`
+	ChatID       int    `json:"chat_id,omitempty"`
+	ChatName     string `json:"chat_name,omitempty"`
+	ChatType     string `json:"chat_type,omitempty"`
+	AvatarURL    string `json:"avatar_url,omitempty"`
+	MemberCount  int    `json:"member_count,omitempty"`
+	ErrorMessage string `json:"error_message,omitempty"`
+}
+
+// ValidateGroupInvite validates invite code and returns chat preview
+func (s *GroupService) ValidateGroupInvite(ctx context.Context, inviteCode string) (*InvitePreviewResponse, error) {
+	invite, err := s.chatRepo.GetInviteLinkByCode(ctx, inviteCode)
+	if err != nil {
+		return &InvitePreviewResponse{Valid: false, ErrorMessage: "Invite link not found"}, nil
+	}
+
+	if invite.IsRevoked {
+		return &InvitePreviewResponse{Valid: false, ErrorMessage: "Invite link is revoked"}, nil
+	}
+
+	if invite.ExpiresAt != nil && invite.ExpiresAt.Before(time.Now()) {
+		return &InvitePreviewResponse{Valid: false, ErrorMessage: "Invite link has expired"}, nil
+	}
+
+	if invite.UsageLimit != nil && invite.UsageCount >= *invite.UsageLimit {
+		return &InvitePreviewResponse{Valid: false, ErrorMessage: "Invite link usage limit reached"}, nil
+	}
+
+	chat, err := s.chatRepo.GetByID(ctx, invite.ChatID)
+	if err != nil || chat == nil {
+		return &InvitePreviewResponse{Valid: false, ErrorMessage: "Group not found"}, nil
+	}
+
+	return &InvitePreviewResponse{
+		Valid:       true,
+		ChatID:      chat.ID,
+		ChatName:    chat.Name,
+		ChatType:    chat.Type,
+		AvatarURL:   chat.AvatarURL,
+		MemberCount: chat.MemberCount,
+	}, nil
+}

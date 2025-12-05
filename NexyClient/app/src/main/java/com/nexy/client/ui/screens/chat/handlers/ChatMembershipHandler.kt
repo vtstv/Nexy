@@ -1,5 +1,7 @@
 package com.nexy.client.ui.screens.chat.handlers
 
+import com.nexy.client.data.models.InvitePreviewResponse
+import com.nexy.client.data.models.JoinChatResponse
 import com.nexy.client.data.repository.ChatRepository
 import javax.inject.Inject
 
@@ -9,6 +11,14 @@ class ChatMembershipHandler @Inject constructor(
 ) {
     suspend fun joinGroup(chatId: Int): Result<Unit> {
         return stateManager.joinGroup(chatId)
+    }
+
+    suspend fun validateGroupInvite(code: String): Result<InvitePreviewResponse> {
+        return chatRepository.validateGroupInvite(code)
+    }
+
+    suspend fun joinByInviteCode(code: String): Result<JoinChatResponse> {
+        return chatRepository.joinByInviteCode(code)
     }
 
     suspend fun muteChat(chatId: Int, duration: String?, until: String?): Result<Unit> {

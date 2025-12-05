@@ -125,12 +125,12 @@ class GroupSettingsViewModel @Inject constructor(
         }
     }
     
-    fun createInviteLink(groupId: Int) {
+    fun createInviteLink(groupId: Int, usageLimit: Int? = null, expiresInSeconds: Int? = null) {
         viewModelScope.launch {
             try {
                 val response = apiService.createGroupInviteLink(
                     groupId,
-                    CreateInviteLinkRequest()
+                    CreateInviteLinkRequest(usageLimit, expiresInSeconds)
                 )
                 if (response.isSuccessful) {
                     val state = _uiState.value as? GroupSettingsUiState.Success
@@ -140,6 +140,13 @@ class GroupSettingsViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
             }
+        }
+    }
+    
+    fun clearInviteLink() {
+        val state = _uiState.value as? GroupSettingsUiState.Success
+        state?.let {
+            _uiState.value = it.copy(inviteLink = null)
         }
     }
     

@@ -15,6 +15,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.nexy.client.data.models.Message
+import com.nexy.client.ui.components.LinkParser
+import com.nexy.client.ui.components.LinkedText
 import com.nexy.client.ui.screens.chat.components.bubble.*
 import java.io.File
 
@@ -33,7 +35,9 @@ fun MessageBubble(
     onCopy: () -> Unit = {},
     onDownloadFile: (String, String) -> Unit = { _, _ -> },
     onOpenFile: (String) -> Unit = {},
-    onSaveFile: (String) -> Unit = {}
+    onSaveFile: (String) -> Unit = {},
+    onInviteLinkClick: (String) -> Unit = {},
+    onUserLinkClick: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -42,6 +46,11 @@ fun MessageBubble(
     val hasAttachment = message.mediaUrl != null
     val file = if (hasAttachment) File(context.getExternalFilesDir(null), message.content) else null
     val isDownloaded = file?.exists() == true
+    
+    // Check if message contains an invite link
+    val inviteCode = remember(message.content) {
+        LinkParser.extractInviteCode(message.content)
+    }
 
     Row(
         modifier = Modifier
@@ -90,35 +99,59 @@ fun MessageBubble(
                         )
                     }
 
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Column(modifier = Modifier.weight(1f, fill = false)) {
-                            if (message.mediaUrl != null) {
-                                FileAttachment(
-                                    message = message,
-                                    onDownloadFile = onDownloadFile,
-                                    onOpenFile = onOpenFile,
-                                    onSaveFile = onSaveFile,
-                                    onLongClick = { showMenu = true }
-                                )
-                            } else {
-                                Text(
+                    Column {
+                        if (message.mediaUrl != null) {
+                            FileAttachment(
+                                message = message,
+                                onDownloadFile = onDownloadFile,
+                                onOpenFile = onOpenFile,
+                                onSaveFile = onSaveFile,
+                                onLongClick = { showMenu = true }
+                            )
+                        } else if (inviteCode != null) {
+                            // Show invite card for messages with invite links
+                            InviteLinkCard(
+                                inviteCode = inviteCode,
+                                onJoinClick = { onInviteLinkClick(inviteCode) }
+                            )
+                        } else {
+                            Row(verticalAlignment = Alignment.Bottom) {
+                                LinkedText(
                                     text = message.content,
                                     style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontSize = MaterialTheme.typography.bodyMedium.fontSize * fontScale
+                                        fontSize = MaterialTheme.typography.bodyMedium.fontSize * fontScale,
+                                        color = if (textColor != 0L) Color(textColor) else Color.Unspecified
                                     ),
-                                    color = if (textColor != 0L) Color(textColor) else Color.Unspecified
+                                    onInviteLinkClick = onInviteLinkClick,
+                                    onUserLinkClick = onUserLinkClick,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                MessageTimestamp(
+                                    timestamp = message.timestamp,
+                                    isEdited = message.isEdited,
+                                    isOwnMessage = isOwnMessage,
+                                    status = message.status
                                 )
                             }
                         }
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        MessageTimestamp(
-                            timestamp = message.timestamp,
-                            isEdited = message.isEdited,
-                            isOwnMessage = isOwnMessage,
-                            status = message.status
-                        )
+                        
+                        // Show timestamp separately for invite cards and attachments
+                        if (message.mediaUrl != null || inviteCode != null) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                MessageTimestamp(
+                                    timestamp = message.timestamp,
+                                    isEdited = message.isEdited,
+                                    isOwnMessage = isOwnMessage,
+                                    status = message.status
+                                )
+                            }
+                        }
                     }
                 }
             }

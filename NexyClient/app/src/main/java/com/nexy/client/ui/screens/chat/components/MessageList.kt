@@ -40,7 +40,9 @@ fun MessageList(
     onCopyMessage: () -> Unit = {},
     onDownloadFile: (String, String) -> Unit,
     onOpenFile: (String) -> Unit,
-    onSaveFile: (String) -> Unit
+    onSaveFile: (String) -> Unit,
+    onInviteLinkClick: (String) -> Unit = {},
+    onUserLinkClick: (String) -> Unit = {}
 ) {
     val reversedMessages = remember(messages) { messages.reversed() }
     var isDateVisible by remember { mutableStateOf(false) }
@@ -162,7 +164,9 @@ fun MessageList(
                         onCopy = onCopyMessage,
                         onDownloadFile = onDownloadFile,
                         onOpenFile = onOpenFile,
-                        onSaveFile = onSaveFile
+                        onSaveFile = onSaveFile,
+                        onInviteLinkClick = onInviteLinkClick,
+                        onUserLinkClick = onUserLinkClick
                     )
                 }
             }

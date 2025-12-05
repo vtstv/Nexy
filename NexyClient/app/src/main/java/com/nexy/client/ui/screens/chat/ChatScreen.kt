@@ -1,5 +1,7 @@
 package com.nexy.client.ui.screens.chat
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
@@ -17,6 +19,7 @@ import com.nexy.client.ui.screens.chat.components.*
 import com.nexy.client.ui.screens.chat.effects.rememberAutoScrollState
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
+import kotlinx.coroutines.launch
 
 import com.nexy.client.ui.theme.ThemeViewModel
 
@@ -29,6 +32,8 @@ fun ChatScreen(
     onNavigateBack: () -> Unit,
     onNavigateToGroupSettings: ((Int) -> Unit)? = null,
     onNavigateToGroupInfo: ((Int) -> Unit)? = null,
+    onNavigateToChat: ((Int) -> Unit)? = null,
+    onNavigateToUserProfile: ((Int) -> Unit)? = null,
     viewModel: ChatViewModel = hiltViewModel(key = "chat_$chatId"),
     themeViewModel: ThemeViewModel = hiltViewModel(),
     showBackButton: Boolean = true
@@ -45,6 +50,8 @@ fun ChatScreen(
     var showChatInfoDialog by remember { mutableStateOf(false) }
     var showMuteDialog by remember { mutableStateOf(false) }
     var replyToMessage by remember { mutableStateOf<Message?>(null) }
+    var pendingInviteCode by remember { mutableStateOf<String?>(null) }
+    var isJoiningGroup by remember { mutableStateOf(false) }
     
     // Show error as snackbar
     LaunchedEffect(uiState.error) {
@@ -238,6 +245,14 @@ fun ChatScreen(
                             },
                             onSaveFile = { fileName ->
                                 viewModel.saveFile(context, fileName)
+                            },
+                            onInviteLinkClick = { code ->
+                                pendingInviteCode = code
+                            },
+                            onUserLinkClick = { userId ->
+                                userId.toIntOrNull()?.let { id ->
+                                    onNavigateToUserProfile?.invoke(id)
+                                }
                             }
                         )
                     }
@@ -281,6 +296,57 @@ fun ChatScreen(
             onMute = { duration, until ->
                 viewModel.muteChat(duration, until)
                 showMuteDialog = false
+            }
+        )
+    }
+
+    if (pendingInviteCode != null) {
+        val scope = rememberCoroutineScope()
+        var invitePreview by remember { mutableStateOf<com.nexy.client.data.models.InvitePreviewResponse?>(null) }
+        var isLoadingPreview by remember { mutableStateOf(true) }
+        
+        // Load preview when dialog opens
+        LaunchedEffect(pendingInviteCode) {
+            isLoadingPreview = true
+            invitePreview = null
+            viewModel.validateGroupInvite(pendingInviteCode!!)
+                .onSuccess { preview ->
+                    invitePreview = preview
+                    isLoadingPreview = false
+                }
+                .onFailure {
+                    invitePreview = null
+                    isLoadingPreview = false
+                }
+        }
+        
+        JoinGroupByInviteDialog(
+            inviteCode = pendingInviteCode!!,
+            isLoadingPreview = isLoadingPreview,
+            isJoining = isJoiningGroup,
+            preview = invitePreview,
+            onConfirm = {
+                scope.launch {
+                    isJoiningGroup = true
+                    viewModel.joinByInviteCode(pendingInviteCode!!)
+                        .onSuccess { newChatId ->
+                            isJoiningGroup = false
+                            pendingInviteCode = null
+                            onNavigateToChat?.invoke(newChatId)
+                        }
+                        .onFailure { error ->
+                            isJoiningGroup = false
+                            pendingInviteCode = null
+                            snackbarHostState.showSnackbar(
+                                message = error.message ?: "Failed to join group"
+                            )
+                        }
+                }
+            },
+            onDismiss = {
+                if (!isJoiningGroup) {
+                    pendingInviteCode = null
+                }
             }
         )
     }

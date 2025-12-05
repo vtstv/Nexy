@@ -402,6 +402,14 @@ class ChatViewModel @Inject constructor(
                 .onFailure { e -> _uiState.value = _uiState.value.copy(error = e.message) }
         }
     }
+
+    suspend fun validateGroupInvite(code: String) = membershipHandler.validateGroupInvite(code)
+
+    suspend fun joinByInviteCode(code: String): Result<Int> {
+        return membershipHandler.joinByInviteCode(code).map { response ->
+            response.chat?.id ?: throw Exception("No chat returned")
+        }
+    }
     // endregion
     
     private fun refreshChatInfo() {

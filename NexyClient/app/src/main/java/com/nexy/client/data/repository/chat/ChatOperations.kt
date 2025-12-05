@@ -270,6 +270,9 @@ class ChatOperations @Inject constructor(
     suspend fun validateInviteCode(code: String) =
         chatInviteOperations.validateInviteCode(code)
     
+    suspend fun validateGroupInvite(code: String) =
+        chatInviteOperations.validateGroupInvite(code)
+    
     suspend fun joinByInviteCode(code: String) =
         chatInviteOperations.joinByInviteCode(code)
     

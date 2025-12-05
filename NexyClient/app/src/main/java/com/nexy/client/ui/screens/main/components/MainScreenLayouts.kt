@@ -67,6 +67,7 @@ fun SplitScreenLayout(
                         onNavigateBack = { },
                         onNavigateToGroupSettings = dialogState::openGroupSettings,
                         onNavigateToGroupInfo = onNavigateToGroupInfo,
+                        onNavigateToChat = onChatSelected,
                         showBackButton = false
                     )
                 }
@@ -105,7 +106,8 @@ fun SinglePaneLayout(
                 chatId = selectedChatId,
                 onNavigateBack = onClearSelection,
                 onNavigateToGroupSettings = dialogState::openGroupSettings,
-                onNavigateToGroupInfo = onNavigateToGroupInfo
+                onNavigateToGroupInfo = onNavigateToGroupInfo,
+                onNavigateToChat = onChatSelected
             )
         } else {
             ChatListScreen(

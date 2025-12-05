@@ -60,7 +60,8 @@ class InviteMembersViewModel @Inject constructor(
             // Don't set loading here to avoid flickering if we are just entering the screen
             // _uiState.value = _uiState.value.copy(isLoading = true)
             try {
-                val result = chatRepository.createInviteLink(chatId)
+                // Default expiration: 1 day (86400 seconds)
+                val result = chatRepository.createGroupInviteLink(chatId, usageLimit = null, expiresIn = 86400)
                 if (result.isSuccess) {
                     val inviteLink = result.getOrNull()
                     _uiState.value = _uiState.value.copy(

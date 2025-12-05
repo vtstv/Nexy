@@ -108,6 +108,7 @@ func (rt *Router) Setup() *mux.Router {
 	chats.HandleFunc("/groups", rt.groupController.CreateGroup).Methods("POST")
 	chats.HandleFunc("/groups/search", rt.groupController.SearchPublicGroups).Methods("GET")
 	chats.HandleFunc("/groups/join", rt.groupController.JoinGroupByInvite).Methods("POST")
+	chats.HandleFunc("/groups/validate-invite", rt.groupController.ValidateGroupInvite).Methods("POST")
 	chats.HandleFunc("/groups/{id:[0-9]+}", rt.groupController.GetGroup).Methods("GET")
 	chats.HandleFunc("/groups/{id:[0-9]+}", rt.groupController.UpdateGroup).Methods("PUT")
 	chats.HandleFunc("/groups/{id:[0-9]+}/join", rt.groupController.JoinPublicGroup).Methods("POST")

@@ -82,3 +82,21 @@ func (c *GroupController) JoinGroupByInvite(w http.ResponseWriter, r *http.Reque
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(chat)
 }
+
+// ValidateGroupInvite validates an invite code and returns group preview
+func (c *GroupController) ValidateGroupInvite(w http.ResponseWriter, r *http.Request) {
+	var req JoinByInviteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	preview, err := c.groupService.ValidateGroupInvite(r.Context(), req.InviteCode)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(preview)
+}

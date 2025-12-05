@@ -96,6 +96,16 @@ private fun GroupSettingsContent(
     viewModel: GroupSettingsViewModel,
     modifier: Modifier = Modifier
 ) {
+    var showCreateInviteDialog by remember { mutableStateOf(false) }
+    var showInviteLinkDialog by remember { mutableStateOf(false) }
+    
+    // Show invite link dialog when a new link is created
+    LaunchedEffect(state.inviteLink) {
+        if (state.inviteLink != null) {
+            showInviteLinkDialog = true
+        }
+    }
+    
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -124,10 +134,34 @@ private fun GroupSettingsContent(
         if (state.canCreateInvite) {
             item {
                 CreateInviteLinkButton(
-                    onClick = { viewModel.createInviteLink(groupId) }
+                    onClick = { showCreateInviteDialog = true }
                 )
             }
         }
+    }
+    
+    if (showCreateInviteDialog) {
+        CreateInviteLinkDialog(
+            onDismiss = { showCreateInviteDialog = false },
+            onCreate = { settings ->
+                viewModel.createInviteLink(
+                    groupId = groupId,
+                    usageLimit = settings.usageLimit,
+                    expiresInSeconds = settings.expiresInSeconds
+                )
+                showCreateInviteDialog = false
+            }
+        )
+    }
+    
+    if (showInviteLinkDialog && state.inviteLink != null) {
+        InviteLinkCreatedDialog(
+            inviteLink = state.inviteLink,
+            onDismiss = { 
+                showInviteLinkDialog = false
+                viewModel.clearInviteLink()
+            }
+        )
     }
 }
 

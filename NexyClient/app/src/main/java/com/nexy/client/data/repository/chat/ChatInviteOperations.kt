@@ -10,8 +10,9 @@ import com.nexy.client.data.local.dao.ChatDao
 import com.nexy.client.data.models.CreateInviteLinkRequest
 import com.nexy.client.data.models.CreateInviteRequest
 import com.nexy.client.data.models.InviteLink
+import com.nexy.client.data.models.InvitePreviewResponse
+import com.nexy.client.data.models.JoinByInviteRequest
 import com.nexy.client.data.models.JoinChatResponse
-import com.nexy.client.data.models.UseInviteRequest
 import com.nexy.client.data.models.ValidateInviteRequest
 import com.nexy.client.data.models.Chat
 import kotlinx.coroutines.Dispatchers
@@ -59,30 +60,46 @@ class ChatInviteOperations @Inject constructor(
         }
     }
     
+    suspend fun validateGroupInvite(code: String): Result<InvitePreviewResponse> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val request = JoinByInviteRequest(code)
+                val response = apiService.validateGroupInvite(request)
+                if (response.isSuccessful && response.body() != null) {
+                    Result.success(response.body()!!)
+                } else {
+                    Result.failure(Exception("Failed to validate invite"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+    
     suspend fun joinByInviteCode(code: String): Result<JoinChatResponse> {
         return withContext(Dispatchers.IO) {
             try {
-                val request = UseInviteRequest(code)
-                val response = apiService.useInviteCode(request)
+                val request = JoinByInviteRequest(code)
+                val response = apiService.joinGroupByInvite(request)
                 if (response.isSuccessful && response.body() != null) {
-                    val result = response.body()!!
-                    result.chat?.let { chat ->
-                        val existingChat = chatDao.getChatById(chat.id)
-                        val newEntity = chatMappers.modelToEntity(chat)
-                        val finalEntity = if (existingChat != null) {
-                            newEntity.copy(
-                                lastMessageId = existingChat.lastMessageId,
-                                unreadCount = existingChat.unreadCount,
-                                muted = existingChat.muted
-                            )
-                        } else {
-                            newEntity
-                        }
-                        chatDao.insertChat(finalEntity)
+                    val chat = response.body()!!
+                    // Save chat to local database
+                    val existingChat = chatDao.getChatById(chat.id)
+                    val newEntity = chatMappers.modelToEntity(chat)
+                    val finalEntity = if (existingChat != null) {
+                        newEntity.copy(
+                            lastMessageId = existingChat.lastMessageId,
+                            unreadCount = existingChat.unreadCount,
+                            muted = existingChat.muted
+                        )
+                    } else {
+                        newEntity
                     }
-                    Result.success(result)
+                    chatDao.insertChat(finalEntity)
+                    Result.success(JoinChatResponse(chatId = chat.id, chat = chat))
                 } else {
-                    Result.failure(Exception("Failed to join chat"))
+                    val errorBody = response.errorBody()?.string() ?: "Failed to join group"
+                    Result.failure(Exception(errorBody))
                 }
             } catch (e: Exception) {
                 Result.failure(e)

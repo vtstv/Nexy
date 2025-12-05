@@ -162,6 +162,29 @@ data class JoinByInviteRequest(
     val inviteCode: String
 )
 
+data class InvitePreviewResponse(
+    @SerializedName("valid")
+    val valid: Boolean,
+    
+    @SerializedName("chat_id")
+    val chatId: Int? = null,
+    
+    @SerializedName("chat_name")
+    val chatName: String? = null,
+    
+    @SerializedName("chat_type")
+    val chatType: String? = null,
+    
+    @SerializedName("avatar_url")
+    val avatarUrl: String? = null,
+    
+    @SerializedName("member_count")
+    val memberCount: Int? = null,
+    
+    @SerializedName("error_message")
+    val errorMessage: String? = null
+)
+
 data class UserSession(
     @SerializedName("id")
     val id: Int,
