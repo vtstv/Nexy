@@ -48,8 +48,9 @@ class ChatSyncOperations @Inject constructor(
                     val inserts = ArrayList<ChatEntity>()
                     
                     chats.forEach { chat ->
-                        val newEntity = chatMappers.modelToEntity(chat)
                         val existingEntity = existingChatsMap[chat.id]
+                        // Pass existingEntity to preserve local-only fields (isPinned, pinnedAt, isHidden)
+                        val newEntity = chatMappers.modelToEntity(chat, existingEntity)
                         
                         if (existingEntity != null) {
                             val mergedLastMessageId = chat.lastMessage?.id ?: existingEntity.lastMessageId
@@ -61,7 +62,11 @@ class ChatSyncOperations @Inject constructor(
                                 unreadCount = chat.unreadCount,
                                 lastReadMessageId = chat.lastReadMessageId,
                                 firstUnreadMessageId = chat.firstUnreadMessageId,
-                                muted = newEntity.muted
+                                muted = newEntity.muted,
+                                // Preserve local-only fields from existing entity
+                                isPinned = existingEntity.isPinned,
+                                pinnedAt = existingEntity.pinnedAt,
+                                isHidden = existingEntity.isHidden
                             ))
                         } else {
                             inserts.add(newEntity)
@@ -134,7 +139,11 @@ class ChatSyncOperations @Inject constructor(
                     
                     val existingChat = chatDao.getChatById(chatId)
                     val updatedEntity = chatMappers.modelToEntity(chat).copy(
-                        lastMessageId = existingChat?.lastMessageId ?: chat.lastMessage?.id
+                        lastMessageId = existingChat?.lastMessageId ?: chat.lastMessage?.id,
+                        // Preserve local-only fields
+                        isPinned = existingChat?.isPinned ?: false,
+                        pinnedAt = existingChat?.pinnedAt ?: 0L,
+                        isHidden = existingChat?.isHidden ?: false
                     )
                     
                     if (existingChat != null) {

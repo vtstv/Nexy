@@ -120,6 +120,9 @@ fun ChatListScreen(
                 onPinSelected = {
                     viewModel.pinSelectedChats()
                 },
+                onUnpinSelected = {
+                    viewModel.unpinSelectedChats()
+                },
                 onMuteSelected = { duration ->
                     viewModel.muteSelectedChats(duration)
                 },

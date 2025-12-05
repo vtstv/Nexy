@@ -26,8 +26,10 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun SelectionActionBar(
     selectedCount: Int,
+    allSelectedArePinned: Boolean,
     onClose: () -> Unit,
     onPin: () -> Unit,
+    onUnpin: () -> Unit,
     onMute: (MuteDuration) -> Unit,
     onAddToFolder: () -> Unit,
     onDelete: () -> Unit,
@@ -73,12 +75,15 @@ fun SelectionActionBar(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Pin
-                IconButton(onClick = onPin) {
+                // Pin/Unpin toggle
+                IconButton(onClick = if (allSelectedArePinned) onUnpin else onPin) {
                     Icon(
                         imageVector = Icons.Default.PushPin,
-                        contentDescription = "Pin",
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        contentDescription = if (allSelectedArePinned) "Unpin" else "Pin",
+                        tint = if (allSelectedArePinned) 
+                            MaterialTheme.colorScheme.primary 
+                        else 
+                            MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
                 

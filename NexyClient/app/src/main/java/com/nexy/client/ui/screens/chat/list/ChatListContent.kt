@@ -10,14 +10,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -35,6 +35,70 @@ import com.nexy.client.ui.screens.chat.list.selection.ChatSelectionState
 import com.nexy.client.ui.screens.chat.list.selection.MuteDuration
 import com.nexy.client.ui.screens.chat.list.selection.SelectionActionBar
 
+// Telegram-style folder colors
+private val FolderColors = listOf(
+    Color(0xFF3390EC), // Blue (default)
+    Color(0xFFEB7B39), // Orange
+    Color(0xFFDD4B4E), // Red
+    Color(0xFF9D5BD0), // Purple
+    Color(0xFF00A884), // Green
+    Color(0xFFDB437E), // Pink
+    Color(0xFF3FAAE2), // Cyan
+    Color(0xFFCCA336)  // Yellow
+)
+
+// Get folder color by index or custom color
+private fun getFolderColor(folder: ApiFolderModel, index: Int): Color {
+    return if (folder.color.isNotBlank()) {
+        try {
+            Color(android.graphics.Color.parseColor(folder.color))
+        } catch (e: Exception) {
+            FolderColors[index % FolderColors.size]
+        }
+    } else {
+        FolderColors[index % FolderColors.size]
+    }
+}
+
+// Get folder icon based on type
+private fun getFolderIcon(folder: ApiFolderModel): ImageVector {
+    return when {
+        folder.icon.isNotBlank() -> {
+            // Try to match icon name to Material icon
+            when (folder.icon.lowercase()) {
+                "person", "user", "contact" -> Icons.Default.Person
+                "people", "group", "groups" -> Icons.Default.Groups
+                "chat", "message" -> Icons.Default.Chat
+                "work", "business" -> Icons.Default.Work
+                "star", "favorite" -> Icons.Default.Star
+                "bookmark" -> Icons.Default.Bookmark
+                "label" -> Icons.Default.Label
+                "robot", "bot" -> Icons.Default.SmartToy
+                "channel" -> Icons.Default.Campaign
+                "unread" -> Icons.Default.MarkUnreadChatAlt
+                else -> Icons.Default.Folder
+            }
+        }
+        folder.includeGroups && !folder.includeContacts -> Icons.Default.Groups
+        folder.includeContacts && !folder.includeGroups -> Icons.Default.Person
+        folder.includeBots -> Icons.Default.SmartToy
+        folder.includeChannels -> Icons.Default.Campaign
+        else -> Icons.Default.Folder
+    }
+}
+
+// Parse timestamp string to Long for proper sorting
+private fun parseTimestampForSort(timestamp: String?): Long {
+    if (timestamp == null) return 0L
+    return try {
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault())
+        val withoutMillis = timestamp.substringBefore('.')
+        sdf.parse(withoutMillis)?.time ?: 0L
+    } catch (e: Exception) {
+        0L
+    }
+}
+
 @Composable
 fun ChatListContent(
     padding: PaddingValues,
@@ -47,6 +111,7 @@ fun ChatListContent(
     onToggleSelection: (Int) -> Unit = {},
     onClearSelection: () -> Unit = {},
     onPinSelected: () -> Unit = {},
+    onUnpinSelected: () -> Unit = {},
     onMuteSelected: (MuteDuration) -> Unit = {},
     onAddToFolderSelected: () -> Unit = {},
     onDeleteSelected: () -> Unit = {},
@@ -80,10 +145,18 @@ fun ChatListContent(
             label = "searchToSelection"
         ) { isSelectionMode ->
             if (isSelectionMode) {
+                // Check if all selected chats are pinned
+                val allSelectedArePinned = selectionState.selectedChatIds.isNotEmpty() && 
+                    selectionState.selectedChatIds.all { chatId ->
+                        chats.find { it.chat.id == chatId }?.chat?.isPinned == true
+                    }
+                
                 SelectionActionBar(
                     selectedCount = selectionState.selectedCount,
+                    allSelectedArePinned = allSelectedArePinned,
                     onClose = onClearSelection,
                     onPin = onPinSelected,
+                    onUnpin = onUnpinSelected,
                     onMute = onMuteSelected,
                     onAddToFolder = onAddToFolderSelected,
                     onDelete = onDeleteSelected
@@ -127,6 +200,15 @@ fun ChatListContent(
                         MaterialTheme.colorScheme.surface,
                     label = "tabBg"
                 )
+                
+                // Get folder color (for custom folders)
+                val folderColor = when (tab) {
+                    is FolderTab.All -> MaterialTheme.colorScheme.primary
+                    is FolderTab.Custom -> getFolderColor(tab.folder, index - 1)
+                }
+                
+                // Tab selected indicator color
+                val contentColor = if (selectedTabIndex == index) folderColor else MaterialTheme.colorScheme.onSurfaceVariant
 
                 Tab(
                     selected = selectedTabIndex == index,
@@ -135,14 +217,8 @@ fun ChatListContent(
                             selectedTabIndex = index 
                         }
                     },
-                    text = { 
-                        Text(
-                            when (tab) {
-                                is FolderTab.All -> stringResource(R.string.folder_all)
-                                is FolderTab.Custom -> tab.folder.name
-                            }
-                        )
-                    },
+                    selectedContentColor = folderColor,
+                    unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
                         .background(backgroundColor)
                         .then(
@@ -192,7 +268,49 @@ fun ChatListContent(
                                 }
                             } else Modifier
                         )
-                )
+                ) {
+                    // Tab content with icon and text
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+                    ) {
+                        when (tab) {
+                            is FolderTab.All -> {
+                                Icon(
+                                    imageVector = Icons.Default.ChatBubble,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(
+                                    text = stringResource(R.string.folder_all),
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
+                            is FolderTab.Custom -> {
+                                // Show emoji if icon starts with emoji, otherwise show Material icon
+                                val iconText = tab.folder.icon
+                                if (iconText.isNotBlank() && !iconText.matches(Regex("^[a-zA-Z_]+$"))) {
+                                    // It's likely an emoji
+                                    Text(
+                                        text = iconText,
+                                        style = MaterialTheme.typography.labelLarge
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = getFolderIcon(tab.folder),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Text(
+                                    text = tab.folder.name,
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
+                        }
+                    }
+                }
             }
 
             Tab(
@@ -256,11 +374,11 @@ fun ChatListContent(
                         
                         matchesSearch && matchesFolder
                     }
-                    // Sort: pinned chats first (by pinnedAt desc), then by updatedAt desc
+                    // Sort: pinned chats first (stable), then by updatedAt desc
                     .sortedWith(
                         compareByDescending<ChatWithInfo> { it.chat.isPinned }
-                            .thenByDescending { if (it.chat.isPinned) it.chat.pinnedAt else 0L }
-                            .thenByDescending { it.chat.updatedAt }
+                            .thenByDescending { it.chat.pinnedAt }
+                            .thenByDescending { parseTimestampForSort(it.chat.updatedAt) }
                     )
                 
                 LazyColumn {

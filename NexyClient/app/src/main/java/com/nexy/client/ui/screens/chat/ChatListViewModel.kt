@@ -393,6 +393,17 @@ class ChatListViewModel @Inject constructor(
         }
     }
     
+    fun unpinSelectedChats() {
+        viewModelScope.launch {
+            val selectedIds = _selectionState.value.selectedChatIds.toList()
+            selectedIds.forEach { chatId ->
+                chatRepository.unpinChat(chatId)
+            }
+            clearSelection()
+            _refreshTrigger.value = System.currentTimeMillis()
+        }
+    }
+    
     fun hideSelectedChats() {
         viewModelScope.launch {
             val selectedIds = _selectionState.value.selectedChatIds.toList()
@@ -407,9 +418,18 @@ class ChatListViewModel @Inject constructor(
     fun addSelectedChatsToFolder(folderId: Int) {
         viewModelScope.launch {
             val selectedIds = _selectionState.value.selectedChatIds.toList()
+            val folder = folderRepository.getFolder(folderId) ?: return@launch
+            val currentChats = folder.includedChatIds?.toMutableList() ?: mutableListOf()
+            
+            // Add all selected chats at once
             selectedIds.forEach { chatId ->
-                addChatToFolder(chatId, folderId)
+                if (!currentChats.contains(chatId)) {
+                    currentChats.add(chatId)
+                }
             }
+            
+            // Update folder with all chats in one call
+            folderRepository.updateFolderChats(folderId, currentChats)
             clearSelection()
         }
     }
