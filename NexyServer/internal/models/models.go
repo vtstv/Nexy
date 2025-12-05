@@ -72,6 +72,8 @@ type Chat struct {
 	UnreadCount          int              `json:"unread_count"`
 	LastReadMessageId    int              `json:"last_read_message_id"`
 	FirstUnreadMessageId string           `json:"first_unread_message_id,omitempty"`
+	IsPinned             bool             `json:"is_pinned"`
+	PinnedAt             *time.Time       `json:"pinned_at,omitempty"`
 }
 
 type ChatPermissions struct {
@@ -92,6 +94,8 @@ type ChatMember struct {
 	User              *User            `json:"user,omitempty"`
 	MutedUntil        *time.Time       `json:"muted_until,omitempty"`
 	LastReadMessageId int              `json:"last_read_message_id"`
+	IsPinned          bool             `json:"is_pinned"`
+	PinnedAt          *time.Time       `json:"pinned_at,omitempty"`
 }
 
 type ChatInviteLink struct {

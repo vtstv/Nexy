@@ -247,6 +247,12 @@ interface NexyApiService {
     @POST("chats/{chatId}/unmute")
     suspend fun unmuteChat(@Path("chatId") chatId: Int): Response<Unit>
 
+    @POST("chats/{chatId}/pin")
+    suspend fun pinChat(@Path("chatId") chatId: Int): Response<Unit>
+
+    @POST("chats/{chatId}/unpin")
+    suspend fun unpinChat(@Path("chatId") chatId: Int): Response<Unit>
+
     // sync endpoints
     @GET("sync/state")
     suspend fun getSyncState(): Response<SyncState>

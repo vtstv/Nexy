@@ -49,13 +49,13 @@ class ChatSyncOperations @Inject constructor(
                     
                     chats.forEach { chat ->
                         val existingEntity = existingChatsMap[chat.id]
-                        // Pass existingEntity to preserve local-only fields (isPinned, pinnedAt, isHidden)
+                        // Pass existingEntity to preserve local-only field (isHidden)
                         val newEntity = chatMappers.modelToEntity(chat, existingEntity)
                         
                         if (existingEntity != null) {
                             val mergedLastMessageId = chat.lastMessage?.id ?: existingEntity.lastMessageId
                             // Use server's values - they are the source of truth
-                            Log.d(TAG, "refreshChats: chat ${chat.id} server unreadCount=${chat.unreadCount}, firstUnreadMessageId=${chat.firstUnreadMessageId}")
+                            Log.d(TAG, "refreshChats: chat ${chat.id} server unreadCount=${chat.unreadCount}, isPinned=${chat.isPinned}, firstUnreadMessageId=${chat.firstUnreadMessageId}")
                             
                             updates.add(newEntity.copy(
                                 lastMessageId = mergedLastMessageId,
@@ -63,9 +63,8 @@ class ChatSyncOperations @Inject constructor(
                                 lastReadMessageId = chat.lastReadMessageId,
                                 firstUnreadMessageId = chat.firstUnreadMessageId,
                                 muted = newEntity.muted,
-                                // Preserve local-only fields from existing entity
-                                isPinned = existingEntity.isPinned,
-                                pinnedAt = existingEntity.pinnedAt,
+                                // isPinned and pinnedAt now come from server
+                                // Only preserve isHidden as local-only field
                                 isHidden = existingEntity.isHidden
                             ))
                         } else {
@@ -135,14 +134,13 @@ class ChatSyncOperations @Inject constructor(
                     }
                     
                     // Use server values - they are the source of truth
-                    Log.d(TAG, "getChatById: serverUnreadCount=${chat.unreadCount}, firstUnreadMessageId=${chat.firstUnreadMessageId}")
+                    Log.d(TAG, "getChatById: serverUnreadCount=${chat.unreadCount}, isPinned=${chat.isPinned}, firstUnreadMessageId=${chat.firstUnreadMessageId}")
                     
                     val existingChat = chatDao.getChatById(chatId)
-                    val updatedEntity = chatMappers.modelToEntity(chat).copy(
+                    val updatedEntity = chatMappers.modelToEntity(chat, existingChat).copy(
                         lastMessageId = existingChat?.lastMessageId ?: chat.lastMessage?.id,
-                        // Preserve local-only fields
-                        isPinned = existingChat?.isPinned ?: false,
-                        pinnedAt = existingChat?.pinnedAt ?: 0L,
+                        // isPinned and pinnedAt now come from server via modelToEntity
+                        // Only preserve isHidden as local-only field
                         isHidden = existingChat?.isHidden ?: false
                     )
                     

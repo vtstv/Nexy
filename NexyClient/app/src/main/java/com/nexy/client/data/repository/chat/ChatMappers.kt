@@ -22,9 +22,10 @@ class ChatMappers @Inject constructor() {
         muted = chat.muted || isMuted(chat.mutedUntil),
         lastReadMessageId = chat.lastReadMessageId,
         firstUnreadMessageId = chat.firstUnreadMessageId,
-        isPinned = existingEntity?.isPinned ?: chat.isPinned,
-        pinnedAt = existingEntity?.pinnedAt ?: chat.pinnedAt,
-        isHidden = existingEntity?.isHidden ?: chat.isHidden
+        // Use server value if available, otherwise preserve local value
+        isPinned = if (chat.isPinned) true else (existingEntity?.isPinned ?: false),
+        pinnedAt = parseTimestamp(chat.pinnedAt).takeIf { chat.isPinned } ?: (existingEntity?.pinnedAt ?: 0L),
+        isHidden = existingEntity?.isHidden ?: false // isHidden is always local-only
     )
 
     fun entityToModel(entity: ChatEntity) = Chat(
@@ -43,7 +44,8 @@ class ChatMappers @Inject constructor() {
         lastReadMessageId = entity.lastReadMessageId,
         firstUnreadMessageId = entity.firstUnreadMessageId,
         isPinned = entity.isPinned,
-        pinnedAt = entity.pinnedAt,
+        pinnedAt = if (entity.pinnedAt > 0) java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault())
+            .format(java.util.Date(entity.pinnedAt)) else null,
         isHidden = entity.isHidden
     )
 

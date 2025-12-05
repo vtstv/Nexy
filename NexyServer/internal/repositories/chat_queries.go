@@ -94,6 +94,7 @@ func (r *ChatRepository) GetUserChats(ctx context.Context, userID int) ([]*model
 	query := `
 		SELECT c.id, c.type, c.name, c.avatar_url, c.created_by, c.created_at, c.updated_at, 
 			cm.muted_until, COALESCE(cm.last_read_message_id, 0) as last_read_message_id,
+			COALESCE(cm.is_pinned, FALSE) as is_pinned, cm.pinned_at,
 			COALESCE((
 				SELECT COUNT(*)
 				FROM messages m
@@ -115,7 +116,7 @@ func (r *ChatRepository) GetUserChats(ctx context.Context, userID int) ([]*model
 		FROM chats c
 		INNER JOIN chat_members cm ON c.id = cm.chat_id
 		WHERE cm.user_id = $1
-		ORDER BY c.updated_at DESC`
+		ORDER BY cm.is_pinned DESC, cm.pinned_at DESC NULLS LAST, c.updated_at DESC`
 
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
@@ -128,6 +129,7 @@ func (r *ChatRepository) GetUserChats(ctx context.Context, userID int) ([]*model
 		chat := &models.Chat{}
 		var createdBy sql.NullInt64
 		var mutedUntil sql.NullTime
+		var pinnedAt sql.NullTime
 		var firstUnreadMessageId sql.NullString
 		err := rows.Scan(
 			&chat.ID,
@@ -139,6 +141,8 @@ func (r *ChatRepository) GetUserChats(ctx context.Context, userID int) ([]*model
 			&chat.UpdatedAt,
 			&mutedUntil,
 			&chat.LastReadMessageId,
+			&chat.IsPinned,
+			&pinnedAt,
 			&chat.UnreadCount,
 			&firstUnreadMessageId,
 		)
@@ -151,6 +155,9 @@ func (r *ChatRepository) GetUserChats(ctx context.Context, userID int) ([]*model
 		}
 		if mutedUntil.Valid {
 			chat.MutedUntil = &mutedUntil.Time
+		}
+		if pinnedAt.Valid {
+			chat.PinnedAt = &pinnedAt.Time
 		}
 		if firstUnreadMessageId.Valid && firstUnreadMessageId.String != "" {
 			chat.FirstUnreadMessageId = firstUnreadMessageId.String

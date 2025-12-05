@@ -212,3 +212,15 @@ func (r *ChatRepository) MuteChat(ctx context.Context, chatID, userID int, until
 	_, err := r.db.ExecContext(ctx, query, until, chatID, userID)
 	return err
 }
+
+// PinChat pins or unpins a chat for a user
+func (r *ChatRepository) PinChat(ctx context.Context, chatID, userID int, isPinned bool) error {
+	var pinnedAt *time.Time
+	if isPinned {
+		now := time.Now()
+		pinnedAt = &now
+	}
+	query := `UPDATE chat_members SET is_pinned = $1, pinned_at = $2 WHERE chat_id = $3 AND user_id = $4`
+	_, err := r.db.ExecContext(ctx, query, isPinned, pinnedAt, chatID, userID)
+	return err
+}

@@ -101,6 +101,8 @@ func (rt *Router) Setup() *mux.Router {
 	chats.HandleFunc("/{id:[0-9]+}", rt.userController.GetChat).Methods("GET")
 	chats.HandleFunc("/{id:[0-9]+}/mute", rt.userController.MuteChat).Methods("POST")
 	chats.HandleFunc("/{id:[0-9]+}/unmute", rt.userController.UnmuteChat).Methods("POST")
+	chats.HandleFunc("/{id:[0-9]+}/pin", rt.userController.PinChat).Methods("POST")
+	chats.HandleFunc("/{id:[0-9]+}/unpin", rt.userController.UnpinChat).Methods("POST")
 	chats.HandleFunc("/{id:[0-9]+}/messages/search", rt.messageController.SearchMessages).Methods("GET")
 	chats.HandleFunc("/create", rt.userController.CreatePrivateChat).Methods("POST")
 

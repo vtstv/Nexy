@@ -251,3 +251,31 @@ func (s *UserService) UnmuteChat(ctx context.Context, userID, chatID int) error 
 
 	return s.chatRepo.MuteChat(ctx, chatID, userID, nil)
 }
+
+// PinChat pins a chat for a user
+func (s *UserService) PinChat(ctx context.Context, userID, chatID int) error {
+	// Check if user is member
+	isMember, err := s.chatRepo.IsMember(ctx, chatID, userID)
+	if err != nil {
+		return err
+	}
+	if !isMember {
+		return fmt.Errorf("user %d is not a member of chat %d", userID, chatID)
+	}
+
+	return s.chatRepo.PinChat(ctx, chatID, userID, true)
+}
+
+// UnpinChat unpins a chat for a user
+func (s *UserService) UnpinChat(ctx context.Context, userID, chatID int) error {
+	// Check if user is member
+	isMember, err := s.chatRepo.IsMember(ctx, chatID, userID)
+	if err != nil {
+		return err
+	}
+	if !isMember {
+		return fmt.Errorf("user %d is not a member of chat %d", userID, chatID)
+	}
+
+	return s.chatRepo.PinChat(ctx, chatID, userID, false)
+}

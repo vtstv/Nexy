@@ -342,6 +342,14 @@ class ChatOperations @Inject constructor(
     suspend fun pinChat(chatId: Int): Result<Unit> {
         return withContext(Dispatchers.IO) {
             try {
+                // Call server API first
+                val response = apiService.pinChat(chatId)
+                if (!response.isSuccessful) {
+                    Log.e(TAG, "Failed to pin chat on server: ${response.code()}")
+                    return@withContext Result.failure(Exception("Server error: ${response.code()}"))
+                }
+                
+                // Update local DB
                 val pinnedAt = System.currentTimeMillis()
                 chatDao.setPinned(chatId, true, pinnedAt)
                 Result.success(Unit)
@@ -355,6 +363,14 @@ class ChatOperations @Inject constructor(
     suspend fun unpinChat(chatId: Int): Result<Unit> {
         return withContext(Dispatchers.IO) {
             try {
+                // Call server API first
+                val response = apiService.unpinChat(chatId)
+                if (!response.isSuccessful) {
+                    Log.e(TAG, "Failed to unpin chat on server: ${response.code()}")
+                    return@withContext Result.failure(Exception("Server error: ${response.code()}"))
+                }
+                
+                // Update local DB
                 chatDao.setPinned(chatId, false, 0L)
                 Result.success(Unit)
             } catch (e: Exception) {

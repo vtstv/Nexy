@@ -112,3 +112,47 @@ func (c *UserController) UnmuteChat(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 }
+
+func (c *UserController) PinChat(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	chatID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "Invalid chat ID", http.StatusBadRequest)
+		return
+	}
+
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if err := c.userService.PinChat(r.Context(), userID, chatID); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (c *UserController) UnpinChat(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	chatID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "Invalid chat ID", http.StatusBadRequest)
+		return
+	}
+
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if err := c.userService.UnpinChat(r.Context(), userID, chatID); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}

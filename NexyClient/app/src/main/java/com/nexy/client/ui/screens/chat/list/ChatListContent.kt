@@ -5,16 +5,21 @@ package com.nexy.client.ui.screens.chat.list
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -23,7 +28,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.nexy.client.R
 import com.nexy.client.data.models.ChatType
 import com.nexy.client.data.models.ChatFolder as ApiFolderModel
@@ -96,6 +103,54 @@ private fun parseTimestampForSort(timestamp: String?): Long {
         sdf.parse(withoutMillis)?.time ?: 0L
     } catch (e: Exception) {
         0L
+    }
+}
+
+// Count chats that belong to a folder
+private fun countChatsInFolder(chats: List<ChatWithInfo>, folder: ApiFolderModel): Int {
+    return chats.count { chatWithInfo ->
+        val chatId = chatWithInfo.chat.id
+        val chatType = chatWithInfo.chat.type
+        
+        if (folder.excludedChatIds?.contains(chatId) == true) {
+            false
+        } else if (folder.includedChatIds?.contains(chatId) == true) {
+            true
+        } else {
+            val isGroup = chatType == ChatType.GROUP
+            val isPrivate = chatType == ChatType.PRIVATE
+            
+            (folder.includeGroups && isGroup) ||
+            (folder.includeContacts && isPrivate) ||
+            (folder.includeNonContacts && isPrivate)
+        }
+    }
+}
+
+// Telegram-style folder counter badge
+@Composable
+private fun FolderCountBadge(
+    count: Int,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    if (count > 0) {
+        Box(
+            modifier = modifier
+                .clip(CircleShape)
+                .background(color.copy(alpha = 0.15f))
+                .padding(horizontal = 6.dp, vertical = 2.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = if (count > 99) "99+" else count.toString(),
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium
+                ),
+                color = color
+            )
+        }
     }
 }
 
@@ -188,16 +243,31 @@ fun ChatListContent(
         // Folder tabs with drag support for reordering
         ScrollableTabRow(
             selectedTabIndex = selectedTabIndex,
-            edgePadding = 8.dp
+            edgePadding = 8.dp,
+            indicator = { tabPositions ->
+                if (selectedTabIndex < tabPositions.size) {
+                    val selectedTab = folderTabs.getOrNull(selectedTabIndex)
+                    val indicatorColor = when (selectedTab) {
+                        is FolderTab.All -> MaterialTheme.colorScheme.primary
+                        is FolderTab.Custom -> getFolderColor(selectedTab.folder, selectedTabIndex - 1)
+                        null -> MaterialTheme.colorScheme.primary
+                    }
+                    TabRowDefaults.SecondaryIndicator(
+                        Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                        color = indicatorColor
+                    )
+                }
+            },
+            divider = {} 
         ) {
             folderTabs.forEachIndexed { index, tab ->
-                val isDraggingFolder = dragState.draggedFolderIndex == index - 1
+                val isDraggingFolder = dragState.isDragging && dragState.draggedFolderIndex == index - 1
 
                 val backgroundColor by animateColorAsState(
                     targetValue = if (isDraggingFolder) 
                         MaterialTheme.colorScheme.surfaceContainerHigh 
                     else 
-                        MaterialTheme.colorScheme.surface,
+                        Color.Transparent,
                     label = "tabBg"
                 )
                 
@@ -207,20 +277,24 @@ fun ChatListContent(
                     is FolderTab.Custom -> getFolderColor(tab.folder, index - 1)
                 }
                 
-                // Tab selected indicator color
+                // Content color based on selection
                 val contentColor = if (selectedTabIndex == index) folderColor else MaterialTheme.colorScheme.onSurfaceVariant
+                
+                // Badge color - use folder color only when selected, otherwise use muted color
+                val badgeColor = if (selectedTabIndex == index) folderColor else MaterialTheme.colorScheme.onSurfaceVariant
 
-                Tab(
-                    selected = selectedTabIndex == index,
-                    onClick = { 
-                        if (!dragState.isDragging) {
-                            selectedTabIndex = index 
-                        }
-                    },
-                    selectedContentColor = folderColor,
-                    unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                // Custom tab without ripple/indicator effects
+                Box(
                     modifier = Modifier
                         .background(backgroundColor)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null // No ripple
+                        ) {
+                            if (!dragState.isDragging) {
+                                selectedTabIndex = index
+                            }
+                        }
                         .then(
                             if (tab is FolderTab.Custom) {
                                 Modifier.pointerInput(index, folders.size) {
@@ -268,23 +342,31 @@ fun ChatListContent(
                                 }
                             } else Modifier
                         )
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    // Tab content with icon and text
+                    // Tab content with icon, text and counter badge
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         when (tab) {
                             is FolderTab.All -> {
                                 Icon(
                                     imageVector = Icons.Default.ChatBubble,
                                     contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(18.dp),
+                                    tint = contentColor
                                 )
                                 Text(
                                     text = stringResource(R.string.folder_all),
-                                    style = MaterialTheme.typography.labelLarge
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = contentColor
+                                )
+                                // Show total chat count for "All" tab
+                                FolderCountBadge(
+                                    count = chats.size,
+                                    color = badgeColor
                                 )
                             }
                             is FolderTab.Custom -> {
@@ -300,12 +382,20 @@ fun ChatListContent(
                                     Icon(
                                         imageVector = getFolderIcon(tab.folder),
                                         contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(18.dp),
+                                        tint = contentColor
                                     )
                                 }
                                 Text(
                                     text = tab.folder.name,
-                                    style = MaterialTheme.typography.labelLarge
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = contentColor
+                                )
+                                // Show chat count in this folder
+                                val folderChatCount = countChatsInFolder(chats, tab.folder)
+                                FolderCountBadge(
+                                    count = folderChatCount,
+                                    color = badgeColor
                                 )
                             }
                         }
@@ -377,7 +467,7 @@ fun ChatListContent(
                     // Sort: pinned chats first (stable), then by updatedAt desc
                     .sortedWith(
                         compareByDescending<ChatWithInfo> { it.chat.isPinned }
-                            .thenByDescending { it.chat.pinnedAt }
+                            .thenByDescending { parseTimestampForSort(it.chat.pinnedAt) }
                             .thenByDescending { parseTimestampForSort(it.chat.updatedAt) }
                     )
                 

@@ -58,9 +58,11 @@ data class Chat(
     @SerializedName("last_read_message_id")
     val lastReadMessageId: Int = 0,
     
+    @SerializedName("is_pinned")
     val isPinned: Boolean = false,
     
-    val pinnedAt: Long = 0,
+    @SerializedName("pinned_at")
+    val pinnedAt: String? = null,
     
     val isHidden: Boolean = false,
     
