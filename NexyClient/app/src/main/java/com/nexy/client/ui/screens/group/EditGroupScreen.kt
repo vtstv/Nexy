@@ -1,7 +1,13 @@
 package com.nexy.client.ui.screens.group
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -9,8 +15,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.nexy.client.ServerConfig
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -25,8 +37,17 @@ fun EditGroupScreen(
     val groupUsername by viewModel.groupUsername.collectAsState()
     val isPublic by viewModel.isPublic.collectAsState()
     val isOwner by viewModel.isOwner.collectAsState()
+    val avatarUrl by viewModel.avatarUrl.collectAsState()
+    val isSaving by viewModel.isSaving.collectAsState()
     
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var selectedAvatarUri by remember { mutableStateOf<Uri?>(null) }
+    
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        selectedAvatarUri = uri
+    }
     
     LaunchedEffect(groupId) {
         viewModel.loadGroup(groupId)
@@ -71,13 +92,17 @@ fun EditGroupScreen(
                     if (uiState is EditGroupUiState.Success) {
                         TextButton(
                             onClick = {
-                                viewModel.updateGroup(groupId) {
+                                viewModel.updateGroup(groupId, selectedAvatarUri) {
                                     onNavigateBack()
                                 }
                             },
-                            enabled = groupName.isNotBlank()
+                            enabled = groupName.isNotBlank() && !isSaving
                         ) {
-                            Text("Save")
+                            if (isSaving) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            } else {
+                                Text("Save")
+                            }
                         }
                     }
                 }
@@ -103,8 +128,70 @@ fun EditGroupScreen(
                         .padding(padding)
                         .padding(16.dp)
                         .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    // Avatar
+                    Box(
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clickable { launcher.launch("image/*") }
+                    ) {
+                        val model = if (selectedAvatarUri != null) {
+                            selectedAvatarUri
+                        } else {
+                            val url = ServerConfig.getFileUrl(avatarUrl)
+                            if (url != null) "$url?t=${System.currentTimeMillis()}" else null
+                        }
+                        
+                        if (model != null) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(model)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "Group Avatar",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Group,
+                                    null,
+                                    modifier = Modifier.size(64.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.CameraAlt,
+                                null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
                     OutlinedTextField(
                         value = groupName,
                         onValueChange = viewModel::setGroupName,
