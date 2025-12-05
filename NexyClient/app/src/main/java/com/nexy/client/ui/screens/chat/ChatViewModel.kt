@@ -8,15 +8,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nexy.client.data.models.Message
 import com.nexy.client.ui.screens.chat.handlers.CallHandler
+import com.nexy.client.ui.screens.chat.handlers.ChatMembershipHandler
 import com.nexy.client.ui.screens.chat.handlers.ChatStateManager
 import com.nexy.client.ui.screens.chat.handlers.EditingHandler
 import com.nexy.client.ui.screens.chat.handlers.FileOperationsHandler
 import com.nexy.client.ui.screens.chat.handlers.MessageOperationsHandler
+import com.nexy.client.ui.screens.chat.handlers.ReadReceiptHandler
 import com.nexy.client.ui.screens.chat.handlers.SearchHandler
 import com.nexy.client.ui.screens.chat.handlers.TypingHandler
 import com.nexy.client.ui.screens.chat.state.ChatUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -24,7 +25,6 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
-    private val chatRepository: com.nexy.client.data.repository.ChatRepository,
     private val stateManager: ChatStateManager,
     private val messageOps: MessageOperationsHandler,
     private val fileOps: FileOperationsHandler,
@@ -32,6 +32,8 @@ class ChatViewModel @Inject constructor(
     private val searchHandler: SearchHandler,
     private val typingHandler: TypingHandler,
     private val editingHandler: EditingHandler,
+    private val membershipHandler: ChatMembershipHandler,
+    private val readReceiptHandler: ReadReceiptHandler,
     private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     
@@ -63,25 +65,10 @@ class ChatViewModel @Inject constructor(
         }
     }
     
-    // Flag to track if this is the first load (don't mark as read until messages loaded)
-    private var firstLoading = true
-    // Store firstUnreadMessageId before marking as read so divider persists until user sees it
-    private var savedFirstUnreadMessageId: String? = null
-    // Track the last known message ID to detect new incoming messages
-    private var lastKnownMessageId: String? = null
-    // Flag to track if this chat screen is currently active/visible
-    private var isChatActive = false
-    // Debounce job for read receipts (Telegram-style: don't spam server)
-    private var readReceiptDebounceJob: Job? = null
-    private val READ_RECEIPT_DEBOUNCE_MS = 500L
-    
     fun onChatOpened() {
-        // Re-fetch chat info from server to get current firstUnreadMessageId
         android.util.Log.d("ChatViewModel", "onChatOpened: fetching fresh chat info from server")
-        firstLoading = true
-        savedFirstUnreadMessageId = null
-        lastKnownMessageId = null
-        isChatActive = true  // Mark chat as active
+        readReceiptHandler.reset()
+        readReceiptHandler.setChatActive(true)
         
         viewModelScope.launch {
             loadCurrentUserAndChatInfo()
@@ -96,20 +83,16 @@ class ChatViewModel @Inject constructor(
     private fun initializeChat() {
         viewModelScope.launch {
             loadCurrentUserAndChatInfo()
-            // DON'T mark as read yet - wait for messages to load first (like Telegram)
             loadMessages()
         }
     }
     
-    // Called when user leaves the chat (like Telegram's onPause)
     fun onChatClosed() {
         android.util.Log.d("ChatViewModel", "onChatClosed: marking as read now")
-        isChatActive = false  // Mark chat as inactive
-        // Cancel any pending debounced read receipt and send immediately
-        readReceiptDebounceJob?.cancel()
-        readReceiptDebounceJob = null
+        readReceiptHandler.setChatActive(false)
+        readReceiptHandler.cancelPendingReceipt()
         viewModelScope.launch {
-            markAsReadInternal()
+            readReceiptHandler.markAsRead(chatId)
         }
     }
     
@@ -119,12 +102,7 @@ class ChatViewModel @Inject constructor(
         
         try {
             stateManager.loadChatInfo(chatId, userId)?.let { chatInfo ->
-                // Save firstUnreadMessageId BEFORE any marking as read
-                // This ensures divider shows correctly until user scrolls/leaves
-                if (savedFirstUnreadMessageId == null && chatInfo.firstUnreadMessageId != null) {
-                    savedFirstUnreadMessageId = chatInfo.firstUnreadMessageId
-                    android.util.Log.d("ChatViewModel", "Saved firstUnreadMessageId: $savedFirstUnreadMessageId")
-                }
+                readReceiptHandler.saveFirstUnreadMessageId(chatInfo.firstUnreadMessageId)
                 
                 android.util.Log.d("ChatViewModel", "Chat info loaded: unreadCount=${chatInfo.unreadCount}, firstUnreadMessageId=${chatInfo.firstUnreadMessageId}")
                 _uiState.value = _uiState.value.copy(
@@ -138,8 +116,7 @@ class ChatViewModel @Inject constructor(
                     isMember = chatInfo.isMember,
                     mutedUntil = chatInfo.mutedUntil,
                     otherUserOnlineStatus = chatInfo.otherUserOnlineStatus,
-                    // Use saved value to keep divider visible
-                    firstUnreadMessageId = savedFirstUnreadMessageId ?: chatInfo.firstUnreadMessageId
+                    firstUnreadMessageId = readReceiptHandler.getSavedFirstUnreadMessageId() ?: chatInfo.firstUnreadMessageId
                 )
             }
         } catch (e: Exception) {
@@ -204,33 +181,22 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             messageOps.observeMessages(chatId).collect { messages ->
-                val currentUserId = _uiState.value.currentUserId
-                val previousLastMessageId = lastKnownMessageId
-                
-                // Update last known message ID - find newest message by timestamp
-                // Filter out messages with null timestamps, then find max
                 val newestMessage = messages.filter { it.timestamp != null }
                     .maxByOrNull { it.timestamp!! }
-                lastKnownMessageId = newestMessage?.id
+                readReceiptHandler.updateLastKnownMessageId(newestMessage?.id)
                 
                 _uiState.value = _uiState.value.copy(
                     messages = messages,
                     isLoading = false
                 )
                 
-                // Mark as read AFTER messages are loaded (like Telegram's !firstLoading check)
-                // Only mark as read if chat is currently active (user is viewing this chat)
-                // NOTE: We only mark as read on initial load or when user explicitly scrolls to see messages
-                // NOT when new messages arrive - that's handled by scroll position
-                if (!isChatActive) {
+                if (!readReceiptHandler.isChatActive()) {
                     android.util.Log.d("ChatViewModel", "Chat not active, skipping markAsRead")
-                } else if (firstLoading && messages.isNotEmpty()) {
-                    firstLoading = false
+                } else if (readReceiptHandler.isFirstLoading() && messages.isNotEmpty()) {
+                    readReceiptHandler.setFirstLoadingComplete()
                     android.util.Log.d("ChatViewModel", "Messages loaded, marking as read now")
-                    markAsReadInternal()
+                    readReceiptHandler.markAsRead(chatId)
                 }
-                // Removed: auto-marking new messages as read
-                // This should be triggered by scroll position (user actually seeing the message)
             }
         }
         
@@ -282,23 +248,15 @@ class ChatViewModel @Inject constructor(
         }
     }
     
-    private suspend fun markAsReadInternal() {
-        android.util.Log.d("ChatViewModel", "markAsRead called")
-        messageOps.markAsRead(chatId)
-    }
-    
-    // Called when user scrolls to see new messages (Telegram style - mark as read when visible)
-    // Uses debounce to avoid spamming server when scrolling through many messages
     fun onUserSawNewMessages() {
-        if (!isChatActive) return
+        if (!readReceiptHandler.isChatActive()) return
         
-        // Cancel previous pending read receipt and schedule new one (debounce)
-        readReceiptDebounceJob?.cancel()
-        readReceiptDebounceJob = viewModelScope.launch {
-            delay(READ_RECEIPT_DEBOUNCE_MS)
+        val job = viewModelScope.launch {
+            delay(readReceiptHandler.getDebounceMs())
             android.util.Log.d("ChatViewModel", "User saw new messages (debounced), marking as read")
-            markAsReadInternal()
+            readReceiptHandler.markAsRead(chatId)
         }
+        readReceiptHandler.setDebounceJob(job)
     }
     // endregion
 
@@ -339,9 +297,10 @@ class ChatViewModel @Inject constructor(
     // endregion
 
     // region Chat Operations
+    // region Chat Operations
     fun clearChat() {
         viewModelScope.launch {
-            messageOps.clearChat(chatId).onFailure { error ->
+            membershipHandler.clearChat(chatId).onFailure { error ->
                 _uiState.value = _uiState.value.copy(error = error.message ?: "Failed to clear chat")
             }
         }
@@ -349,7 +308,7 @@ class ChatViewModel @Inject constructor(
     
     fun deleteChat() {
         viewModelScope.launch {
-            messageOps.deleteChat(chatId).onFailure { error ->
+            membershipHandler.deleteChat(chatId).onFailure { error ->
                 _uiState.value = _uiState.value.copy(error = error.message ?: "Failed to delete chat")
             }
         }
@@ -413,13 +372,14 @@ class ChatViewModel @Inject constructor(
     }
     // endregion
 
+    // region Membership
     fun joinGroup() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
-            stateManager.joinGroup(chatId)
+            membershipHandler.joinGroup(chatId)
                 .onSuccess {
                     _uiState.value = _uiState.value.copy(isLoading = false, isMember = true)
-                    initializeChat() // Reload chat info
+                    initializeChat()
                 }
                 .onFailure { error ->
                     _uiState.value = _uiState.value.copy(isLoading = false, error = error.message ?: "Failed to join group")
@@ -429,27 +389,20 @@ class ChatViewModel @Inject constructor(
 
     fun muteChat(duration: String?, until: String?) {
         viewModelScope.launch {
-            chatRepository.muteChat(chatId, duration, until)
-                .onSuccess {
-                    refreshChatInfo()
-                }
-                .onFailure { e ->
-                    _uiState.value = _uiState.value.copy(error = e.message)
-                }
+            membershipHandler.muteChat(chatId, duration, until)
+                .onSuccess { refreshChatInfo() }
+                .onFailure { e -> _uiState.value = _uiState.value.copy(error = e.message) }
         }
     }
 
     fun unmuteChat() {
         viewModelScope.launch {
-            chatRepository.unmuteChat(chatId)
-                .onSuccess {
-                    refreshChatInfo()
-                }
-                .onFailure { e ->
-                    _uiState.value = _uiState.value.copy(error = e.message)
-                }
+            membershipHandler.unmuteChat(chatId)
+                .onSuccess { refreshChatInfo() }
+                .onFailure { e -> _uiState.value = _uiState.value.copy(error = e.message) }
         }
     }
+    // endregion
     
     private fun refreshChatInfo() {
         viewModelScope.launch {
