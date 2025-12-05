@@ -16,6 +16,9 @@ func (s *GroupService) JoinPublicGroup(ctx context.Context, groupID, userID int)
 	if err != nil {
 		return nil, err
 	}
+	if chat == nil {
+		return nil, errors.New("group not found")
+	}
 
 	if chat.GroupType != "public_group" {
 		return nil, errors.New("group is not public")

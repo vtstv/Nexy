@@ -16,6 +16,9 @@ func (s *GroupService) GetGroupMembers(ctx context.Context, groupID, userID int,
 	if err != nil {
 		return nil, err
 	}
+	if chat == nil {
+		return nil, errors.New("group not found")
+	}
 
 	isMember, err := s.chatRepo.IsMember(ctx, groupID, userID)
 	if err != nil {
@@ -89,6 +92,9 @@ func (s *GroupService) AddMember(ctx context.Context, groupID, requestorID, targ
 	chat, err := s.chatRepo.GetByID(ctx, groupID)
 	if err != nil {
 		return err
+	}
+	if chat == nil {
+		return errors.New("group not found")
 	}
 
 	member := &models.ChatMember{

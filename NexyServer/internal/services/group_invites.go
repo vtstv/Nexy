@@ -70,6 +70,9 @@ func (s *GroupService) JoinGroupByInvite(ctx context.Context, inviteCode string,
 	if err != nil {
 		return nil, err
 	}
+	if chat == nil {
+		return nil, errors.New("group not found")
+	}
 
 	isMember, err := s.chatRepo.IsMember(ctx, invite.ChatID, userID)
 	if err != nil {

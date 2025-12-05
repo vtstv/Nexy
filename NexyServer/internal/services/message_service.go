@@ -33,6 +33,9 @@ func (s *MessageService) GetChatHistory(ctx context.Context, chatID, userID, lim
 	if err != nil {
 		return nil, err
 	}
+	if chat == nil {
+		return nil, errors.New("chat not found")
+	}
 
 	isMember, err := s.chatRepo.IsMember(ctx, chatID, userID)
 	if err != nil {

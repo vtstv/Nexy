@@ -144,6 +144,10 @@ func (s *UserService) GetUserChats(ctx context.Context, userID int) ([]*models.C
 
 // GetChat retrieves a specific chat for a user
 func (s *UserService) GetChat(ctx context.Context, userID, chatID int) (*models.Chat, error) {
+	if chatID <= 0 {
+		return nil, fmt.Errorf("invalid chat ID: %d", chatID)
+	}
+
 	// Check if user is member
 	isMember, err := s.chatRepo.IsMember(ctx, chatID, userID)
 	if err != nil {
@@ -153,6 +157,9 @@ func (s *UserService) GetChat(ctx context.Context, userID, chatID int) (*models.
 	chat, err := s.chatRepo.GetByID(ctx, chatID)
 	if err != nil {
 		return nil, err
+	}
+	if chat == nil {
+		return nil, fmt.Errorf("chat not found: %d", chatID)
 	}
 
 	if !isMember {

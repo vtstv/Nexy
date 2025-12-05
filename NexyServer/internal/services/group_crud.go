@@ -80,6 +80,9 @@ func (s *GroupService) GetGroup(ctx context.Context, groupID, userID int) (*mode
 	if err != nil {
 		return nil, err
 	}
+	if chat == nil {
+		return nil, errors.New("group not found")
+	}
 
 	isMember, err := s.chatRepo.IsMember(ctx, groupID, userID)
 	if err != nil {
@@ -109,6 +112,9 @@ func (s *GroupService) UpdateGroup(ctx context.Context, groupID, userID int, nam
 	chat, err := s.chatRepo.GetByID(ctx, groupID)
 	if err != nil {
 		return nil, err
+	}
+	if chat == nil {
+		return nil, errors.New("group not found")
 	}
 
 	if chat.GroupType == "public_group" && username == "" {
