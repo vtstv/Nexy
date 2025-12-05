@@ -52,8 +52,10 @@ class ChatMappers @Inject constructor() {
         if (mutedUntil == null) return false
         return try {
             val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault())
+            sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
             val withoutMillis = mutedUntil.substringBefore('.')
-            val mutedUntilTime = sdf.parse(withoutMillis)?.time ?: return false
+            val cleanTime = withoutMillis.removeSuffix("Z")
+            val mutedUntilTime = sdf.parse(cleanTime)?.time ?: return false
             System.currentTimeMillis() < mutedUntilTime
         } catch (e: Exception) {
             false

@@ -98,8 +98,16 @@ class ChatListViewModel @Inject constructor(
     private fun loadCurrentUser() {
         viewModelScope.launch {
             tokenManager.getUserId()?.let { userId ->
-                userRepository.getUserById(userId, forceRefresh = true).onSuccess { user ->
-                    _uiState.value = _uiState.value.copy(currentUser = user)
+                // Initial load with force refresh to ensure we have latest data
+                launch {
+                    userRepository.getUserById(userId, forceRefresh = true)
+                }
+                
+                // Observe changes from DB
+                userRepository.getUserByIdFlow(userId).collect { user ->
+                    if (user != null) {
+                        _uiState.update { it.copy(currentUser = user) }
+                    }
                 }
             }
         }
