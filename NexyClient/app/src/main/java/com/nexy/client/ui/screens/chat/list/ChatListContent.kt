@@ -32,31 +32,16 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import com.nexy.client.R
 import com.nexy.client.data.models.ChatType
 import com.nexy.client.data.models.ChatFolder as ApiFolderModel
 import com.nexy.client.ui.screens.chat.ChatWithInfo
-import kotlin.math.roundToInt
+import com.nexy.client.ui.screens.chat.list.components.DragState
+import com.nexy.client.ui.screens.chat.list.components.DraggableChatListItem
+import com.nexy.client.ui.screens.chat.list.components.FolderTab
 
 private const val TAG = "ChatListContent"
-
-// Built-in folder type for filtering
-sealed class FolderTab {
-    object All : FolderTab()
-    data class Custom(val folder: ApiFolderModel) : FolderTab()
-}
-
-// Drag state holder
-data class DragState(
-    val isDragging: Boolean = false,
-    val draggedChatId: Int? = null,
-    val draggedFolderIndex: Int = -1,
-    val dragOffset: Offset = Offset.Zero,
-    val startPosition: Offset = Offset.Zero
-)
 
 @Composable
 fun ChatListContent(
@@ -349,71 +334,5 @@ fun ChatListContent(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun DraggableChatListItem(
-    chatWithInfo: ChatWithInfo,
-    isDragging: Boolean,
-    dragOffset: Offset,
-    onClick: () -> Unit,
-    onDragStart: (Offset) -> Unit,
-    onDrag: (Offset) -> Unit,
-    onDragEnd: () -> Unit,
-    onDragCancel: () -> Unit
-) {
-    var itemPosition by remember { mutableStateOf(Offset.Zero) }
-    
-    val scale by animateFloatAsState(
-        targetValue = if (isDragging) 1.05f else 1f,
-        label = "itemScale"
-    )
-    
-    val elevation = if (isDragging) 8.dp else 0.dp
-    val zIndex = if (isDragging) 10f else 0f
-    
-    val backgroundColor by animateColorAsState(
-        targetValue = if (isDragging) 
-            MaterialTheme.colorScheme.surfaceContainerHigh 
-        else 
-            MaterialTheme.colorScheme.surface,
-        label = "itemBg"
-    )
-
-    Box(
-        modifier = Modifier
-            .zIndex(zIndex)
-            .graphicsLayer {
-                if (isDragging) {
-                    translationX = dragOffset.x
-                    translationY = dragOffset.y
-                    scaleX = scale
-                    scaleY = scale
-                    shadowElevation = with(LocalDensity) { elevation.toPx() }
-                }
-            }
-            .onGloballyPositioned { coords ->
-                itemPosition = coords.positionInRoot()
-            }
-            .background(backgroundColor)
-            .pointerInput(chatWithInfo.chat.id) {
-                detectDragGesturesAfterLongPress(
-                    onDragStart = { offset ->
-                        onDragStart(itemPosition + offset)
-                    },
-                    onDrag = { change, dragAmount ->
-                        change.consume()
-                        onDrag(dragAmount)
-                    },
-                    onDragEnd = onDragEnd,
-                    onDragCancel = onDragCancel
-                )
-            }
-    ) {
-        ChatListItem(
-            chatWithInfo = chatWithInfo,
-            onClick = onClick
-        )
     }
 }
