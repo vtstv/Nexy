@@ -17,6 +17,8 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -38,6 +40,7 @@ private enum class SettingsCategory {
     APPEARANCE,
     CHAT,
     NOTIFICATIONS,
+    PRIVACY,
     SECURITY,
     STORAGE
 }
@@ -110,6 +113,7 @@ fun SettingsScreen(
                             SettingsCategory.APPEARANCE -> stringResource(R.string.appearance)
                             SettingsCategory.CHAT -> "Chat Settings"
                             SettingsCategory.NOTIFICATIONS -> "Notifications"
+                            SettingsCategory.PRIVACY -> "Privacy"
                             SettingsCategory.SECURITY -> "Security"
                             SettingsCategory.STORAGE -> "Storage & Data"
                         }
@@ -153,7 +157,12 @@ fun SettingsScreen(
                         onClick = { currentCategory = SettingsCategory.NOTIFICATIONS }
                     )
                     SettingsCategoryItem(
-                        icon = Icons.Default.Lock,
+                        icon = Icons.Default.VisibilityOff,
+                        title = "Privacy",
+                        onClick = { currentCategory = SettingsCategory.PRIVACY }
+                    )
+                    SettingsCategoryItem(
+                        icon = Icons.Default.Security,
                         title = "Security",
                         onClick = { currentCategory = SettingsCategory.SECURITY }
                     )
@@ -183,39 +192,6 @@ fun SettingsScreen(
                         onThemeStyleChange = { themeViewModel.setThemeStyle(it) },
                         onIncomingColorClick = { showIncomingColorPicker = true },
                         onOutgoingColorClick = { showOutgoingColorPicker = true }
-                    )
-                    HorizontalDivider()
-                    ListItem(
-                        headlineContent = { Text("Read Receipts") },
-                        supportingContent = { Text("Show when you read messages") },
-                        trailingContent = {
-                            Switch(
-                                checked = readReceiptsEnabled,
-                                onCheckedChange = { viewModel.setReadReceiptsEnabled(it) }
-                            )
-                        }
-                    )
-                    HorizontalDivider()
-                    ListItem(
-                        headlineContent = { Text("Typing Indicators") },
-                        supportingContent = { Text("Show when you are typing") },
-                        trailingContent = {
-                            Switch(
-                                checked = typingIndicatorsEnabled,
-                                onCheckedChange = { viewModel.setTypingIndicatorsEnabled(it) }
-                            )
-                        }
-                    )
-                    HorizontalDivider()
-                    ListItem(
-                        headlineContent = { Text("Online Status") },
-                        supportingContent = { Text("Show your online status. When disabled, you won't see others' status either.") },
-                        trailingContent = {
-                            Switch(
-                                checked = showOnlineStatus,
-                                onCheckedChange = { viewModel.setShowOnlineStatus(it) }
-                            )
-                        }
                     )
                     HorizontalDivider()
                     VoiceMediaSection(
@@ -256,6 +232,40 @@ fun SettingsScreen(
                         onLoadSessions = { viewModel.loadSessions() },
                         onLogoutSession = { sessionId -> viewModel.logoutSession(sessionId) },
                         onLogoutAllOtherSessions = { viewModel.logoutAllOtherSessions() }
+                    )
+                }
+                SettingsCategory.PRIVACY -> {
+                    ListItem(
+                        headlineContent = { Text("Read Receipts") },
+                        supportingContent = { Text("Show when you read messages") },
+                        trailingContent = {
+                            Switch(
+                                checked = readReceiptsEnabled,
+                                onCheckedChange = { viewModel.setReadReceiptsEnabled(it) }
+                            )
+                        }
+                    )
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text("Typing Indicators") },
+                        supportingContent = { Text("Show when you are typing") },
+                        trailingContent = {
+                            Switch(
+                                checked = typingIndicatorsEnabled,
+                                onCheckedChange = { viewModel.setTypingIndicatorsEnabled(it) }
+                            )
+                        }
+                    )
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text("Online Status") },
+                        supportingContent = { Text("Show your online status. When disabled, you won't see others' status either.") },
+                        trailingContent = {
+                            Switch(
+                                checked = showOnlineStatus,
+                                onCheckedChange = { viewModel.setShowOnlineStatus(it) }
+                            )
+                        }
                     )
                 }
                 SettingsCategory.STORAGE -> {
