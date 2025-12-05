@@ -10,11 +10,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nexy.client.R
 import com.nexy.client.ui.screens.chat.ChatListViewModel
-import com.nexy.client.ui.screens.chat.ChatWithInfo
-import com.nexy.client.ui.screens.chat.list.selection.ChatContextMenu
 import com.nexy.client.ui.screens.chat.list.selection.FolderPickerDialog
 import com.nexy.client.ui.screens.chat.list.selection.MuteDuration
-import com.nexy.client.ui.screens.chat.list.selection.SelectionTopBar
 import com.nexy.client.ui.theme.ThemeViewModel
 import kotlinx.coroutines.launch
 
@@ -48,12 +45,8 @@ fun ChatListScreen(
     
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
-    var showContextMenu by remember { mutableStateOf(false) }
     var showFolderPicker by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
-    var contextMenuChat by remember { mutableStateOf<ChatWithInfo?>(null) }
-    var chatForFolderPicker by remember { mutableStateOf<ChatWithInfo?>(null) }
-    var folderPickerMode by remember { mutableStateOf<FolderPickerMode>(FolderPickerMode.SingleChat) }
     
     val userName = uiState.currentUser?.displayName?.ifBlank { uiState.currentUser?.username } 
         ?: uiState.currentUser?.username 
@@ -99,24 +92,12 @@ fun ChatListScreen(
         Scaffold(
             snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
-                if (selectionState.isSelectionMode) {
-                    SelectionTopBar(
-                        selectedCount = selectionState.selectedCount,
-                        onClose = { viewModel.clearSelection() },
-                        onMute = { duration -> viewModel.muteSelectedChats(duration) },
-                        onAddToFolder = {
-                            folderPickerMode = FolderPickerMode.SelectedChats
-                            showFolderPicker = true
-                        },
-                        onDelete = { showDeleteConfirmDialog = true }
-                    )
-                } else {
-                    ChatListTopBar(
-                        onOpenDrawer = { scope.launch { drawerState.open() } },
-                        onNavigateToContacts = onNavigateToContacts,
-                        onNavigateToProfile = onNavigateToProfile
-                    )
-                }
+                // Always show the normal top bar - selection is in the search area
+                ChatListTopBar(
+                    onOpenDrawer = { scope.launch { drawerState.open() } },
+                    onNavigateToContacts = onNavigateToContacts,
+                    onNavigateToProfile = onNavigateToProfile
+                )
             }
         ) { padding ->
             ChatListContent(
@@ -127,15 +108,26 @@ fun ChatListScreen(
                 selectionState = selectionState,
                 onChatClick = onChatClick,
                 onChatLongClick = { chatWithInfo ->
-                    if (selectionState.isSelectionMode) {
-                        viewModel.toggleChatSelection(chatWithInfo.chat.id)
-                    } else {
-                        contextMenuChat = chatWithInfo
-                        showContextMenu = true
-                    }
+                    // Long press enters selection mode (Telegram style)
+                    viewModel.enterSelectionMode(chatWithInfo.chat.id)
                 },
                 onToggleSelection = { chatId ->
                     viewModel.toggleChatSelection(chatId)
+                },
+                onClearSelection = {
+                    viewModel.clearSelection()
+                },
+                onPinSelected = {
+                    viewModel.pinSelectedChats()
+                },
+                onMuteSelected = { duration ->
+                    viewModel.muteSelectedChats(duration)
+                },
+                onAddToFolderSelected = {
+                    showFolderPicker = true
+                },
+                onDeleteSelected = {
+                    showDeleteConfirmDialog = true
                 },
                 onNavigateToSearch = onNavigateToSearch,
                 onNavigateToFolders = onNavigateToFolders,
@@ -162,71 +154,16 @@ fun ChatListScreen(
             )
         }
         
-        if (showContextMenu && contextMenuChat != null) {
-            ChatContextMenu(
-                chatName = contextMenuChat!!.displayName,
-                isMuted = contextMenuChat!!.chat.muted,
-                isPinned = contextMenuChat!!.chat.isPinned,
-                onDismiss = { 
-                    showContextMenu = false
-                    contextMenuChat = null
-                },
-                onPin = {
-                    contextMenuChat?.let { viewModel.pinChat(it.chat.id) }
-                },
-                onUnpin = {
-                    contextMenuChat?.let { viewModel.unpinChat(it.chat.id) }
-                },
-                onAddToFolder = {
-                    chatForFolderPicker = contextMenuChat
-                    folderPickerMode = FolderPickerMode.SingleChat
-                    showContextMenu = false
-                    showFolderPicker = true
-                },
-                onMarkAsRead = {
-                    scope.launch {
-                        snackbarHostState.showSnackbar("Mark as read coming soon")
-                    }
-                },
-                onMute = { duration ->
-                    contextMenuChat?.let { viewModel.muteChat(it.chat.id, duration) }
-                },
-                onUnmute = {
-                    contextMenuChat?.let { viewModel.unmuteChat(it.chat.id) }
-                },
-                onDelete = {
-                    contextMenuChat?.let { chat ->
-                        viewModel.enterSelectionMode(chat.chat.id)
-                        showDeleteConfirmDialog = true
-                    }
-                }
-            )
-        }
-        
         if (showFolderPicker) {
             FolderPickerDialog(
                 folders = folders,
                 onDismiss = { 
                     showFolderPicker = false
-                    chatForFolderPicker = null
                 },
                 onFolderSelected = { folder ->
-                    when (folderPickerMode) {
-                        FolderPickerMode.SingleChat -> {
-                            chatForFolderPicker?.let { chat ->
-                                viewModel.addChatToFolder(chat.chat.id, folder.id)
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Added to ${folder.name}")
-                                }
-                            }
-                            chatForFolderPicker = null
-                        }
-                        FolderPickerMode.SelectedChats -> {
-                            viewModel.addSelectedChatsToFolder(folder.id)
-                            scope.launch {
-                                snackbarHostState.showSnackbar("${selectionState.selectedCount} chats added to ${folder.name}")
-                            }
-                        }
+                    viewModel.addSelectedChatsToFolder(folder.id)
+                    scope.launch {
+                        snackbarHostState.showSnackbar("${selectionState.selectedCount} chats added to ${folder.name}")
                     }
                 }
             )
@@ -236,9 +173,6 @@ fun ChatListScreen(
             AlertDialog(
                 onDismissRequest = { 
                     showDeleteConfirmDialog = false
-                    if (selectionState.selectedCount == 1) {
-                        viewModel.clearSelection()
-                    }
                 },
                 title = { Text("Delete chats?") },
                 text = { 
@@ -258,7 +192,6 @@ fun ChatListScreen(
                     TextButton(
                         onClick = { 
                             showDeleteConfirmDialog = false
-                            viewModel.clearSelection()
                         }
                     ) {
                         Text("Cancel")
@@ -267,9 +200,4 @@ fun ChatListScreen(
             )
         }
     }
-}
-
-private enum class FolderPickerMode {
-    SingleChat,
-    SelectedChats
 }

@@ -382,6 +382,17 @@ class ChatListViewModel @Inject constructor(
         }
     }
     
+    fun pinSelectedChats() {
+        viewModelScope.launch {
+            val selectedIds = _selectionState.value.selectedChatIds.toList()
+            selectedIds.forEach { chatId ->
+                chatRepository.pinChat(chatId)
+            }
+            clearSelection()
+            _refreshTrigger.value = System.currentTimeMillis()
+        }
+    }
+    
     fun hideSelectedChats() {
         viewModelScope.launch {
             val selectedIds = _selectionState.value.selectedChatIds.toList()

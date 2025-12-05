@@ -3,7 +3,7 @@
  */
 package com.nexy.client.ui.screens.chat.list
 
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
@@ -32,6 +32,8 @@ import com.nexy.client.ui.screens.chat.list.components.DragState
 import com.nexy.client.ui.screens.chat.list.components.FolderTab
 import com.nexy.client.ui.screens.chat.list.components.SelectableChatListItem
 import com.nexy.client.ui.screens.chat.list.selection.ChatSelectionState
+import com.nexy.client.ui.screens.chat.list.selection.MuteDuration
+import com.nexy.client.ui.screens.chat.list.selection.SelectionActionBar
 
 @Composable
 fun ChatListContent(
@@ -43,6 +45,11 @@ fun ChatListContent(
     onChatClick: (Int) -> Unit,
     onChatLongClick: (ChatWithInfo) -> Unit = {},
     onToggleSelection: (Int) -> Unit = {},
+    onClearSelection: () -> Unit = {},
+    onPinSelected: () -> Unit = {},
+    onMuteSelected: (MuteDuration) -> Unit = {},
+    onAddToFolderSelected: () -> Unit = {},
+    onDeleteSelected: () -> Unit = {},
     onNavigateToSearch: () -> Unit,
     onNavigateToFolders: () -> Unit = {},
     onAddChatToFolder: (chatId: Int, folderId: Int) -> Unit = { _, _ -> },
@@ -64,26 +71,46 @@ fun ChatListContent(
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            placeholder = { Text(stringResource(R.string.search)) },
-            leadingIcon = {
-                Icon(Icons.Default.Search, stringResource(R.string.search))
+        // Animated switch between Search field and Selection Action Bar
+        AnimatedContent(
+            targetState = selectionState.isSelectionMode,
+            transitionSpec = {
+                fadeIn() + slideInVertically() togetherWith fadeOut() + slideOutVertically()
             },
-            trailingIcon = {
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { searchQuery = "" }) {
-                        Icon(Icons.Default.Clear, "Clear")
-                    }
-                }
-            },
-            singleLine = true,
-            shape = MaterialTheme.shapes.medium
-        )
+            label = "searchToSelection"
+        ) { isSelectionMode ->
+            if (isSelectionMode) {
+                SelectionActionBar(
+                    selectedCount = selectionState.selectedCount,
+                    onClose = onClearSelection,
+                    onPin = onPinSelected,
+                    onMute = onMuteSelected,
+                    onAddToFolder = onAddToFolderSelected,
+                    onDelete = onDeleteSelected
+                )
+            } else {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    placeholder = { Text(stringResource(R.string.search)) },
+                    leadingIcon = {
+                        Icon(Icons.Default.Search, stringResource(R.string.search))
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Clear, "Clear")
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = MaterialTheme.shapes.medium
+                )
+            }
+        }
 
         // Folder tabs with drag support for reordering
         ScrollableTabRow(
