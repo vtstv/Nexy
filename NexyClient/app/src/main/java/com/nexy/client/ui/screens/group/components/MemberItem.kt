@@ -32,7 +32,7 @@ fun MemberItem(
 
     if (showTransferDialog) {
         TransferOwnershipDialog(
-            memberName = member.user?.displayName ?: member.user?.username ?: "this user",
+            memberName = member.user?.displayName?.takeIf { it.isNotBlank() } ?: member.user?.username ?: "this user",
             onConfirm = {
                 onTransferOwnership()
                 showTransferDialog = false
@@ -113,7 +113,7 @@ private fun getInitial(member: ChatMember): String {
 private fun MemberInfo(member: ChatMember) {
     Column {
         Text(
-            text = member.user?.displayName ?: member.user?.username ?: "User ${member.userId}",
+            text = member.user?.displayName?.takeIf { it.isNotBlank() } ?: member.user?.username ?: "User ${member.userId}",
             style = MaterialTheme.typography.bodyLarge
         )
         // Show online status if available, otherwise show role

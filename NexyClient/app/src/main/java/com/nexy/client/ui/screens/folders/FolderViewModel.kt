@@ -78,7 +78,7 @@ class FolderViewModel @Inject constructor(
                         if (otherId != null) {
                             val userResult = userRepository.getUserById(otherId)
                             val user = userResult.getOrNull()
-                            Pair(user?.displayName ?: user?.username ?: "User $otherId", user?.avatarUrl)
+                            Pair(user?.displayName?.takeIf { it.isNotBlank() } ?: user?.username ?: "User $otherId", user?.avatarUrl)
                         } else {
                             Pair("Notepad", null)
                         }

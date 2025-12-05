@@ -221,7 +221,7 @@ fun InviteMembersScreen(
                 ) {
                     items(uiState.searchResults) { user ->
                         ListItem(
-                            headlineContent = { Text(user.displayName ?: user.username) },
+                            headlineContent = { Text(user.displayName?.takeIf { it.isNotBlank() } ?: user.username) },
                             supportingContent = { Text("@${user.username}") },
                             leadingContent = {
                                 AsyncImage(

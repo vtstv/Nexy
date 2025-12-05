@@ -143,7 +143,7 @@ private fun ReplyPreview(
             Spacer(modifier = Modifier.width(8.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Replying to ${message.sender?.displayName ?: "User"}",
+                    text = "Replying to ${message.sender?.displayName ?: message.sender?.username ?: "User"}",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary
                 )

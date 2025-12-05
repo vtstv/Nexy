@@ -23,7 +23,7 @@ fun ContactSelectionItem(
 ) {
     ListItem(
         headlineContent = { 
-            Text(contact.contactUser.displayName ?: contact.contactUser.username) 
+            Text(contact.contactUser.displayName?.takeIf { it.isNotBlank() } ?: contact.contactUser.username) 
         },
         supportingContent = { 
             Text("@${contact.contactUser.username}") 
@@ -31,7 +31,7 @@ fun ContactSelectionItem(
         leadingContent = {
             ContactAvatar(
                 avatarUrl = contact.contactUser.avatarUrl,
-                displayName = contact.contactUser.displayName ?: contact.contactUser.username
+                displayName = contact.contactUser.displayName?.takeIf { it.isNotBlank() } ?: contact.contactUser.username
             )
         },
         trailingContent = {

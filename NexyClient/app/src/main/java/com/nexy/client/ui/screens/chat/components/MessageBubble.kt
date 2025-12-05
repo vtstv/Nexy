@@ -81,7 +81,7 @@ fun MessageBubble(
 
                     if (isGroupChat && !isOwnMessage) {
                         Text(
-                            text = message.sender?.displayName 
+                            text = message.sender?.displayName?.takeIf { it.isNotBlank() }
                                 ?: message.sender?.username 
                                 ?: "User ${message.senderId}",
                             style = MaterialTheme.typography.labelMedium,

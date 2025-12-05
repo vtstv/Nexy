@@ -135,7 +135,7 @@ fun UserListItem(
         
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = user.displayName ?: user.username,
+                text = user.displayName?.takeIf { it.isNotBlank() } ?: user.username,
                 style = MaterialTheme.typography.titleMedium
             )
             Text(

@@ -34,7 +34,7 @@ class ChatStateManager @Inject constructor(
                 val userResult = userRepository.getUserById(otherUserId, forceRefresh = true)
                 val otherUser = userResult.getOrNull()
                 otherUserOnlineStatus = otherUser?.onlineStatus
-                otherUser?.displayName ?: otherUser?.username ?: "Chat"
+                otherUser?.displayName?.takeIf { it.isNotBlank() } ?: otherUser?.username ?: "Chat"
             } else {
                 "Chat"
             }

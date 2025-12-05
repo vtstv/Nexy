@@ -139,7 +139,7 @@ fun UserProfileScreen(
                 Spacer(modifier = Modifier.height(24.dp))
                 
                 Text(
-                    text = user.displayName ?: user.username,
+                    text = user.displayName?.takeIf { it.isNotBlank() } ?: user.username,
                     style = MaterialTheme.typography.headlineMedium
                 )
                 

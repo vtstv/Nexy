@@ -135,7 +135,7 @@ fun CallScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 Text(
-                    text = remoteUser?.displayName ?: remoteUser?.username ?: when (val state = callState) {
+                    text = remoteUser?.displayName?.takeIf { it.isNotBlank() } ?: remoteUser?.username ?: when (val state = callState) {
                         is CallState.Incoming -> "User ${state.callerId}"
                         is CallState.Outgoing -> "User ${state.recipientId}"
                         is CallState.Active -> "User ${state.remoteUserId}"
