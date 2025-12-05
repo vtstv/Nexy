@@ -218,13 +218,24 @@ class FolderRepository @Inject constructor(
 
     suspend fun reorderFolders(folderIds: List<Int>): Result<Unit> {
         return try {
+            android.util.Log.d("FolderRepository", "reorderFolders called with ids: $folderIds")
+            
+            if (folderIds.isEmpty()) {
+                android.util.Log.w("FolderRepository", "reorderFolders: empty list, skipping")
+                return Result.success(Unit)
+            }
+            
             // Create positions map: folderId -> new position
             val positions = folderIds.mapIndexed { index, folderId -> 
                 folderId to index 
             }.toMap()
             
+            android.util.Log.d("FolderRepository", "reorderFolders positions map: $positions")
+            
             val request = ReorderFoldersRequest(positions = positions)
             val response = apiService.reorderFolders(request)
+            
+            android.util.Log.d("FolderRepository", "reorderFolders response: ${response.code()}")
             
             if (response.isSuccessful) {
                 // Update local state with new order
@@ -235,9 +246,11 @@ class FolderRepository @Inject constructor(
                 _folders.value = reorderedFolders
                 Result.success(Unit)
             } else {
+                android.util.Log.e("FolderRepository", "reorderFolders failed: ${response.errorBody()?.string()}")
                 Result.failure(Exception("Failed to reorder folders"))
             }
         } catch (e: Exception) {
+            android.util.Log.e("FolderRepository", "reorderFolders exception", e)
             Result.failure(e)
         }
     }

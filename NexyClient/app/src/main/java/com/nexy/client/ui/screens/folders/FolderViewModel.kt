@@ -174,6 +174,7 @@ class FolderViewModel @Inject constructor(
     fun saveFolderOrder() {
         viewModelScope.launch {
             val folderIds = folderRepository.folders.value.map { it.id }
+            android.util.Log.d("FolderViewModel", "saveFolderOrder called, folderIds: $folderIds")
             folderRepository.reorderFolders(folderIds)
         }
     }
