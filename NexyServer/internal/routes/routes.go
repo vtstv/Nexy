@@ -21,6 +21,7 @@ type Router struct {
 	turnController    *controllers.TURNController
 	sessionController *controllers.SessionController
 	folderController  *controllers.FolderController
+	syncController    *controllers.SyncController
 	authMiddleware    *middleware.AuthMiddleware
 	corsMiddleware    *middleware.CORSMiddleware
 	rateLimiter       *middleware.RateLimiter
@@ -39,6 +40,7 @@ func NewRouter(
 	turnController *controllers.TURNController,
 	sessionController *controllers.SessionController,
 	folderController *controllers.FolderController,
+	syncController *controllers.SyncController,
 	authMiddleware *middleware.AuthMiddleware,
 	corsMiddleware *middleware.CORSMiddleware,
 	rateLimiter *middleware.RateLimiter,
@@ -56,6 +58,7 @@ func NewRouter(
 		turnController:    turnController,
 		sessionController: sessionController,
 		folderController:  folderController,
+		syncController:    syncController,
 		authMiddleware:    authMiddleware,
 		corsMiddleware:    corsMiddleware,
 		rateLimiter:       rateLimiter,
@@ -185,6 +188,13 @@ func (rt *Router) Setup() *mux.Router {
 	folders.HandleFunc("/{id:[0-9]+}", rt.folderController.DeleteFolder).Methods("DELETE")
 	folders.HandleFunc("/{id:[0-9]+}/chats", rt.folderController.AddChatsToFolder).Methods("POST")
 	folders.HandleFunc("/{id:[0-9]+}/chats/{chatId:[0-9]+}", rt.folderController.RemoveChatFromFolder).Methods("DELETE")
+
+	// Sync endpoints
+	sync := api.PathPrefix("/sync").Subrouter()
+	sync.Use(rt.authMiddleware.Authenticate)
+	sync.HandleFunc("/state", rt.syncController.GetState).Methods("GET")
+	sync.HandleFunc("/difference", rt.syncController.GetDifference).Methods("GET")
+	sync.HandleFunc("/channel/{id:[0-9]+}/difference", rt.syncController.GetChannelDifference).Methods("GET")
 
 	// WebSocket endpoint - authentication handled in controller via query param
 	r.HandleFunc("/ws", rt.wsController.HandleWebSocket)

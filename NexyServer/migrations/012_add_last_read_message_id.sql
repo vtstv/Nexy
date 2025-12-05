@@ -1,4 +1,4 @@
--- Add last_read_message_id to track read position per user per chat (Telegram-style)
+-- Add last_read_message_id to track read position per user per chat
 ALTER TABLE chat_members ADD COLUMN IF NOT EXISTS last_read_message_id INTEGER DEFAULT 0;
 
 -- Create index for efficient unread count queries

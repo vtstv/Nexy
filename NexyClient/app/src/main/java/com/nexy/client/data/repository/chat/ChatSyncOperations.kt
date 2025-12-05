@@ -53,7 +53,7 @@ class ChatSyncOperations @Inject constructor(
                         
                         if (existingEntity != null) {
                             val mergedLastMessageId = chat.lastMessage?.id ?: existingEntity.lastMessageId
-                            // Use server's values - they are the source of truth (Telegram-style)
+                            // Use server's values - they are the source of truth
                             Log.d(TAG, "refreshChats: chat ${chat.id} server unreadCount=${chat.unreadCount}, firstUnreadMessageId=${chat.firstUnreadMessageId}")
                             
                             updates.add(newEntity.copy(

@@ -14,7 +14,7 @@ func (r *MessageRepository) Create(ctx context.Context, msg *models.Message) err
 	query := `
 		INSERT INTO messages (message_id, chat_id, sender_id, message_type, content, media_url, media_type, file_size, reply_to_id)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		RETURNING id, created_at, updated_at`
+		RETURNING id, COALESCE(pts, id), created_at, updated_at`
 
 	return r.db.QueryRowContext(ctx, query,
 		msg.MessageID,
@@ -26,7 +26,7 @@ func (r *MessageRepository) Create(ctx context.Context, msg *models.Message) err
 		msg.MediaType,
 		msg.FileSize,
 		msg.ReplyToID,
-	).Scan(&msg.ID, &msg.CreatedAt, &msg.UpdatedAt)
+	).Scan(&msg.ID, &msg.Pts, &msg.CreatedAt, &msg.UpdatedAt)
 }
 
 // GetByID retrieves a message by its database ID

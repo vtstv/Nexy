@@ -121,6 +121,7 @@ type Message struct {
 	IsEdited    bool      `json:"is_edited"`
 	IsDeleted   bool      `json:"is_deleted"`
 	Status      string    `json:"status,omitempty"`
+	Pts         int       `json:"pts,omitempty"` // sequence number for sync
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -182,4 +183,47 @@ type ChatFolderWithChats struct {
 	ChatFolder
 	IncludedChats []int `json:"included_chats"`
 	ExcludedChats []int `json:"excluded_chats,omitempty"`
+}
+
+// synchronization state
+type SyncState struct {
+	Pts  int       `json:"pts"`
+	Date time.Time `json:"date"`
+}
+
+type ChannelSyncState struct {
+	ChatID int `json:"chat_id"`
+	Pts    int `json:"pts"`
+}
+
+// Update types for getDifference
+type Update struct {
+	Type     string      `json:"type"`      // "new_message", "edit_message", "delete_message", "read"
+	Pts      int         `json:"pts"`       // Sequence number
+	PtsCount int         `json:"pts_count"` // Number of events in this update
+	ChatID   int         `json:"chat_id"`
+	Data     interface{} `json:"data"` // Actual update data (Message, etc)
+}
+
+// Response for getDifference API
+type UpdatesDifference struct {
+	NewMessages     []*Message `json:"new_messages"`
+	EditedMessages  []*Message `json:"edited_messages,omitempty"`
+	DeletedMessages []string   `json:"deleted_messages,omitempty"` // message_ids
+	State           SyncState  `json:"state"`
+}
+
+// Response when difference is too large
+type UpdatesDifferenceSlice struct {
+	NewMessages       []*Message `json:"new_messages"`
+	IntermediateState SyncState  `json:"intermediate_state"`
+}
+
+// Response for channel getDifference
+type ChannelDifference struct {
+	Final           bool       `json:"final"`
+	NewMessages     []*Message `json:"new_messages"`
+	EditedMessages  []*Message `json:"edited_messages,omitempty"`
+	DeletedMessages []string   `json:"deleted_messages,omitempty"`
+	Pts             int        `json:"pts"`
 }

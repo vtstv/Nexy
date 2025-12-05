@@ -18,7 +18,7 @@ func (r *MessageRepository) UpdateStatus(ctx context.Context, status *models.Mes
 }
 
 // MarkMessagesAsRead marks all messages up to a certain point as read
-// Also updates last_read_message_id in chat_members (Telegram-style)
+// Also updates last_read_message_id in chat_members
 func (r *MessageRepository) MarkMessagesAsRead(ctx context.Context, chatID, userID, lastMessageID int) error {
 	// Update message_status for backward compatibility
 	query := `
@@ -47,7 +47,7 @@ func (r *MessageRepository) MarkMessagesAsRead(ctx context.Context, chatID, user
 }
 
 // GetUnreadCount returns the number of unread messages for a user in a chat
-// Uses last_read_message_id from chat_members (Telegram-style)
+// Uses last_read_message_id from chat_members
 func (r *MessageRepository) GetUnreadCount(ctx context.Context, chatID, userID int) (int, error) {
 	query := `
 		SELECT COUNT(*)

@@ -243,7 +243,51 @@ interface NexyApiService {
 
     @POST("chats/{chatId}/unmute")
     suspend fun unmuteChat(@Path("chatId") chatId: Int): Response<Unit>
+
+    // sync endpoints
+    @GET("sync/state")
+    suspend fun getSyncState(): Response<SyncState>
+
+    @GET("sync/difference")
+    suspend fun getDifference(
+        @Query("pts") pts: Int,
+        @Query("limit") limit: Int = 100
+    ): Response<UpdatesDifference>
+
+    @GET("sync/channel/{chatId}/difference")
+    suspend fun getChannelDifference(
+        @Path("chatId") chatId: Int,
+        @Query("pts") pts: Int,
+        @Query("limit") limit: Int = 100
+    ): Response<ChannelDifference>
 }
+
+// Sync models
+data class SyncState(
+    val pts: Int,
+    val date: String
+)
+
+data class UpdatesDifference(
+    @com.google.gson.annotations.SerializedName("new_messages")
+    val newMessages: List<Message>,
+    @com.google.gson.annotations.SerializedName("edited_messages")
+    val editedMessages: List<Message>? = null,
+    @com.google.gson.annotations.SerializedName("deleted_messages")
+    val deletedMessages: List<String>? = null,
+    val state: SyncState
+)
+
+data class ChannelDifference(
+    val final: Boolean,
+    @com.google.gson.annotations.SerializedName("new_messages")
+    val newMessages: List<Message>,
+    @com.google.gson.annotations.SerializedName("edited_messages")
+    val editedMessages: List<Message>? = null,
+    @com.google.gson.annotations.SerializedName("deleted_messages")
+    val deletedMessages: List<String>? = null,
+    val pts: Int
+)
 
 data class ICEServer(
     @com.google.gson.annotations.SerializedName("urls")

@@ -37,7 +37,7 @@ abstract class NexyDatabase : RoomDatabase() {
         
         val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                // Add lastReadMessageId and firstUnreadMessageId columns to chats table (Telegram-style unread tracking)
+                // Add lastReadMessageId and firstUnreadMessageId columns to chats table (unread tracking)
                 db.execSQL("ALTER TABLE chats ADD COLUMN lastReadMessageId INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("ALTER TABLE chats ADD COLUMN firstUnreadMessageId TEXT")
             }

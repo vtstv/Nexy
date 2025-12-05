@@ -90,7 +90,7 @@ func (r *ChatRepository) GetSelfChat(ctx context.Context, userID int) (*models.C
 
 // GetUserChats retrieves all chats for a user
 func (r *ChatRepository) GetUserChats(ctx context.Context, userID int) ([]*models.Chat, error) {
-	// Telegram-style: use last_read_message_id to calculate unread count and first unread message
+	// use last_read_message_id to calculate unread count and first unread message
 	query := `
 		SELECT c.id, c.type, c.name, c.avatar_url, c.created_by, c.created_at, c.updated_at, 
 			cm.muted_until, COALESCE(cm.last_read_message_id, 0) as last_read_message_id,

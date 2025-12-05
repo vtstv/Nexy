@@ -49,7 +49,10 @@ data class Message(
     val encryptionAlgorithm: String? = null,
     
     @SerializedName("sender")
-    val sender: User? = null
+    val sender: User? = null,
+    
+    @SerializedName("pts")  // sequence number for sync
+    val pts: Int? = null
 )
 
 // Server message types (from CHECK constraint: CHECK (message_type IN ('text', 'media', 'file', 'system')))
