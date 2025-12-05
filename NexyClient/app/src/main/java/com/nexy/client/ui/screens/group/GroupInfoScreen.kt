@@ -29,7 +29,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.nexy.client.data.models.ChatMember
 import com.nexy.client.data.models.GroupType
+import com.nexy.client.data.models.MemberRole
 import com.nexy.client.data.models.User
 import com.nexy.client.ServerConfig
 import com.nexy.client.ui.components.OnlineStatusIndicator
@@ -158,10 +160,17 @@ fun GroupInfoScreen(
                             
                             Spacer(modifier = Modifier.height(8.dp))
                             
+                            // Show "X members, Y online" 
+                            val onlineCount = uiState.members.count { it.user?.onlineStatus == "online" }
+                            val membersText = if (onlineCount > 0) {
+                                "${uiState.members.size} members, $onlineCount online"
+                            } else {
+                                "${uiState.members.size} members"
+                            }
                             Text(
-                                text = "${uiState.participants.size} participants",
+                                text = membersText,
                                 style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.primary
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -203,9 +212,9 @@ fun GroupInfoScreen(
                     }
                 }
 
-                val displayParticipants = if (uiState.isSearching) uiState.searchResults else uiState.participants
+                val displayMembers = if (uiState.isSearching) uiState.searchResults else uiState.members
                 
-                if (uiState.isSearching && displayParticipants.isEmpty() && uiState.searchQuery.length > 2) {
+                if (uiState.isSearching && displayMembers.isEmpty() && uiState.searchQuery.length > 2) {
                     item {
                         Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                             Text("No members found")
@@ -213,11 +222,10 @@ fun GroupInfoScreen(
                     }
                 }
 
-                items(displayParticipants) { user ->
+                items(displayMembers) { member ->
                     ParticipantItem(
-                        user = user,
-                        isOwner = uiState.chat?.createdBy == user.id,
-                        onClick = { onParticipantClick(user.id) }
+                        member = member,
+                        onClick = { onParticipantClick(member.userId) }
                     )
                 }
             }
@@ -231,33 +239,37 @@ fun GroupInfoScreen(
 
 @Composable
 fun ParticipantItem(
-    user: User,
-    isOwner: Boolean = false,
+    member: ChatMember,
     onClick: () -> Unit
 ) {
+    val user = member.user
     // Show displayName if available, otherwise username
-    val displayName = if (!user.displayName.isNullOrEmpty()) user.displayName else user.username
+    val displayName = if (!user?.displayName.isNullOrEmpty()) user?.displayName!! else user?.username ?: "User"
+    val isOnline = user?.onlineStatus == "online"
+    
+    // Get role badge text (Owner, Admin)
+    val roleBadge = when (member.role) {
+        MemberRole.OWNER -> "Owner"
+        MemberRole.ADMIN -> "Admin"
+        else -> null
+    }
     
     ListItem(
         headlineContent = { Text(displayName) },
         supportingContent = { 
-            if (isOwner) {
-                Text("Owner", color = MaterialTheme.colorScheme.primary)
-            } else {
-                // Show online status component
-                user.onlineStatus?.let { status ->
-                    if (status.isNotEmpty()) {
-                        OnlineStatusIndicator(
-                            onlineStatus = status,
-                            showDot = true,
-                            showText = true
-                        )
-                    }
+            // Always show online status
+            user?.onlineStatus?.let { status ->
+                if (status.isNotEmpty()) {
+                    Text(
+                        text = status,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (isOnline) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         },
         leadingContent = {
-            val avatarUrl = ServerConfig.getFileUrl(user.avatarUrl)
+            val avatarUrl = ServerConfig.getFileUrl(user?.avatarUrl)
             if (avatarUrl != null) {
                 AsyncImage(
                     model = avatarUrl,
@@ -281,6 +293,16 @@ fun ParticipantItem(
                         )
                     }
                 }
+            }
+        },
+        trailingContent = {
+            // Show role badge (Owner/Admin) on the right 
+            roleBadge?.let { badge ->
+                Text(
+                    text = badge,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         },
         modifier = Modifier.clickable(onClick = onClick)

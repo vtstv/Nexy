@@ -3,12 +3,11 @@ package com.nexy.client.ui.screens.group
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nexy.client.data.models.Chat
+import com.nexy.client.data.models.ChatMember
 import com.nexy.client.data.models.User
 import com.nexy.client.data.repository.ChatRepository
 import com.nexy.client.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,13 +34,17 @@ class GroupInfoViewModel @Inject constructor(
                     val participantIds = chat.participantIds ?: emptyList()
                     val isMember = currentUserId != null && participantIds.contains(currentUserId)
                     
-                    val participants = participantIds.map { userId ->
-                        async { userRepository.getUserById(userId, forceRefresh = true).getOrNull() }
-                    }.awaitAll().filterNotNull()
+                    // Load members with roles and online status via API
+                    val membersResult = chatRepository.getGroupMembers(chatId)
+                    val members = if (membersResult.isSuccess) {
+                        membersResult.getOrNull() ?: emptyList()
+                    } else {
+                        emptyList()
+                    }
                     
                     _uiState.value = _uiState.value.copy(
                         chat = chat,
-                        participants = participants,
+                        members = members,
                         currentUserId = currentUserId,
                         isMember = isMember,
                         isLoading = false
@@ -160,8 +163,7 @@ class GroupInfoViewModel @Inject constructor(
             val result = chatRepository.getGroupMembers(chat.id, query)
             if (result.isSuccess) {
                 val members = result.getOrNull() ?: emptyList()
-                val users = members.mapNotNull { it.user }
-                _uiState.value = _uiState.value.copy(searchResults = users)
+                _uiState.value = _uiState.value.copy(searchResults = members)
             }
         }
     }
@@ -169,7 +171,7 @@ class GroupInfoViewModel @Inject constructor(
 
 data class GroupInfoUiState(
     val chat: Chat? = null,
-    val participants: List<User> = emptyList(),
+    val members: List<ChatMember> = emptyList(),
     val currentUserId: Int? = null,
     val isMember: Boolean = false,
     val isLoading: Boolean = false,
@@ -177,5 +179,5 @@ data class GroupInfoUiState(
     val isLeftGroup: Boolean = false,
     val isSearching: Boolean = false,
     val searchQuery: String = "",
-    val searchResults: List<User> = emptyList()
+    val searchResults: List<ChatMember> = emptyList()
 )
