@@ -19,7 +19,7 @@ class ChatMappers @Inject constructor() {
         unreadCount = chat.unreadCount,
         createdAt = parseTimestamp(chat.createdAt),
         updatedAt = parseTimestamp(chat.updatedAt),
-        muted = isMuted(chat.mutedUntil)
+        muted = chat.muted || isMuted(chat.mutedUntil)
     )
 
     fun entityToModel(entity: ChatEntity) = Chat(

@@ -58,7 +58,7 @@ class ChatSyncOperations @Inject constructor(
                             updates.add(newEntity.copy(
                                 lastMessageId = mergedLastMessageId,
                                 unreadCount = mergedUnreadCount,
-                                muted = existingEntity.muted
+                                muted = newEntity.muted
                             ))
                         } else {
                             inserts.add(newEntity)
@@ -128,8 +128,7 @@ class ChatSyncOperations @Inject constructor(
                     if (existingChat != null) {
                         val updatedEntity = chatMappers.modelToEntity(chat).copy(
                             lastMessageId = existingChat.lastMessageId,
-                            unreadCount = existingChat.unreadCount,
-                            muted = existingChat.muted
+                            unreadCount = existingChat.unreadCount
                         )
                         chatDao.updateChat(updatedEntity)
                     } else {
