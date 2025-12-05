@@ -166,7 +166,7 @@ func (s *UserService) GetChat(ctx context.Context, userID, chatID int) (*models.
 		if err == nil {
 			chat.MutedUntil = member.MutedUntil
 		}
-		
+
 		// Get unread count for this user
 		unreadCount, err := s.messageRepo.GetUnreadCount(ctx, chatID, userID)
 		if err == nil {
