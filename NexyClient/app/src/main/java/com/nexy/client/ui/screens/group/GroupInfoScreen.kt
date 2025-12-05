@@ -54,6 +54,7 @@ fun GroupInfoScreen(
 
     LaunchedEffect(uiState.isLeftGroup) {
         if (uiState.isLeftGroup) {
+            viewModel.clearLeftGroupState()
             onGroupLeft()
         }
     }

@@ -148,6 +148,10 @@ class GroupInfoViewModel @Inject constructor(
         )
     }
 
+    fun clearLeftGroupState() {
+        _uiState.value = _uiState.value.copy(isLeftGroup = false)
+    }
+
     fun updateSearchQuery(query: String) {
         _uiState.value = _uiState.value.copy(searchQuery = query)
         if (query.length > 2) {

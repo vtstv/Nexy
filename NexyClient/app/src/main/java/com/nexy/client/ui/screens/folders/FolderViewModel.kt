@@ -104,6 +104,10 @@ class FolderViewModel @Inject constructor(
         _savedFolderId.value = null
     }
 
+    fun clearSavedFolderId() {
+        _savedFolderId.value = null
+    }
+
     fun createFolder(
         name: String, 
         icon: String, 

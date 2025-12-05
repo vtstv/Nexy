@@ -50,6 +50,7 @@ fun FolderEditorScreen(
     // Navigate back after save
     LaunchedEffect(savedFolderId) {
         if (savedFolderId != null) {
+            viewModel.clearSavedFolderId()
             onNavigateBack()
         }
     }

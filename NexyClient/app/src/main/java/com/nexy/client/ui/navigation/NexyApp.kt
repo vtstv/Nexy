@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -32,6 +33,14 @@ import com.nexy.client.ui.screens.profile.UserProfileScreen
 import com.nexy.client.ui.screens.qr.QRScannerScreen
 import com.nexy.client.ui.screens.search.SearchScreen
 import com.nexy.client.ui.screens.settings.SettingsScreen
+
+private fun NavController.safePopBackStack() {
+    if (!popBackStack()) {
+        navigate(Screen.ChatList.route) {
+            popUpTo(Screen.ChatList.route) { inclusive = true }
+        }
+    }
+}
 
 @Composable
 fun NexyApp() {
@@ -108,7 +117,7 @@ fun NexyApp() {
         composable("profile") {
             ProfileScreen(
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.safePopBackStack()
                 }
             )
         }
@@ -116,7 +125,7 @@ fun NexyApp() {
         composable(Screen.Settings.route) {
             SettingsScreen(
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.safePopBackStack()
                 }
             )
         }
@@ -124,7 +133,7 @@ fun NexyApp() {
         composable(Screen.Search.route) {
             SearchScreen(
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.safePopBackStack()
                 },
                 onUserClick = { userId ->
                 },
@@ -133,7 +142,7 @@ fun NexyApp() {
                 },
                 onChatCreated = { chatId ->
                     navigationViewModel.selectChat(chatId)
-                    navController.popBackStack()
+                    navController.safePopBackStack()
                 }
             )
         }
@@ -146,7 +155,7 @@ fun NexyApp() {
             InviteMembersScreen(
                 chatId = chatId,
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.safePopBackStack()
                 }
             )
         }
@@ -154,10 +163,10 @@ fun NexyApp() {
         composable(Screen.QRScanner.route) {
             QRScannerScreen(
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.safePopBackStack()
                 },
                 onQRCodeScanned = { code ->
-                    navController.popBackStack()
+                    navController.safePopBackStack()
                 }
             )
         }
@@ -165,11 +174,11 @@ fun NexyApp() {
         composable(Screen.CreateGroup.route) {
             CreateGroupScreen(
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.safePopBackStack()
                 },
                 onGroupCreated = { chatId ->
                     navigationViewModel.selectChat(chatId)
-                    navController.popBackStack()
+                    navController.safePopBackStack()
                 }
             )
         }
@@ -182,7 +191,7 @@ fun NexyApp() {
             GroupSettingsScreen(
                 groupId = groupId,
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.safePopBackStack()
                 },
                 onEditGroup = { id ->
                     android.util.Log.d("NexyApp", "Navigating to EditGroup: $id")
@@ -199,7 +208,7 @@ fun NexyApp() {
             EditGroupScreen(
                 groupId = groupId,
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.safePopBackStack()
                 }
             )
         }
@@ -212,10 +221,9 @@ fun NexyApp() {
             GroupInfoScreen(
                 chatId = chatId,
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.safePopBackStack()
                 },
                 onGroupLeft = {
-                    // Navigate back to ChatList and clear back stack to avoid returning to the left group
                     navController.navigate(Screen.ChatList.route) {
                         popUpTo(Screen.ChatList.route) { inclusive = true }
                     }
@@ -237,12 +245,12 @@ fun NexyApp() {
             UserProfileScreen(
                 userId = userId,
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.safePopBackStack()
                 },
                 onStartChat = { chatId ->
                     navigationViewModel.selectChat(chatId)
                     navController.navigate(Screen.ChatList.route) {
-                        popUpTo(Screen.ChatList.route) { inclusive = false }
+                        popUpTo(Screen.ChatList.route) { inclusive = true }
                     }
                 }
             )
@@ -251,7 +259,7 @@ fun NexyApp() {
         composable(Screen.SearchGroups.route) {
             SearchGroupsScreen(
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.safePopBackStack()
                 },
                 onGroupClick = { groupId ->
                     navController.navigate(Screen.GroupSettings.createRoute(groupId))
@@ -263,7 +271,7 @@ fun NexyApp() {
         composable(Screen.Folders.route) {
             FolderListScreen(
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.safePopBackStack()
                 },
                 onCreateFolder = {
                     navController.navigate(Screen.FolderEditor.createRoute())
@@ -289,7 +297,7 @@ fun NexyApp() {
             FolderEditorScreen(
                 folderId = folderId,
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.safePopBackStack()
                 },
                 onAddChats = { id ->
                     navController.navigate(Screen.ChatSelector.createRoute(id))
@@ -305,7 +313,7 @@ fun NexyApp() {
             ChatSelectorScreen(
                 folderId = folderId,
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.safePopBackStack()
                 }
             )
         }
