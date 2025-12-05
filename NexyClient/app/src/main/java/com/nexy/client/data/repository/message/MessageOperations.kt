@@ -8,6 +8,9 @@ import com.nexy.client.data.local.dao.MessageDao
 import com.nexy.client.data.models.Message
 import com.nexy.client.data.models.MessageStatus
 import com.nexy.client.data.models.MessageType
+import com.nexy.client.data.network.NetworkMonitor
+import com.nexy.client.data.sync.MessageQueueManager
+import com.nexy.client.data.websocket.ConnectionState
 import com.nexy.client.data.websocket.NexyWebSocketClient
 import com.nexy.client.data.websocket.WebSocketMessageHandler
 import com.nexy.client.e2e.E2EManager
@@ -30,7 +33,9 @@ class MessageOperations @Inject constructor(
     private val webSocketClient: NexyWebSocketClient,
     private val webSocketMessageHandler: WebSocketMessageHandler,
     private val messageMappers: MessageMappers,
-    private val e2eManager: E2EManager
+    private val e2eManager: E2EManager,
+    private val messageQueueManager: MessageQueueManager,
+    private val networkMonitor: NetworkMonitor
 ) {
     
     companion object {
@@ -178,6 +183,11 @@ class MessageOperations @Inject constructor(
         }
     }
     
+    private fun canSendImmediately(): Boolean {
+        return networkMonitor.isConnected.value && 
+               webSocketClient.connectionState.value == ConnectionState.CONNECTED
+    }
+    
     suspend fun sendMessage(
         chatId: Int, 
         senderId: Int, 
@@ -191,17 +201,14 @@ class MessageOperations @Inject constructor(
                 Log.d(TAG, "Sending message: chatId=$chatId, senderId=$senderId, content='$content', replyToId=$replyToId")
                 val messageId = generateMessageId()
                 
-                // E2E Encryption: Only in PRODUCTION and for private chats with recipient
                 val finalContent: String
                 val isEncrypted: Boolean
                 val encryptionAlgorithm: String?
                 
                 if (!BuildConfig.DEBUG && recipientUserId != null && e2eManager.isE2EReady()) {
-                    // PRODUCTION: Encrypt message
                     Log.d(TAG, "Production build - encrypting message for user $recipientUserId")
                     val encrypted = e2eManager.encryptMessage(recipientUserId, content)
                     if (encrypted != null) {
-                        // Store encrypted content in JSON format
                         finalContent = """{"ciphertext":"${encrypted.ciphertext}","iv":"${encrypted.iv}","algorithm":"${encrypted.algorithm}"}"""
                         isEncrypted = true
                         encryptionAlgorithm = encrypted.algorithm
@@ -213,7 +220,6 @@ class MessageOperations @Inject constructor(
                         encryptionAlgorithm = null
                     }
                 } else {
-                    // DEBUG: Plain text message
                     if (BuildConfig.DEBUG) {
                         Log.d(TAG, "Debug build - sending plain text message")
                     }
@@ -237,10 +243,28 @@ class MessageOperations @Inject constructor(
                 Log.d(TAG, "Inserting message to local DB: ${message.id}, encrypted=$isEncrypted")
                 messageDao.insertMessage(messageMappers.modelToEntity(message))
                 
-                Log.d(TAG, "Sending message via WebSocket with messageId: $messageId, recipientUserId: $recipientUserId")
-                webSocketClient.sendTextMessage(chatId, senderId, finalContent, messageId, recipientUserId, replyToId)
+                // Always queue message for tracking - will be removed on ACK
+                Log.d(TAG, "Queueing message for tracking: $messageId")
+                messageQueueManager.queueMessage(
+                    messageId = messageId,
+                    chatId = chatId,
+                    senderId = senderId,
+                    content = finalContent,
+                    messageType = type.name.lowercase(),
+                    recipientId = recipientUserId,
+                    replyToId = replyToId,
+                    encrypted = isEncrypted,
+                    encryptionAlgorithm = encryptionAlgorithm
+                )
                 
-                Log.d(TAG, "Message sent successfully")
+                // Try to send immediately if connected
+                if (canSendImmediately()) {
+                    Log.d(TAG, "Sending message via WebSocket with messageId: $messageId")
+                    webSocketClient.sendTextMessage(chatId, senderId, finalContent, messageId, recipientUserId, replyToId)
+                } else {
+                    Log.d(TAG, "Offline or disconnected, message queued: $messageId")
+                }
+                
                 Result.success(message)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send message", e)
@@ -248,6 +272,34 @@ class MessageOperations @Inject constructor(
             }
         }
     }
+    
+    suspend fun retryMessage(messageId: String): Result<Boolean> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val success = messageQueueManager.retryMessage(messageId)
+                if (success) {
+                    Result.success(true)
+                } else {
+                    Result.failure(Exception("Message not found in queue"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+    
+    suspend fun cancelMessage(messageId: String): Result<Boolean> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val success = messageQueueManager.cancelMessage(messageId)
+                Result.success(success)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+    
+    fun getPendingMessageCount(): Flow<Int> = messageQueueManager.pendingCount
     
     suspend fun deleteMessage(messageId: String): Result<Unit> {
         return withContext(Dispatchers.IO) {

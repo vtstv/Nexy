@@ -130,6 +130,12 @@ class ChatRepository @Inject constructor(
     fun observeTypingEvents(): kotlinx.coroutines.flow.Flow<Triple<Int, Boolean, Int?>> = messageOperations.observeTypingEvents()
 
     suspend fun searchPublicGroups(query: String): Result<List<Chat>> = chatOperations.searchPublicGroups(query)
+    
+    fun getPendingMessageCount(): kotlinx.coroutines.flow.Flow<Int> = messageOperations.getPendingMessageCount()
+    
+    suspend fun retryMessage(messageId: String): Result<Boolean> = messageOperations.retryMessage(messageId)
+    
+    suspend fun cancelMessage(messageId: String): Result<Boolean> = messageOperations.cancelMessage(messageId)
 }
 
 // ChatInfo data class for UI

@@ -187,6 +187,11 @@ fun ChatScreen(
                         })
                     }
             ) {
+                ConnectionStatusBanner(
+                    isConnected = uiState.isConnected,
+                    pendingMessageCount = uiState.pendingMessageCount
+                )
+                
                 if (uiState.isSearching) {
                     Box(modifier = Modifier.weight(1f)) {
                         if (uiState.searchResults.isEmpty() && uiState.searchQuery.length > 2) {

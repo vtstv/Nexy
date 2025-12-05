@@ -3,6 +3,7 @@ package com.nexy.client.data.websocket
 import android.util.Log
 import com.nexy.client.data.local.dao.ChatDao
 import com.nexy.client.data.local.dao.MessageDao
+import com.nexy.client.data.local.dao.PendingMessageDao
 import com.nexy.client.data.models.ChatType
 import com.nexy.client.data.models.Message
 import com.nexy.client.data.models.MessageStatus
@@ -27,6 +28,7 @@ import javax.inject.Singleton
 class WebSocketMessageHandler @Inject constructor(
     private val messageDao: MessageDao,
     private val chatDao: ChatDao,
+    private val pendingMessageDao: PendingMessageDao,
     private val messageMappers: MessageMappers,
     private val chatMappers: ChatMappers,
     private val apiService: NexyApiService,
@@ -233,8 +235,12 @@ class WebSocketMessageHandler @Inject constructor(
         val status = body["status"] as? String
         
         if (status == "ok") {
-            Log.d(TAG, "Updating message status to SENT: $messageId")
+            Log.d(TAG, "Received ACK for message: $messageId")
+            // Remove from pending queue
+            pendingMessageDao.delete(messageId)
+            // Update message status to SENT
             messageDao.updateMessageStatus(messageId, MessageStatus.SENT.name)
+            Log.d(TAG, "Message $messageId marked as SENT and removed from queue")
         }
     }
     

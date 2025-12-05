@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/vtstv/nexy/internal/models"
@@ -77,10 +78,27 @@ func (h *Hub) handleChatMessage(message *NexyMessage, unregisterFunc func(*Clien
 	// Save message to database
 	if err := h.messageRepo.CreateMessageFromWebSocket(ctx, message.Header.MessageID, *message.Header.ChatID, message.Header.SenderID, message.Body); err != nil {
 		log.Printf("Error saving message to database: %v", err)
+
+		// If it's a duplicate key error, the message was already saved - send OK ACK
+		if strings.Contains(err.Error(), "duplicate key") {
+			log.Printf("Message %s already exists, sending OK ACK", message.Header.MessageID)
+			ack, _ := NewNexyMessage(TypeAck, 0, nil, AckBody{MessageID: message.Header.MessageID, Status: "ok"})
+			h.sendToUser(message.Header.SenderID, ack, unregisterFunc)
+			return
+		}
+
+		// For other errors, send error ACK
+		errorAck, _ := NewNexyMessage(TypeAck, 0, nil, AckBody{MessageID: message.Header.MessageID, Status: "error"})
+		h.sendToUser(message.Header.SenderID, errorAck, unregisterFunc)
 		return
 	}
 
 	log.Printf("Message saved to database: messageID=%s, chatID=%d", message.Header.MessageID, *message.Header.ChatID)
+
+	// Send ACK to sender confirming message was saved
+	ack, _ := NewNexyMessage(TypeAck, 0, nil, AckBody{MessageID: message.Header.MessageID, Status: "ok"})
+	h.sendToUser(message.Header.SenderID, ack, unregisterFunc)
+	log.Printf("ACK sent to sender %d for message %s", message.Header.SenderID, message.Header.MessageID)
 
 	// Broadcast to chat members
 	h.broadcastToChatMembers(*message.Header.ChatID, message)

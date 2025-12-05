@@ -50,6 +50,7 @@ class ChatViewModel @Inject constructor(
             initializeChat()
         }
         observeTypingEvents()
+        observeConnectionStatus()
     }
     
     fun initializeChatId(newChatId: Int) {
@@ -156,6 +157,19 @@ class ChatViewModel @Inject constructor(
                     
                     _uiState.value = _uiState.value.copy(isTyping = isTyping, typingUser = typingUserName)
                 }
+            }
+        }
+    }
+    
+    private fun observeConnectionStatus() {
+        viewModelScope.launch {
+            messageOps.observeConnectionStatus().collect { isConnected ->
+                _uiState.value = _uiState.value.copy(isConnected = isConnected)
+            }
+        }
+        viewModelScope.launch {
+            messageOps.getPendingMessageCount().collect { count ->
+                _uiState.value = _uiState.value.copy(pendingMessageCount = count)
             }
         }
     }

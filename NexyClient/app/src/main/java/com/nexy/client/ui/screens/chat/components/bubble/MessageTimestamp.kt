@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -39,21 +41,44 @@ fun MessageTimestamp(
         if (isOwnMessage) {
             Spacer(modifier = Modifier.width(4.dp))
             val messageStatus = status ?: MessageStatus.SENT
-            val icon = when (messageStatus) {
-                MessageStatus.READ, MessageStatus.DELIVERED -> Icons.Default.DoneAll
-                else -> Icons.Default.Done
+            
+            when (messageStatus) {
+                MessageStatus.SENDING -> {
+                    Icon(
+                        imageVector = Icons.Default.Schedule,
+                        contentDescription = "Sending",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                }
+                MessageStatus.FAILED -> {
+                    Icon(
+                        imageVector = Icons.Outlined.ErrorOutline,
+                        contentDescription = "Failed",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+                MessageStatus.READ, MessageStatus.DELIVERED -> {
+                    Icon(
+                        imageVector = Icons.Default.DoneAll,
+                        contentDescription = messageStatus.name,
+                        modifier = Modifier.size(16.dp),
+                        tint = if (messageStatus == MessageStatus.READ)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                }
+                else -> {
+                    Icon(
+                        imageVector = Icons.Default.Done,
+                        contentDescription = messageStatus.name,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                }
             }
-            val tint = if (messageStatus == MessageStatus.READ)
-                MaterialTheme.colorScheme.primary
-            else
-                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-
-            Icon(
-                imageVector = icon,
-                contentDescription = messageStatus.name,
-                modifier = Modifier.size(16.dp),
-                tint = tint
-            )
         }
     }
 }

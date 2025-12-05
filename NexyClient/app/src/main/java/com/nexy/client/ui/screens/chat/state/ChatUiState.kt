@@ -27,5 +27,7 @@ data class ChatUiState(
     val isMember: Boolean = true,
     val mutedUntil: String? = null,
     val otherUserOnlineStatus: String? = null,
-    val firstUnreadMessageId: String? = null
+    val firstUnreadMessageId: String? = null,
+    val isConnected: Boolean = true,
+    val pendingMessageCount: Int = 0
 )

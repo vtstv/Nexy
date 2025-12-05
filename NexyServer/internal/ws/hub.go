@@ -103,7 +103,8 @@ func (h *Hub) registerClient(client *Client) {
 
 func (h *Hub) unregisterClient(client *Client) {
 	h.mu.Lock()
-	if _, ok := h.clients[client.userID]; ok {
+	// Only remove if this is the same client (prevents race condition with reconnects)
+	if existingClient, ok := h.clients[client.userID]; ok && existingClient == client {
 		delete(h.clients, client.userID)
 		client.closeConnection()
 	}

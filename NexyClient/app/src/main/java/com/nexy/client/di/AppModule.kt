@@ -12,6 +12,7 @@ import com.nexy.client.data.local.AuthTokenManager
 import com.nexy.client.data.local.NexyDatabase
 import com.nexy.client.data.local.dao.ChatDao
 import com.nexy.client.data.local.dao.MessageDao
+import com.nexy.client.data.local.dao.PendingMessageDao
 import com.nexy.client.data.local.dao.UserDao
 import com.nexy.client.data.websocket.NexyWebSocketClient
 import dagger.Module
@@ -106,7 +107,11 @@ object AppModule {
             NexyDatabase::class.java,
             "nexy_database"
         )
-        .addMigrations(NexyDatabase.MIGRATION_4_5, NexyDatabase.MIGRATION_5_6)
+        .addMigrations(
+            NexyDatabase.MIGRATION_4_5,
+            NexyDatabase.MIGRATION_5_6,
+            NexyDatabase.MIGRATION_6_7
+        )
         .fallbackToDestructiveMigration()
         .build()
     }
@@ -127,6 +132,12 @@ object AppModule {
     @Singleton
     fun provideChatDao(database: NexyDatabase): ChatDao {
         return database.chatDao()
+    }
+    
+    @Provides
+    @Singleton
+    fun providePendingMessageDao(database: NexyDatabase): PendingMessageDao {
+        return database.pendingMessageDao()
     }
     
     @Provides
