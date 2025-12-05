@@ -47,13 +47,28 @@ class ChatOperations @Inject constructor(
 
     suspend fun markChatAsRead(chatId: Int) {
         withContext(Dispatchers.IO) {
+            val currentUserId = tokenManager.getUserId()
+            Log.d(TAG, "markChatAsRead: chatId=$chatId, currentUserId=$currentUserId")
+            
+            // Get the last message in the chat (regardless of sender)
+            val lastMessage = messageDao.getLastMessage(chatId)
+            Log.d(TAG, "markChatAsRead: lastMessage=${lastMessage?.id}, senderId=${lastMessage?.senderId}")
+            
+            if (lastMessage == null) {
+                Log.d(TAG, "markChatAsRead: No messages to mark as read")
+                return@withContext
+            }
+            
+            // Update local DB first
             chatDao.markChatAsRead(chatId)
             
-            // Send read receipt to server for the last message
-            val lastMessage = messageDao.getLastMessage(chatId)
-            val currentUserId = tokenManager.getUserId()
-            if (lastMessage != null && currentUserId != null && lastMessage.senderId != currentUserId) {
+            // Send read receipt to server - always send for the last message
+            // The server will mark all messages up to this one as read
+            if (currentUserId != null) {
+                Log.d(TAG, "markChatAsRead: Sending read receipt for message ${lastMessage.id}")
                 webSocketClient.sendReadReceipt(lastMessage.id, chatId, currentUserId)
+            } else {
+                Log.e(TAG, "markChatAsRead: currentUserId is null, cannot send read receipt")
             }
         }
     }

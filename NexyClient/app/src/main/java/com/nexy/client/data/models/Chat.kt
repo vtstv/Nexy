@@ -53,7 +53,13 @@ data class Chat(
     val isMember: Boolean = false,
 
     @SerializedName("muted_until")
-    val mutedUntil: String? = null
+    val mutedUntil: String? = null,
+    
+    @SerializedName("last_read_message_id")
+    val lastReadMessageId: Int = 0,
+    
+    @SerializedName("first_unread_message_id")
+    val firstUnreadMessageId: String? = null
 )
 
 enum class ChatType {

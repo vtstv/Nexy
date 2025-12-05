@@ -106,7 +106,7 @@ object AppModule {
             NexyDatabase::class.java,
             "nexy_database"
         )
-        .addMigrations(NexyDatabase.MIGRATION_4_5)
+        .addMigrations(NexyDatabase.MIGRATION_4_5, NexyDatabase.MIGRATION_5_6)
         .fallbackToDestructiveMigration()
         .build()
     }

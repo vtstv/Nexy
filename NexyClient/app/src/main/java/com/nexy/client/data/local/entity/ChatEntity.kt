@@ -15,5 +15,7 @@ data class ChatEntity(
     val unreadCount: Int,
     val createdAt: Long,
     val updatedAt: Long,
-    val muted: Boolean
+    val muted: Boolean,
+    val lastReadMessageId: Int = 0,
+    val firstUnreadMessageId: String? = null
 )

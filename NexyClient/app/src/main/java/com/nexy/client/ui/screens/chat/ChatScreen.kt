@@ -65,6 +65,13 @@ fun ChatScreen(
         viewModel.onChatOpened()
     }
     
+    // Called when leaving the chat - mark as read immediately (like Telegram's onPause)
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.onChatClosed()
+        }
+    }
+    
     // Initial scroll to bottom when messages are first loaded
     LaunchedEffect(uiState.messages.size) {
         if (uiState.messages.isNotEmpty() && !hasScrolledToBottom.value) {

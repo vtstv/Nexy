@@ -60,7 +60,7 @@ func (r *ChatRepository) IsMember(ctx context.Context, chatID, userID int) (bool
 func (r *ChatRepository) GetChatMember(ctx context.Context, chatID, userID int) (*models.ChatMember, error) {
 	member := &models.ChatMember{}
 	query := `
-		SELECT id, chat_id, user_id, role, permissions, joined_at, muted_until
+		SELECT id, chat_id, user_id, role, permissions, joined_at, muted_until, COALESCE(last_read_message_id, 0)
 		FROM chat_members
 		WHERE chat_id = $1 AND user_id = $2`
 
@@ -74,6 +74,7 @@ func (r *ChatRepository) GetChatMember(ctx context.Context, chatID, userID int) 
 		&permissions,
 		&member.JoinedAt,
 		&mutedUntil,
+		&member.LastReadMessageId,
 	)
 	if err != nil {
 		return nil, err

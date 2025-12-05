@@ -161,16 +161,25 @@ func (s *UserService) GetChat(ctx context.Context, userID, chatID int) (*models.
 			return nil, fmt.Errorf("access denied: user %d is not a member of chat %d and chat is not public", userID, chatID)
 		}
 	} else {
-		// Get member details to check muted status
+		// Get member details to check muted status and last_read_message_id
 		member, err := s.chatRepo.GetChatMember(ctx, chatID, userID)
 		if err == nil {
 			chat.MutedUntil = member.MutedUntil
+			chat.LastReadMessageId = member.LastReadMessageId
 		}
 
 		// Get unread count for this user
 		unreadCount, err := s.messageRepo.GetUnreadCount(ctx, chatID, userID)
 		if err == nil {
 			chat.UnreadCount = unreadCount
+		}
+
+		// Get first unread message ID for divider positioning
+		if unreadCount > 0 {
+			firstUnreadId, err := s.messageRepo.GetFirstUnreadMessageId(ctx, chatID, userID)
+			if err == nil {
+				chat.FirstUnreadMessageId = firstUnreadId
+			}
 		}
 	}
 

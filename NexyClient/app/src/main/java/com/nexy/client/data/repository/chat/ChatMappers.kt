@@ -19,7 +19,9 @@ class ChatMappers @Inject constructor() {
         unreadCount = chat.unreadCount,
         createdAt = parseTimestamp(chat.createdAt),
         updatedAt = parseTimestamp(chat.updatedAt),
-        muted = chat.muted || isMuted(chat.mutedUntil)
+        muted = chat.muted || isMuted(chat.mutedUntil),
+        lastReadMessageId = chat.lastReadMessageId,
+        firstUnreadMessageId = chat.firstUnreadMessageId
     )
 
     fun entityToModel(entity: ChatEntity) = Chat(
@@ -34,7 +36,9 @@ class ChatMappers @Inject constructor() {
             .format(java.util.Date(entity.createdAt)),
         updatedAt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault())
             .format(java.util.Date(entity.updatedAt)),
-        muted = entity.muted
+        muted = entity.muted,
+        lastReadMessageId = entity.lastReadMessageId,
+        firstUnreadMessageId = entity.firstUnreadMessageId
     )
 
     private fun parseTimestamp(timestamp: String?): Long {

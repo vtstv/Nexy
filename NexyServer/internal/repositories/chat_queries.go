@@ -90,21 +90,28 @@ func (r *ChatRepository) GetSelfChat(ctx context.Context, userID int) (*models.C
 
 // GetUserChats retrieves all chats for a user
 func (r *ChatRepository) GetUserChats(ctx context.Context, userID int) ([]*models.Chat, error) {
+	// Telegram-style: use last_read_message_id to calculate unread count and first unread message
 	query := `
-		SELECT c.id, c.type, c.name, c.avatar_url, c.created_by, c.created_at, c.updated_at, cm.muted_until,
+		SELECT c.id, c.type, c.name, c.avatar_url, c.created_by, c.created_at, c.updated_at, 
+			cm.muted_until, COALESCE(cm.last_read_message_id, 0) as last_read_message_id,
 			COALESCE((
 				SELECT COUNT(*)
 				FROM messages m
 				WHERE m.chat_id = c.id
 				AND m.sender_id != $1
 				AND m.is_deleted = FALSE
-				AND NOT EXISTS (
-					SELECT 1 FROM message_status ms
-					WHERE ms.message_id = m.id
-					AND ms.user_id = $1
-					AND ms.status = 'read'
-				)
-			), 0) as unread_count
+				AND m.id > COALESCE(cm.last_read_message_id, 0)
+			), 0) as unread_count,
+			COALESCE((
+				SELECT m.message_id
+				FROM messages m
+				WHERE m.chat_id = c.id
+				AND m.sender_id != $1
+				AND m.is_deleted = FALSE
+				AND m.id > COALESCE(cm.last_read_message_id, 0)
+				ORDER BY m.id ASC
+				LIMIT 1
+			), '') as first_unread_message_id
 		FROM chats c
 		INNER JOIN chat_members cm ON c.id = cm.chat_id
 		WHERE cm.user_id = $1
@@ -121,6 +128,7 @@ func (r *ChatRepository) GetUserChats(ctx context.Context, userID int) ([]*model
 		chat := &models.Chat{}
 		var createdBy sql.NullInt64
 		var mutedUntil sql.NullTime
+		var firstUnreadMessageId sql.NullString
 		err := rows.Scan(
 			&chat.ID,
 			&chat.Type,
@@ -130,7 +138,9 @@ func (r *ChatRepository) GetUserChats(ctx context.Context, userID int) ([]*model
 			&chat.CreatedAt,
 			&chat.UpdatedAt,
 			&mutedUntil,
+			&chat.LastReadMessageId,
 			&chat.UnreadCount,
+			&firstUnreadMessageId,
 		)
 		if err != nil {
 			return nil, err
@@ -141,6 +151,9 @@ func (r *ChatRepository) GetUserChats(ctx context.Context, userID int) ([]*model
 		}
 		if mutedUntil.Valid {
 			chat.MutedUntil = &mutedUntil.Time
+		}
+		if firstUnreadMessageId.Valid && firstUnreadMessageId.String != "" {
+			chat.FirstUnreadMessageId = firstUnreadMessageId.String
 		}
 
 		// Load participants

@@ -60,33 +60,20 @@ class ChatViewModel @Inject constructor(
         }
     }
     
+    // Flag to track if this is the first load (don't mark as read until messages loaded)
+    private var firstLoading = true
+    // Store firstUnreadMessageId before marking as read so divider persists until user sees it
+    private var savedFirstUnreadMessageId: String? = null
+    
     fun onChatOpened() {
-        // Reset unread divider state and re-check for unread messages
-        android.util.Log.d("ChatViewModel", "onChatOpened: resetting unread divider state")
-        firstUnreadMessageId = null
-        unreadDividerCalculated = false
-        initialUnreadCount = 0
-        _uiState.value = _uiState.value.copy(firstUnreadMessageId = null)
+        // Re-fetch chat info from server to get current firstUnreadMessageId
+        android.util.Log.d("ChatViewModel", "onChatOpened: fetching fresh chat info from server")
+        firstLoading = true
+        savedFirstUnreadMessageId = null
         
         viewModelScope.launch {
             loadCurrentUserAndChatInfo()
-            // Recalculate divider with current messages
-            recalculateUnreadDivider()
-            markAsReadInternal()
-        }
-    }
-    
-    private fun recalculateUnreadDivider() {
-        val messages = _uiState.value.messages
-        if (initialUnreadCount > 0 && messages.isNotEmpty()) {
-            android.util.Log.d("ChatViewModel", "Recalculating unread divider: unreadCount=$initialUnreadCount, totalMessages=${messages.size}")
-            if (messages.size >= initialUnreadCount) {
-                val firstUnreadIndex = messages.size - initialUnreadCount
-                firstUnreadMessageId = messages.getOrNull(firstUnreadIndex)?.id
-                android.util.Log.d("ChatViewModel", "First unread message ID: $firstUnreadMessageId at index $firstUnreadIndex")
-                _uiState.value = _uiState.value.copy(firstUnreadMessageId = firstUnreadMessageId)
-            }
-            unreadDividerCalculated = true
+            loadMessages()
         }
     }
     
@@ -97,10 +84,16 @@ class ChatViewModel @Inject constructor(
     private fun initializeChat() {
         viewModelScope.launch {
             loadCurrentUserAndChatInfo()
-            // Mark as read AFTER we've captured the unread count but BEFORE loading messages
-            // This way, the unread count is saved and won't be affected by markAsRead
-            markAsReadInternal()
+            // DON'T mark as read yet - wait for messages to load first (like Telegram)
             loadMessages()
+        }
+    }
+    
+    // Called when user leaves the chat (like Telegram's onPause)
+    fun onChatClosed() {
+        android.util.Log.d("ChatViewModel", "onChatClosed: marking as read now")
+        viewModelScope.launch {
+            markAsReadInternal()
         }
     }
     
@@ -110,8 +103,14 @@ class ChatViewModel @Inject constructor(
         
         try {
             stateManager.loadChatInfo(chatId, userId)?.let { chatInfo ->
-                initialUnreadCount = chatInfo.unreadCount
-                android.util.Log.d("ChatViewModel", "Chat info loaded: unreadCount=$initialUnreadCount")
+                // Save firstUnreadMessageId BEFORE any marking as read
+                // This ensures divider shows correctly until user scrolls/leaves
+                if (savedFirstUnreadMessageId == null && chatInfo.firstUnreadMessageId != null) {
+                    savedFirstUnreadMessageId = chatInfo.firstUnreadMessageId
+                    android.util.Log.d("ChatViewModel", "Saved firstUnreadMessageId: $savedFirstUnreadMessageId")
+                }
+                
+                android.util.Log.d("ChatViewModel", "Chat info loaded: unreadCount=${chatInfo.unreadCount}, firstUnreadMessageId=${chatInfo.firstUnreadMessageId}")
                 _uiState.value = _uiState.value.copy(
                     chatName = chatInfo.chatName,
                     chatAvatarUrl = chatInfo.chatAvatarUrl,
@@ -122,7 +121,9 @@ class ChatViewModel @Inject constructor(
                     isCreator = chatInfo.isCreator,
                     isMember = chatInfo.isMember,
                     mutedUntil = chatInfo.mutedUntil,
-                    otherUserOnlineStatus = chatInfo.otherUserOnlineStatus
+                    otherUserOnlineStatus = chatInfo.otherUserOnlineStatus,
+                    // Use saved value to keep divider visible
+                    firstUnreadMessageId = savedFirstUnreadMessageId ?: chatInfo.firstUnreadMessageId
                 )
             }
         } catch (e: Exception) {
@@ -168,34 +169,23 @@ class ChatViewModel @Inject constructor(
     }
     // endregion
 
-    private var initialUnreadCount: Int = 0
-    private var firstUnreadMessageId: String? = null
-    private var unreadDividerCalculated: Boolean = false
-
     // region Load Data
     
     private fun loadMessages() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             messageOps.observeMessages(chatId).collect { messages ->
-                if (!unreadDividerCalculated && initialUnreadCount > 0 && messages.isNotEmpty()) {
-                    val currentUserId = _uiState.value.currentUserId
-                    android.util.Log.d("ChatViewModel", "Calculating unread divider: unreadCount=$initialUnreadCount, currentUserId=$currentUserId, totalMessages=${messages.size}")
-                    
-                    // Get the last N messages (where N = unreadCount) - these are unread
-                    // Messages are ordered ASC by timestamp, so last ones are newest
-                    if (messages.size >= initialUnreadCount) {
-                        val firstUnreadIndex = messages.size - initialUnreadCount
-                        firstUnreadMessageId = messages.getOrNull(firstUnreadIndex)?.id
-                        android.util.Log.d("ChatViewModel", "First unread message ID: $firstUnreadMessageId at index $firstUnreadIndex")
-                    }
-                    unreadDividerCalculated = true
-                }
                 _uiState.value = _uiState.value.copy(
                     messages = messages,
-                    isLoading = false,
-                    firstUnreadMessageId = firstUnreadMessageId
+                    isLoading = false
                 )
+                
+                // Mark as read AFTER messages are loaded (like Telegram's !firstLoading check)
+                if (firstLoading && messages.isNotEmpty()) {
+                    firstLoading = false
+                    android.util.Log.d("ChatViewModel", "Messages loaded, marking as read now")
+                    markAsReadInternal()
+                }
             }
         }
         
@@ -248,7 +238,7 @@ class ChatViewModel @Inject constructor(
     }
     
     private suspend fun markAsReadInternal() {
-        android.util.Log.d("ChatViewModel", "markAsRead called, initialUnreadCount=$initialUnreadCount saved")
+        android.util.Log.d("ChatViewModel", "markAsRead called")
         messageOps.markAsRead(chatId)
     }
     // endregion

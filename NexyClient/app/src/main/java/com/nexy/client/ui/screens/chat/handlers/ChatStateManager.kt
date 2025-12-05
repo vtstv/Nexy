@@ -53,7 +53,8 @@ class ChatStateManager @Inject constructor(
             isMember = chat.isMember || (chat.participantIds?.contains(currentUserId) == true),
             mutedUntil = chat.mutedUntil,
             otherUserOnlineStatus = otherUserOnlineStatus,
-            unreadCount = chat.unreadCount
+            unreadCount = chat.unreadCount,
+            firstUnreadMessageId = chat.firstUnreadMessageId
         )
     }
 
@@ -78,5 +79,6 @@ data class ChatInfo(
     val isMember: Boolean,
     val mutedUntil: String? = null,
     val otherUserOnlineStatus: String? = null,
-    val unreadCount: Int = 0
+    val unreadCount: Int = 0,
+    val firstUnreadMessageId: String? = null
 )

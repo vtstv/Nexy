@@ -54,22 +54,24 @@ type InviteLink struct {
 }
 
 type Chat struct {
-	ID                 int              `json:"id"`
-	Type               string           `json:"type"`
-	GroupType          string           `json:"group_type,omitempty"`
-	Name               string           `json:"name,omitempty"`
-	Username           string           `json:"username,omitempty"`
-	Description        string           `json:"description,omitempty"`
-	AvatarURL          string           `json:"avatar_url,omitempty"`
-	CreatedBy          *int             `json:"created_by,omitempty"`
-	CreatedAt          time.Time        `json:"created_at"`
-	UpdatedAt          time.Time        `json:"updated_at"`
-	ParticipantIds     []int            `json:"participant_ids,omitempty"`
-	DefaultPermissions *ChatPermissions `json:"default_permissions,omitempty"`
-	MemberCount        int              `json:"member_count,omitempty"`
-	IsMember           bool             `json:"is_member,omitempty"`
-	MutedUntil         *time.Time       `json:"muted_until,omitempty"`
-	UnreadCount        int              `json:"unread_count"`
+	ID                    int              `json:"id"`
+	Type                  string           `json:"type"`
+	GroupType             string           `json:"group_type,omitempty"`
+	Name                  string           `json:"name,omitempty"`
+	Username              string           `json:"username,omitempty"`
+	Description           string           `json:"description,omitempty"`
+	AvatarURL             string           `json:"avatar_url,omitempty"`
+	CreatedBy             *int             `json:"created_by,omitempty"`
+	CreatedAt             time.Time        `json:"created_at"`
+	UpdatedAt             time.Time        `json:"updated_at"`
+	ParticipantIds        []int            `json:"participant_ids,omitempty"`
+	DefaultPermissions    *ChatPermissions `json:"default_permissions,omitempty"`
+	MemberCount           int              `json:"member_count,omitempty"`
+	IsMember              bool             `json:"is_member,omitempty"`
+	MutedUntil            *time.Time       `json:"muted_until,omitempty"`
+	UnreadCount           int              `json:"unread_count"`
+	LastReadMessageId     int              `json:"last_read_message_id"`
+	FirstUnreadMessageId  string           `json:"first_unread_message_id,omitempty"`
 }
 
 type ChatPermissions struct {
@@ -81,14 +83,15 @@ type ChatPermissions struct {
 }
 
 type ChatMember struct {
-	ID          int              `json:"id"`
-	ChatID      int              `json:"chat_id"`
-	UserID      int              `json:"user_id"`
-	Role        string           `json:"role"`
-	Permissions *ChatPermissions `json:"permissions,omitempty"`
-	JoinedAt    time.Time        `json:"joined_at"`
-	User        *User            `json:"user,omitempty"`
-	MutedUntil  *time.Time       `json:"muted_until,omitempty"`
+	ID                int              `json:"id"`
+	ChatID            int              `json:"chat_id"`
+	UserID            int              `json:"user_id"`
+	Role              string           `json:"role"`
+	Permissions       *ChatPermissions `json:"permissions,omitempty"`
+	JoinedAt          time.Time        `json:"joined_at"`
+	User              *User            `json:"user,omitempty"`
+	MutedUntil        *time.Time       `json:"muted_until,omitempty"`
+	LastReadMessageId int              `json:"last_read_message_id"`
 }
 
 type ChatInviteLink struct {

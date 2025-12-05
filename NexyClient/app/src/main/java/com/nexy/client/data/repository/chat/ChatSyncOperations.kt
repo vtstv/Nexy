@@ -53,12 +53,14 @@ class ChatSyncOperations @Inject constructor(
                         
                         if (existingEntity != null) {
                             val mergedLastMessageId = chat.lastMessage?.id ?: existingEntity.lastMessageId
-                            // Use server's unread count which is now accurate from DB
-                            Log.d(TAG, "refreshChats: chat ${chat.id} server unreadCount=${chat.unreadCount}")
+                            // Use server's values - they are the source of truth (Telegram-style)
+                            Log.d(TAG, "refreshChats: chat ${chat.id} server unreadCount=${chat.unreadCount}, firstUnreadMessageId=${chat.firstUnreadMessageId}")
                             
                             updates.add(newEntity.copy(
                                 lastMessageId = mergedLastMessageId,
                                 unreadCount = chat.unreadCount,
+                                lastReadMessageId = chat.lastReadMessageId,
+                                firstUnreadMessageId = chat.firstUnreadMessageId,
                                 muted = newEntity.muted
                             ))
                         } else {
@@ -111,12 +113,9 @@ class ChatSyncOperations @Inject constructor(
     suspend fun getChatById(chatId: Int): Result<Chat> {
         return withContext(Dispatchers.IO) {
             try {
-                // First, get local unread count BEFORE any API calls
-                val existingChatBefore = chatDao.getChatById(chatId)
-                val localUnreadCount = existingChatBefore?.unreadCount ?: 0
-                Log.d(TAG, "getChatById: chatId=$chatId, localUnreadCount=$localUnreadCount")
+                Log.d(TAG, "getChatById: chatId=$chatId")
                 
-                // Try API first to get fresh data (especially participants)
+                // Try API first to get fresh data (especially participants and first_unread_message_id)
                 val response = apiService.getChatById(chatId)
                 if (response.isSuccessful && response.body() != null) {
                     val chat = response.body()!!
@@ -130,23 +129,22 @@ class ChatSyncOperations @Inject constructor(
                         }
                     }
                     
-                    // Use the higher value between local (WebSocket updates) and server
-                    val effectiveUnreadCount = maxOf(localUnreadCount, chat.unreadCount)
-                    Log.d(TAG, "getChatById: serverUnreadCount=${chat.unreadCount}, effectiveUnreadCount=$effectiveUnreadCount")
+                    // Use server values - they are the source of truth
+                    Log.d(TAG, "getChatById: serverUnreadCount=${chat.unreadCount}, firstUnreadMessageId=${chat.firstUnreadMessageId}")
                     
                     val existingChat = chatDao.getChatById(chatId)
+                    val updatedEntity = chatMappers.modelToEntity(chat).copy(
+                        lastMessageId = existingChat?.lastMessageId ?: chat.lastMessage?.id
+                    )
+                    
                     if (existingChat != null) {
-                        val updatedEntity = chatMappers.modelToEntity(chat).copy(
-                            lastMessageId = existingChat.lastMessageId,
-                            unreadCount = effectiveUnreadCount
-                        )
                         chatDao.updateChat(updatedEntity)
                     } else {
-                        chatDao.insertChat(chatMappers.modelToEntity(chat).copy(unreadCount = effectiveUnreadCount))
+                        chatDao.insertChat(updatedEntity)
                     }
                     
-                    Log.d(TAG, "getChatById: returning chat with unreadCount=$effectiveUnreadCount")
-                    Result.success(chat.copy(unreadCount = effectiveUnreadCount))
+                    Log.d(TAG, "getChatById: returning chat with unreadCount=${chat.unreadCount}, firstUnreadMessageId=${chat.firstUnreadMessageId}")
+                    Result.success(chat)
                 } else {
                     // Fallback to local if API fails
                     val localChat = chatDao.getChatById(chatId)
