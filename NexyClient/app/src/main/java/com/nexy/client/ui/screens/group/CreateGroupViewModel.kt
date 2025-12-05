@@ -120,7 +120,7 @@ class CreateGroupViewModel @Inject constructor(
                 val avatarUri = _groupAvatarUri.value
                 
                 if (avatarUri != null) {
-                    chatRepository.uploadFile(context, avatarUri).fold(
+                    chatRepository.uploadFile(context, avatarUri, "avatar").fold(
                         onSuccess = { url ->
                             avatarUrl = url
                         },

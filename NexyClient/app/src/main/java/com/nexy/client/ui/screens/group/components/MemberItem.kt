@@ -9,8 +9,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.nexy.client.ServerConfig
 import com.nexy.client.data.models.ChatMember
 import com.nexy.client.data.models.MemberRole
 
@@ -73,13 +75,15 @@ fun MemberItem(
 
 @Composable
 private fun MemberAvatar(member: ChatMember) {
-    if (member.user?.avatarUrl != null) {
+    val avatarUrl = ServerConfig.getFileUrl(member.user?.avatarUrl)
+    if (avatarUrl != null) {
         AsyncImage(
-            model = member.user.avatarUrl,
+            model = avatarUrl,
             contentDescription = "Avatar",
             modifier = Modifier
                 .size(40.dp)
-                .clip(CircleShape)
+                .clip(CircleShape),
+            contentScale = ContentScale.Crop
         )
     } else {
         Surface(

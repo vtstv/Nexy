@@ -76,7 +76,7 @@ class ProfileViewModel @Inject constructor(
             if (avatarUri != null) {
                 // Upload new avatar
                 android.util.Log.d("ProfileViewModel", "updateProfile: uploading avatar...")
-                fileOperations.uploadFile(context, avatarUri).fold(
+                fileOperations.uploadFile(context, avatarUri, "avatar").fold(
                     onSuccess = { url ->
                         android.util.Log.d("ProfileViewModel", "updateProfile: avatar uploaded. url=$url")
                         avatarUrl = url

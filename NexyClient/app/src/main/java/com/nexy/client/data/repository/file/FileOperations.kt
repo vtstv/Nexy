@@ -182,11 +182,11 @@ class FileOperations @Inject constructor(
         }
     }
     
-    suspend fun uploadFile(context: Context, fileUri: Uri): Result<String> {
+    suspend fun uploadFile(context: Context, fileUri: Uri, fileType: String = "image"): Result<String> {
         return withContext(Dispatchers.IO) {
             try {
                 val fileName = getFileName(context, fileUri) ?: "upload_${System.currentTimeMillis()}"
-                Log.d(TAG, "Uploading file: fileName=$fileName")
+                Log.d(TAG, "Uploading file: fileName=$fileName, type=$fileType")
                 
                 // Get MIME type
                 val mimeType = context.contentResolver.getType(fileUri) ?: "application/octet-stream"
@@ -210,7 +210,7 @@ class FileOperations @Inject constructor(
                 // Create multipart request
                 val requestBody = tempFile.asRequestBody(mimeType.toMediaTypeOrNull())
                 val multipartBody = MultipartBody.Part.createFormData("file", fileName, requestBody)
-                val typeBody = "image".toRequestBody("text/plain".toMediaTypeOrNull())
+                val typeBody = fileType.toRequestBody("text/plain".toMediaTypeOrNull())
                 
                 // Upload file to server
                 val uploadResponse = apiService.uploadFile(multipartBody, typeBody)

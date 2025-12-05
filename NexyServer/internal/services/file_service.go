@@ -41,9 +41,11 @@ func (s *FileService) UploadFile(ctx context.Context, userID int, fileHeader *mu
 		return nil, fmt.Errorf("file type not allowed")
 	}
 
-	// Determine subfolder based on mime type
+	// Determine subfolder based on fileType param or mime type
 	subfolder := "files"
-	if strings.HasPrefix(mimeType, "image/") {
+	if fileType == "avatar" {
+		subfolder = "avatars"
+	} else if strings.HasPrefix(mimeType, "image/") {
 		subfolder = "images"
 	} else if strings.HasPrefix(mimeType, "video/") {
 		subfolder = "videos"

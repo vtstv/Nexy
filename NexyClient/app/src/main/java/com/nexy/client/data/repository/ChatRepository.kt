@@ -74,8 +74,8 @@ class ChatRepository @Inject constructor(
     suspend fun downloadFile(fileId: String, context: Context, fileName: String): Result<Uri> =
         fileOperations.downloadFile(fileId, context, fileName)
     
-    suspend fun uploadFile(context: Context, fileUri: Uri): Result<String> =
-        fileOperations.uploadFile(context, fileUri)
+    suspend fun uploadFile(context: Context, fileUri: Uri, fileType: String = "image"): Result<String> =
+        fileOperations.uploadFile(context, fileUri, fileType)
     
     suspend fun saveFileToDownloads(
         context: Context,
