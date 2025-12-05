@@ -22,6 +22,13 @@ class ContactsViewModel @Inject constructor(
     
     init {
         loadContacts()
+        
+        // Listen for contact updates
+        viewModelScope.launch {
+            contactRepository.contactsUpdateTrigger.collect {
+                loadContacts()
+            }
+        }
     }
     
     fun loadContacts() {

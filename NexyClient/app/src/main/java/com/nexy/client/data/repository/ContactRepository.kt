@@ -8,6 +8,8 @@ import com.nexy.client.data.local.dao.ChatDao
 import com.nexy.client.data.local.entity.ChatEntity
 import com.nexy.client.data.models.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -17,6 +19,8 @@ class ContactRepository @Inject constructor(
     private val apiService: NexyApiService,
     private val chatDao: ChatDao
 ) {
+    private val _contactsUpdateTrigger = MutableSharedFlow<Unit>(replay = 0)
+    val contactsUpdateTrigger = _contactsUpdateTrigger.asSharedFlow()
     
     /**
      * Add a user to contacts
@@ -25,6 +29,7 @@ class ContactRepository @Inject constructor(
         try {
             val response = apiService.addContact(AddContactRequest(userId))
             if (response.isSuccessful) {
+                _contactsUpdateTrigger.emit(Unit)
                 Result.success(Unit)
             } else {
                 Result.failure(Exception("Failed to add contact: ${response.code()}"))
@@ -88,6 +93,7 @@ class ContactRepository @Inject constructor(
                 UpdateContactStatusRequest(status)
             )
             if (response.isSuccessful) {
+                _contactsUpdateTrigger.emit(Unit)
                 Result.success(Unit)
             } else {
                 Result.failure(Exception("Failed to update contact: ${response.code()}"))
@@ -104,6 +110,7 @@ class ContactRepository @Inject constructor(
         try {
             val response = apiService.deleteContact(contactUserId)
             if (response.isSuccessful) {
+                _contactsUpdateTrigger.emit(Unit)
                 Result.success(Unit)
             } else {
                 Result.failure(Exception("Failed to delete contact: ${response.code()}"))
