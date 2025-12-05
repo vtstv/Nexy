@@ -75,7 +75,9 @@ class ChatInfoProvider @Inject constructor(
             val response = apiService.getUserById(otherUserId)
             if (response.isSuccessful && response.body() != null) {
                 val user = response.body()!!
-                val displayName = user.displayName?.takeIf { name -> name.isNotBlank() } ?: user.username
+                val displayName = user.displayName?.takeIf { name -> name.isNotBlank() } 
+                    ?: user.username.takeIf { name -> name.isNotBlank() }
+                    ?: "User $otherUserId"
                 Log.d(TAG, "getPrivateChatDisplayName: PRIVATE chat, displayName=$displayName")
                 displayName
             } else {

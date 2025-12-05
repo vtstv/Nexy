@@ -239,8 +239,11 @@ fun NexyApp() {
                 onNavigateBack = {
                     navController.popBackStack()
                 },
-                onStartChat = { id ->
-                    navController.popBackStack()
+                onStartChat = { chatId ->
+                    navigationViewModel.selectChat(chatId)
+                    navController.navigate(Screen.ChatList.route) {
+                        popUpTo(Screen.ChatList.route) { inclusive = false }
+                    }
                 }
             )
         }

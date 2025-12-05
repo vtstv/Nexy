@@ -69,6 +69,10 @@ func main() {
 	groupService.SetOnlineStatusService(onlineStatusService)
 	groupService.SetOnlineChecker(hub)
 
+	// Wire up online status service and hub to user service
+	userService.SetOnlineStatusService(onlineStatusService)
+	userService.SetOnlineChecker(hub)
+
 	authController := controllers.NewAuthController(authService, sessionRepo, folderRepo)
 	userController := controllers.NewUserController(userService, qrService)
 	groupController := controllers.NewGroupController(groupService)

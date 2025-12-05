@@ -141,13 +141,15 @@ class ChatListViewModel @Inject constructor(
                                 if (otherUserId != null) {
                                     val userResult = userRepository.getUserById(otherUserId)
                                     val user = userResult.getOrNull()
-                                    val name = user?.displayName ?: user?.username ?: "User $otherUserId"
+                                    val name = user?.displayName?.takeIf { it.isNotBlank() } 
+                                        ?: user?.username?.takeIf { it.isNotBlank() } 
+                                        ?: "User $otherUserId"
                                     Pair(name, user?.avatarUrl)
                                 } else {
                                     Pair("Notepad", null)
                                 }
                             }
-                            else -> Pair(chat.name ?: "Unknown", chat.avatarUrl)
+                            else -> Pair(chat.name?.takeIf { it.isNotBlank() } ?: "Unknown", chat.avatarUrl)
                         }
                         
                         val lastMessage = chatRepository.getLastMessageForChat(chat.id)

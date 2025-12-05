@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 import androidx.compose.ui.layout.ContentScale
@@ -33,6 +34,7 @@ fun ChatTopBar(
     isTyping: Boolean = false,
     typingUser: String? = null,
     mutedUntil: String? = null,
+    otherUserOnlineStatus: String? = null,
     onSearchClick: () -> Unit = {},
     onSearchQueryChange: (String) -> Unit = {},
     onNavigateBack: () -> Unit,
@@ -116,6 +118,14 @@ fun ChatTopBar(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.primary,
                                 fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                            )
+                        } else if (chatType == ChatType.PRIVATE && !otherUserOnlineStatus.isNullOrEmpty()) {
+                            // Show online status for 1:1 chats
+                            val isOnline = otherUserOnlineStatus == "online"
+                            Text(
+                                text = otherUserOnlineStatus,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (isOnline) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         } else {
                             Text(

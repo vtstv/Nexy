@@ -26,11 +26,15 @@ class ChatStateManager @Inject constructor(
         
         val chat = chatResult.getOrNull() ?: return null
         
+        var otherUserOnlineStatus: String? = null
+        
         val name = if (chat.type == ChatType.PRIVATE) {
             if (chat.participantIds != null && currentUserId != null) {
                 val otherUserId = chat.participantIds.firstOrNull { it != currentUserId } ?: currentUserId
-                val userResult = userRepository.getUserById(otherUserId)
-                userResult.getOrNull()?.displayName ?: userResult.getOrNull()?.username ?: "Chat"
+                val userResult = userRepository.getUserById(otherUserId, forceRefresh = true)
+                val otherUser = userResult.getOrNull()
+                otherUserOnlineStatus = otherUser?.onlineStatus
+                otherUser?.displayName ?: otherUser?.username ?: "Chat"
             } else {
                 "Chat"
             }
@@ -47,7 +51,8 @@ class ChatStateManager @Inject constructor(
             isSelfChat = chat.participantIds?.size == 1 && chat.participantIds.contains(currentUserId),
             isCreator = chat.createdBy == currentUserId,
             isMember = chat.isMember || (chat.participantIds?.contains(currentUserId) == true),
-            mutedUntil = chat.mutedUntil
+            mutedUntil = chat.mutedUntil,
+            otherUserOnlineStatus = otherUserOnlineStatus
         )
     }
 
@@ -70,5 +75,6 @@ data class ChatInfo(
     val isSelfChat: Boolean,
     val isCreator: Boolean,
     val isMember: Boolean,
-    val mutedUntil: String? = null
+    val mutedUntil: String? = null,
+    val otherUserOnlineStatus: String? = null
 )

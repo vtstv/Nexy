@@ -17,6 +17,25 @@ func (s *UserService) GetUserByID(ctx context.Context, id int) (*models.User, er
 	return s.userRepo.GetByID(ctx, id)
 }
 
+// GetUserByIDWithStatus retrieves user by ID with online status
+func (s *UserService) GetUserByIDWithStatus(ctx context.Context, id int, requestingUserID int) (*models.User, error) {
+	user, err := s.userRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Enrich with online status if service is available
+	if s.onlineStatusService != nil && s.onlineChecker != nil {
+		isOnline := s.onlineChecker.IsUserOnline(id)
+		err = s.onlineStatusService.EnrichUserWithStatus(ctx, user, requestingUserID, isOnline)
+		if err != nil {
+			// Log but don't fail - status is optional
+		}
+	}
+
+	return user, nil
+}
+
 // SearchUsers searches for users by query
 func (s *UserService) SearchUsers(ctx context.Context, query string, limit int) ([]*models.User, error) {
 	if limit <= 0 || limit > 50 {

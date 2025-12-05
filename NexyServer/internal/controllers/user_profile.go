@@ -50,7 +50,10 @@ func (c *UserController) GetUserByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := c.userService.GetUserByID(r.Context(), userID)
+	// Get requesting user ID for privacy filter
+	requestingUserID, _ := middleware.GetUserID(r)
+
+	user, err := c.userService.GetUserByIDWithStatus(r.Context(), userID, requestingUserID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return

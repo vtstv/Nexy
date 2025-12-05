@@ -19,6 +19,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import coil.compose.AsyncImage
 import com.nexy.client.data.models.User
+import com.nexy.client.data.repository.ContactRepository
 import com.nexy.client.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,7 +30,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class UserProfileViewModel @Inject constructor(
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val contactRepository: ContactRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UserProfileUiState())
@@ -48,6 +50,18 @@ class UserProfileViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.value = UserProfileUiState(error = e.message ?: "Unknown error")
             }
+        }
+    }
+    
+    fun createChat(userId: Int, onChatCreated: (Int) -> Unit) {
+        viewModelScope.launch {
+            contactRepository.createPrivateChat(userId)
+                .onSuccess { chat ->
+                    onChatCreated(chat.id)
+                }
+                .onFailure { error ->
+                    _uiState.value = UserProfileUiState(error = error.message ?: "Failed to create chat")
+                }
         }
     }
 }
@@ -162,7 +176,11 @@ fun UserProfileScreen(
                 Spacer(modifier = Modifier.weight(1f))
                 
                 Button(
-                    onClick = { onStartChat(user.id) },
+                    onClick = { 
+                        viewModel.createChat(user.id) { chatId ->
+                            onStartChat(chatId)
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(Icons.Default.Chat, null)

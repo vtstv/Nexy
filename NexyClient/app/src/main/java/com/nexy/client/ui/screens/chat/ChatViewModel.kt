@@ -130,7 +130,8 @@ class ChatViewModel @Inject constructor(
                         isSelfChat = chatInfo.isSelfChat,
                         isCreator = chatInfo.isCreator,
                         isMember = chatInfo.isMember,
-                        mutedUntil = chatInfo.mutedUntil
+                        mutedUntil = chatInfo.mutedUntil,
+                        otherUserOnlineStatus = chatInfo.otherUserOnlineStatus
                     )
                 }
             } catch (e: Exception) {

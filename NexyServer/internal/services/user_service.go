@@ -8,8 +8,10 @@ import (
 )
 
 type UserService struct {
-	userRepo *repositories.UserRepository
-	chatRepo *repositories.ChatRepository
+	userRepo            *repositories.UserRepository
+	chatRepo            *repositories.ChatRepository
+	onlineStatusService *OnlineStatusService
+	onlineChecker       OnlineChecker
 }
 
 func NewUserService(userRepo *repositories.UserRepository, chatRepo *repositories.ChatRepository) *UserService {
@@ -17,4 +19,12 @@ func NewUserService(userRepo *repositories.UserRepository, chatRepo *repositorie
 		userRepo: userRepo,
 		chatRepo: chatRepo,
 	}
+}
+
+func (s *UserService) SetOnlineStatusService(service *OnlineStatusService) {
+	s.onlineStatusService = service
+}
+
+func (s *UserService) SetOnlineChecker(checker OnlineChecker) {
+	s.onlineChecker = checker
 }
