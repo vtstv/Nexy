@@ -23,6 +23,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -30,6 +31,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import coil.compose.AsyncImage
+import com.nexy.client.ServerConfig
 import com.nexy.client.data.models.User
 import com.nexy.client.data.repository.ChatRepository
 import com.nexy.client.data.repository.UserRepository
@@ -223,7 +225,7 @@ fun InviteMembersScreen(
                             supportingContent = { Text("@${user.username}") },
                             leadingContent = {
                                 AsyncImage(
-                                    model = user.avatarUrl,
+                                    model = ServerConfig.getFileUrl(user.avatarUrl),
                                     contentDescription = null,
                                     modifier = Modifier
                                         .size(40.dp)
