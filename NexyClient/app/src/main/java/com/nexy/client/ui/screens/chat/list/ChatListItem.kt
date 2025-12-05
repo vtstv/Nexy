@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.StickyNote2
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -56,8 +57,9 @@ fun ChatListItem(chatWithInfo: ChatWithInfo, onClick: () -> Unit) {
                 )
             } else {
                 Icon(
-                    when (chat.type) {
-                        ChatType.GROUP -> Icons.Default.People
+                    when {
+                        chatWithInfo.isSelfChat -> Icons.Default.StickyNote2
+                        chat.type == ChatType.GROUP -> Icons.Default.People
                         else -> Icons.Default.Person
                     },
                     contentDescription = null,

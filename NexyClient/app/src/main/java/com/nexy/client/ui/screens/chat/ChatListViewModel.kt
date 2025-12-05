@@ -23,7 +23,8 @@ data class ChatWithInfo(
     val displayName: String,
     val lastMessagePreview: String = "No messages",
     val lastMessageTime: String? = null,
-    val unreadCount: Int = 0
+    val unreadCount: Int = 0,
+    val isSelfChat: Boolean = false
 )
 
 data class ChatListUiState(
@@ -141,7 +142,7 @@ class ChatListViewModel @Inject constructor(
                 .collect { chats ->
                     val chatsWithInfo = ArrayList<ChatWithInfo>()
                     for (chat in chats) {
-                        val (displayName, avatarUrl) = when (chat.type) {
+                        val (displayName, avatarUrl, isSelfChat) = when (chat.type) {
                             ChatType.PRIVATE -> {
                                 val currentUserId = tokenManager.getUserId()
                                 val otherUserId = chat.participantIds?.firstOrNull { it != currentUserId }
@@ -152,12 +153,12 @@ class ChatListViewModel @Inject constructor(
                                     val name = user?.displayName?.takeIf { it.isNotBlank() } 
                                         ?: user?.username?.takeIf { it.isNotBlank() } 
                                         ?: "User $otherUserId"
-                                    Pair(name, user?.avatarUrl)
+                                    Triple(name, user?.avatarUrl, false)
                                 } else {
-                                    Pair("Notepad", null)
+                                    Triple("Notepad", null, true)
                                 }
                             }
-                            else -> Pair(chat.name?.takeIf { it.isNotBlank() } ?: "Unknown", chat.avatarUrl)
+                            else -> Triple(chat.name?.takeIf { it.isNotBlank() } ?: "Unknown", chat.avatarUrl, false)
                         }
                         
                         val lastMessage = chatRepository.getLastMessageForChat(chat.id)
@@ -173,7 +174,8 @@ class ChatListViewModel @Inject constructor(
                             displayName = displayName,
                             lastMessagePreview = preview,
                             lastMessageTime = timeStr,
-                            unreadCount = chat.unreadCount
+                            unreadCount = chat.unreadCount,
+                            isSelfChat = isSelfChat
                         ))
                     }
                     _uiState.value = _uiState.value.copy(chats = chatsWithInfo)

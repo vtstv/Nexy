@@ -28,6 +28,7 @@ fun ChatTopBar(
     chatName: String,
     chatAvatarUrl: String? = null,
     chatType: ChatType = ChatType.PRIVATE,
+    isSelfChat: Boolean = false,
     isCreator: Boolean = false,
     isSearching: Boolean = false,
     searchQuery: String = "",
@@ -84,34 +85,51 @@ fun ChatTopBar(
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        val avatarUrl = ServerConfig.getFileUrl(chatAvatarUrl)
-                        if (avatarUrl != null) {
-                            AsyncImage(
-                                model = ImageRequest.Builder(LocalContext.current)
-                                    .data(avatarUrl)
-                                    .crossfade(true)
-                                    .build(),
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(CircleShape),
-                                contentScale = ContentScale.Crop
+                        if (isSelfChat) {
+                            // Notepad icon for self chat
+                            Icon(
+                                imageVector = Icons.Default.StickyNote2,
+                                contentDescription = "Notepad",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(24.dp)
                             )
                         } else {
-                            Text(
-                                text = chatName.take(1).uppercase(),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
+                            val avatarUrl = ServerConfig.getFileUrl(chatAvatarUrl)
+                            if (avatarUrl != null) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(avatarUrl)
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Text(
+                                    text = chatName.take(1).uppercase(),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = chatName,
+                            text = if (isSelfChat) "Notepad" else chatName,
                             style = MaterialTheme.typography.titleMedium
                         )
-                        if (isTyping) {
+                        if (isSelfChat) {
+                            // Personal notes subtitle
+                            Text(
+                                text = "Personal notes",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else if (isTyping) {
                             val typingText = if (typingUser != null) "$typingUser is typing..." else "Typing..."
                             Text(
                                 text = typingText,

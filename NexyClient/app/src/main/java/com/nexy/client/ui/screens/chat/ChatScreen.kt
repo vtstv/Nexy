@@ -120,6 +120,7 @@ fun ChatScreen(
                 chatName = uiState.chatName,
                 chatAvatarUrl = uiState.chatAvatarUrl,
                 chatType = uiState.chatType,
+                isSelfChat = uiState.isSelfChat,
                 isCreator = uiState.isCreator,
                 isSearching = uiState.isSearching,
                 searchQuery = uiState.searchQuery,
