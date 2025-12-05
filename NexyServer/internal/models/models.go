@@ -65,6 +65,7 @@ type Chat struct {
 	DefaultPermissions *ChatPermissions `json:"default_permissions,omitempty"`
 	MemberCount        int              `json:"member_count,omitempty"`
 	IsMember           bool             `json:"is_member,omitempty"`
+	MutedUntil         *time.Time       `json:"muted_until,omitempty"`
 }
 
 type ChatPermissions struct {
@@ -83,6 +84,7 @@ type ChatMember struct {
 	Permissions *ChatPermissions `json:"permissions,omitempty"`
 	JoinedAt    time.Time        `json:"joined_at"`
 	User        *User            `json:"user,omitempty"`
+	MutedUntil  *time.Time       `json:"muted_until,omitempty"`
 }
 
 type ChatInviteLink struct {

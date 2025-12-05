@@ -272,4 +272,37 @@ class ChatOperations @Inject constructor(
             }
         }
     }
+
+    suspend fun muteChat(chatId: Int, duration: String?, until: String?): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val request = com.nexy.client.data.models.MuteChatRequest(duration, until)
+                val response = apiService.muteChat(chatId, request)
+                if (response.isSuccessful) {
+                    chatSyncOperations.getChatById(chatId)
+                    Result.success(Unit)
+                } else {
+                    Result.failure(Exception("Failed to mute chat: ${response.code()}"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
+    suspend fun unmuteChat(chatId: Int): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.unmuteChat(chatId)
+                if (response.isSuccessful) {
+                    chatSyncOperations.getChatById(chatId)
+                    Result.success(Unit)
+                } else {
+                    Result.failure(Exception("Failed to unmute chat: ${response.code()}"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
 }

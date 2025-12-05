@@ -2,7 +2,9 @@ package repositories
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"time"
 
 	"github.com/vtstv/nexy/internal/models"
 )
@@ -58,11 +60,12 @@ func (r *ChatRepository) IsMember(ctx context.Context, chatID, userID int) (bool
 func (r *ChatRepository) GetChatMember(ctx context.Context, chatID, userID int) (*models.ChatMember, error) {
 	member := &models.ChatMember{}
 	query := `
-		SELECT id, chat_id, user_id, role, permissions, joined_at
+		SELECT id, chat_id, user_id, role, permissions, joined_at, muted_until
 		FROM chat_members
 		WHERE chat_id = $1 AND user_id = $2`
 
 	var permissions []byte
+	var mutedUntil sql.NullTime
 	err := r.db.QueryRowContext(ctx, query, chatID, userID).Scan(
 		&member.ID,
 		&member.ChatID,
@@ -70,9 +73,14 @@ func (r *ChatRepository) GetChatMember(ctx context.Context, chatID, userID int) 
 		&member.Role,
 		&permissions,
 		&member.JoinedAt,
+		&mutedUntil,
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	if mutedUntil.Valid {
+		member.MutedUntil = &mutedUntil.Time
 	}
 
 	if len(permissions) > 0 {
@@ -195,4 +203,11 @@ func (r *ChatRepository) GetChatMembersWithSearch(ctx context.Context, chatID in
 		members = append(members, member)
 	}
 	return members, nil
+}
+
+// MuteChat mutes a chat for a user until a specific time
+func (r *ChatRepository) MuteChat(ctx context.Context, chatID, userID int, until *time.Time) error {
+	query := `UPDATE chat_members SET muted_until = $1 WHERE chat_id = $2 AND user_id = $3`
+	_, err := r.db.ExecContext(ctx, query, until, chatID, userID)
+	return err
 }

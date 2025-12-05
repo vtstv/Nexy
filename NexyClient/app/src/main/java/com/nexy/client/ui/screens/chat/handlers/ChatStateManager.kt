@@ -46,7 +46,8 @@ class ChatStateManager @Inject constructor(
             participantIds = chat.participantIds ?: emptyList(),
             isSelfChat = chat.participantIds?.size == 1 && chat.participantIds.contains(currentUserId),
             isCreator = chat.createdBy == currentUserId,
-            isMember = chat.isMember || (chat.participantIds?.contains(currentUserId) == true)
+            isMember = chat.isMember || (chat.participantIds?.contains(currentUserId) == true),
+            mutedUntil = chat.mutedUntil
         )
     }
 
@@ -68,5 +69,6 @@ data class ChatInfo(
     val participantIds: List<Int>,
     val isSelfChat: Boolean,
     val isCreator: Boolean,
-    val isMember: Boolean
+    val isMember: Boolean,
+    val mutedUntil: String? = null
 )

@@ -40,6 +40,7 @@ fun ChatScreen(
     val hasScrolledToBottom = remember { mutableStateOf(false) }
     var showEmojiPicker by remember { mutableStateOf(false) }
     var showChatInfoDialog by remember { mutableStateOf(false) }
+    var showMuteDialog by remember { mutableStateOf(false) }
     var replyToMessage by remember { mutableStateOf<Message?>(null) }
     
     // Show error as snackbar
@@ -85,6 +86,7 @@ fun ChatScreen(
                 searchQuery = uiState.searchQuery,
                 isTyping = uiState.isTyping,
                 typingUser = uiState.typingUser,
+                mutedUntil = uiState.mutedUntil,
                 onSearchClick = viewModel::toggleSearch,
                 onSearchQueryChange = viewModel::updateSearchQuery,
                 onNavigateBack = onNavigateBack,
@@ -93,6 +95,8 @@ fun ChatScreen(
                     viewModel.deleteChat()
                     onNavigateBack()
                 },
+                onMuteClick = { showMuteDialog = true },
+                onUnmuteClick = { viewModel.unmuteChat() },
                 onChatInfoClick = { 
                     if (uiState.chatType == ChatType.GROUP && onNavigateToGroupInfo != null) {
                         onNavigateToGroupInfo(chatId)
@@ -230,6 +234,16 @@ fun ChatScreen(
                 }
             }
         }
+    }
+
+    if (showMuteDialog) {
+        MuteDialog(
+            onDismiss = { showMuteDialog = false },
+            onMute = { duration, until ->
+                viewModel.muteChat(duration, until)
+                showMuteDialog = false
+            }
+        )
     }
 }
 

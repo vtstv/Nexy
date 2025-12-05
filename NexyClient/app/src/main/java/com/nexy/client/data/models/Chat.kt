@@ -48,6 +48,9 @@ data class Chat(
 
     @SerializedName("is_member")
     val isMember: Boolean = false,
+
+    @SerializedName("muted_until")
+    val mutedUntil: String? = null
 )
 
 enum class ChatType {
@@ -144,4 +147,12 @@ data class ChatInviteLink(
     
     @SerializedName("created_at")
     val createdAt: String
+)
+
+data class MuteChatRequest(
+    @SerializedName("duration")
+    val duration: String? = null,
+    
+    @SerializedName("until")
+    val until: String? = null
 )

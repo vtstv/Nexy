@@ -91,7 +91,7 @@ func (r *ChatRepository) GetSelfChat(ctx context.Context, userID int) (*models.C
 // GetUserChats retrieves all chats for a user
 func (r *ChatRepository) GetUserChats(ctx context.Context, userID int) ([]*models.Chat, error) {
 	query := `
-		SELECT c.id, c.type, c.name, c.avatar_url, c.created_by, c.created_at, c.updated_at
+		SELECT c.id, c.type, c.name, c.avatar_url, c.created_by, c.created_at, c.updated_at, cm.muted_until
 		FROM chats c
 		INNER JOIN chat_members cm ON c.id = cm.chat_id
 		WHERE cm.user_id = $1
@@ -107,6 +107,7 @@ func (r *ChatRepository) GetUserChats(ctx context.Context, userID int) ([]*model
 	for rows.Next() {
 		chat := &models.Chat{}
 		var createdBy sql.NullInt64
+		var mutedUntil sql.NullTime
 		err := rows.Scan(
 			&chat.ID,
 			&chat.Type,
@@ -115,6 +116,7 @@ func (r *ChatRepository) GetUserChats(ctx context.Context, userID int) ([]*model
 			&createdBy,
 			&chat.CreatedAt,
 			&chat.UpdatedAt,
+			&mutedUntil,
 		)
 		if err != nil {
 			return nil, err
@@ -122,6 +124,9 @@ func (r *ChatRepository) GetUserChats(ctx context.Context, userID int) ([]*model
 		if createdBy.Valid {
 			id := int(createdBy.Int64)
 			chat.CreatedBy = &id
+		}
+		if mutedUntil.Valid {
+			chat.MutedUntil = &mutedUntil.Time
 		}
 
 		// Load participants

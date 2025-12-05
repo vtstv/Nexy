@@ -22,6 +22,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
+    private val chatRepository: com.nexy.client.data.repository.ChatRepository,
     private val stateManager: ChatStateManager,
     private val messageOps: MessageOperationsHandler,
     private val fileOps: FileOperationsHandler,
@@ -128,7 +129,8 @@ class ChatViewModel @Inject constructor(
                         participantIds = chatInfo.participantIds,
                         isSelfChat = chatInfo.isSelfChat,
                         isCreator = chatInfo.isCreator,
-                        isMember = chatInfo.isMember
+                        isMember = chatInfo.isMember,
+                        mutedUntil = chatInfo.mutedUntil
                     )
                 }
             } catch (e: Exception) {
@@ -321,6 +323,30 @@ class ChatViewModel @Inject constructor(
                 }
                 .onFailure { error ->
                     _uiState.value = _uiState.value.copy(isLoading = false, error = error.message ?: "Failed to join group")
+                }
+        }
+    }
+
+    fun muteChat(duration: String?, until: String?) {
+        viewModelScope.launch {
+            chatRepository.muteChat(chatId, duration, until)
+                .onSuccess {
+                    loadChatName()
+                }
+                .onFailure { e ->
+                    _uiState.value = _uiState.value.copy(error = e.message)
+                }
+        }
+    }
+
+    fun unmuteChat() {
+        viewModelScope.launch {
+            chatRepository.unmuteChat(chatId)
+                .onSuccess {
+                    loadChatName()
+                }
+                .onFailure { e ->
+                    _uiState.value = _uiState.value.copy(error = e.message)
                 }
         }
     }

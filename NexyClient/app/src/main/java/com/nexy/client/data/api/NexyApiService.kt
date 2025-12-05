@@ -234,6 +234,15 @@ interface NexyApiService {
 
     @PUT("folders/reorder")
     suspend fun reorderFolders(@Body request: ReorderFoldersRequest): Response<Unit>
+
+    @POST("chats/{chatId}/mute")
+    suspend fun muteChat(
+        @Path("chatId") chatId: Int,
+        @Body request: MuteChatRequest
+    ): Response<Unit>
+
+    @POST("chats/{chatId}/unmute")
+    suspend fun unmuteChat(@Path("chatId") chatId: Int): Response<Unit>
 }
 
 data class ICEServer(

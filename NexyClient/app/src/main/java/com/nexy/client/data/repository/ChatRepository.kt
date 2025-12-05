@@ -35,6 +35,11 @@ class ChatRepository @Inject constructor(
     
     suspend fun deleteChat(chatId: Int): Result<Unit> = chatOperations.deleteChat(chatId)
     
+    suspend fun muteChat(chatId: Int, duration: String?, until: String?): Result<Unit> = 
+        chatOperations.muteChat(chatId, duration, until)
+
+    suspend fun unmuteChat(chatId: Int): Result<Unit> = chatOperations.unmuteChat(chatId)
+    
     // ===== MESSAGE OPERATIONS DELEGATION =====
     
     fun getMessagesByChatId(chatId: Int): Flow<List<Message>> = messageOperations.getMessagesByChatId(chatId)

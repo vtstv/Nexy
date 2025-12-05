@@ -6,6 +6,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/vtstv/nexy/internal/models"
 )
@@ -159,6 +160,12 @@ func (s *UserService) GetChat(ctx context.Context, userID, chatID int) (*models.
 		if chat.GroupType != "public_group" {
 			return nil, fmt.Errorf("access denied: user %d is not a member of chat %d and chat is not public", userID, chatID)
 		}
+	} else {
+		// Get member details to check muted status
+		member, err := s.chatRepo.GetChatMember(ctx, chatID, userID)
+		if err == nil {
+			chat.MutedUntil = member.MutedUntil
+		}
 	}
 
 	chat.IsMember = isMember
@@ -193,4 +200,32 @@ func (s *UserService) ClearChatMessages(ctx context.Context, userID, chatID int)
 
 	// Clear all messages from the chat
 	return s.chatRepo.ClearMessages(ctx, chatID)
+}
+
+// MuteChat mutes a chat for a user
+func (s *UserService) MuteChat(ctx context.Context, userID, chatID int, until *time.Time) error {
+	// Check if user is member
+	isMember, err := s.chatRepo.IsMember(ctx, chatID, userID)
+	if err != nil {
+		return err
+	}
+	if !isMember {
+		return fmt.Errorf("user %d is not a member of chat %d", userID, chatID)
+	}
+
+	return s.chatRepo.MuteChat(ctx, chatID, userID, until)
+}
+
+// UnmuteChat unmutes a chat for a user
+func (s *UserService) UnmuteChat(ctx context.Context, userID, chatID int) error {
+	// Check if user is member
+	isMember, err := s.chatRepo.IsMember(ctx, chatID, userID)
+	if err != nil {
+		return err
+	}
+	if !isMember {
+		return fmt.Errorf("user %d is not a member of chat %d", userID, chatID)
+	}
+
+	return s.chatRepo.MuteChat(ctx, chatID, userID, nil)
 }

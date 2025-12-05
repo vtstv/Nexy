@@ -32,12 +32,15 @@ fun ChatTopBar(
     searchQuery: String = "",
     isTyping: Boolean = false,
     typingUser: String? = null,
+    mutedUntil: String? = null,
     onSearchClick: () -> Unit = {},
     onSearchQueryChange: (String) -> Unit = {},
     onNavigateBack: () -> Unit,
     onClearChat: () -> Unit,
     onDeleteChat: () -> Unit,
     onChatInfoClick: () -> Unit,
+    onMuteClick: () -> Unit = {},
+    onUnmuteClick: () -> Unit = {},
     onCallClick: (() -> Unit)? = null,
     onGroupSettingsClick: (() -> Unit)? = null,
     showBackButton: Boolean = true
@@ -169,6 +172,28 @@ fun ChatTopBar(
                     )
                     HorizontalDivider()
                 }
+
+                // Mute/Unmute
+                if (mutedUntil != null) {
+                    DropdownMenuItem(
+                        text = { Text("Unmute Notifications") },
+                        onClick = {
+                            showMenu = false
+                            onUnmuteClick()
+                        },
+                        leadingIcon = { Icon(Icons.Default.Notifications, null) }
+                    )
+                } else {
+                    DropdownMenuItem(
+                        text = { Text("Mute Notifications") },
+                        onClick = {
+                            showMenu = false
+                            onMuteClick()
+                        },
+                        leadingIcon = { Icon(Icons.Default.NotificationsOff, null) }
+                    )
+                }
+
                 DropdownMenuItem(
                     text = { Text("Chat Info") },
                     onClick = {
