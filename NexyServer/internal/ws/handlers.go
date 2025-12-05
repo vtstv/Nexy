@@ -211,6 +211,9 @@ func (h *Hub) handleStatusMessage(message *NexyMessage, unregisterFunc func(*Cli
 		if message.Header.ChatID != nil {
 			var readBody ReadBody
 			if err := json.Unmarshal(message.Body, &readBody); err == nil {
+				log.Printf("Processing read receipt: chatID=%d, senderID=%d, messageID=%s", 
+					*message.Header.ChatID, message.Header.SenderID, readBody.MessageID)
+				
 				// Get message to mark as read
 				msg, err := h.messageRepo.GetByUUID(ctx, readBody.MessageID)
 				if err != nil {
@@ -240,12 +243,15 @@ func (h *Hub) handleStatusMessage(message *NexyMessage, unregisterFunc func(*Cli
 					log.Printf("Error getting chat members for read receipt broadcast: %v", err)
 					return
 				}
+				
+				log.Printf("Broadcasting read receipt to %d members", len(members))
 
 				data, _ := json.Marshal(message)
 
 				for _, memberID := range members {
 					// Skip sender (the one who read it)
 					if memberID == message.Header.SenderID {
+						log.Printf("Skipping sender %d", memberID)
 						continue
 					}
 
@@ -255,22 +261,28 @@ func (h *Hub) handleStatusMessage(message *NexyMessage, unregisterFunc func(*Cli
 					h.mu.RUnlock()
 
 					if !ok {
+						log.Printf("Recipient %d not connected", memberID)
 						continue
 					}
 
 					// Check if recipient has read receipts enabled (Reciprocal privacy)
 					recipient, err := h.userRepo.GetByID(ctx, memberID)
 					if err != nil {
+						log.Printf("Error getting recipient %d: %v", memberID, err)
 						continue
 					}
 
 					if !recipient.ReadReceiptsEnabled {
+						log.Printf("Read receipt suppressed by recipient %d settings", memberID)
 						continue
 					}
 
+					log.Printf("Sending read receipt to user %d", memberID)
 					select {
 					case client.send <- data:
+						log.Printf("Read receipt sent to user %d", memberID)
 					default:
+						log.Printf("Failed to send read receipt to user %d (channel full)", memberID)
 						if unregisterFunc != nil {
 							go unregisterFunc(client)
 						}

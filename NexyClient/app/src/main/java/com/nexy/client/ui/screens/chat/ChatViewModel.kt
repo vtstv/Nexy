@@ -64,12 +64,18 @@ class ChatViewModel @Inject constructor(
     private var firstLoading = true
     // Store firstUnreadMessageId before marking as read so divider persists until user sees it
     private var savedFirstUnreadMessageId: String? = null
+    // Track the last known message ID to detect new incoming messages
+    private var lastKnownMessageId: String? = null
+    // Flag to track if this chat screen is currently active/visible
+    private var isChatActive = false
     
     fun onChatOpened() {
         // Re-fetch chat info from server to get current firstUnreadMessageId
         android.util.Log.d("ChatViewModel", "onChatOpened: fetching fresh chat info from server")
         firstLoading = true
         savedFirstUnreadMessageId = null
+        lastKnownMessageId = null
+        isChatActive = true  // Mark chat as active
         
         viewModelScope.launch {
             loadCurrentUserAndChatInfo()
@@ -92,6 +98,7 @@ class ChatViewModel @Inject constructor(
     // Called when user leaves the chat (like Telegram's onPause)
     fun onChatClosed() {
         android.util.Log.d("ChatViewModel", "onChatClosed: marking as read now")
+        isChatActive = false  // Mark chat as inactive
         viewModelScope.launch {
             markAsReadInternal()
         }
@@ -175,16 +182,37 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             messageOps.observeMessages(chatId).collect { messages ->
+                val currentUserId = _uiState.value.currentUserId
+                val previousLastMessageId = lastKnownMessageId
+                
+                // Update last known message ID - find newest message by timestamp
+                // Filter out messages with null timestamps, then find max
+                val newestMessage = messages.filter { it.timestamp != null }
+                    .maxByOrNull { it.timestamp!! }
+                lastKnownMessageId = newestMessage?.id
+                
                 _uiState.value = _uiState.value.copy(
                     messages = messages,
                     isLoading = false
                 )
                 
                 // Mark as read AFTER messages are loaded (like Telegram's !firstLoading check)
-                if (firstLoading && messages.isNotEmpty()) {
+                // Only mark as read if chat is currently active (user is viewing this chat)
+                if (!isChatActive) {
+                    android.util.Log.d("ChatViewModel", "Chat not active, skipping markAsRead")
+                } else if (firstLoading && messages.isNotEmpty()) {
                     firstLoading = false
                     android.util.Log.d("ChatViewModel", "Messages loaded, marking as read now")
                     markAsReadInternal()
+                } else if (!firstLoading && newestMessage != null && previousLastMessageId != null) {
+                    // Check if there's a NEW message from someone else (not firstLoading)
+                    // This handles the case when user is already in chat and receives new message
+                    if (newestMessage.id != previousLastMessageId && 
+                        currentUserId != null && 
+                        newestMessage.senderId != currentUserId) {
+                        android.util.Log.d("ChatViewModel", "New message from other user while chat is open, marking as read: ${newestMessage.id}")
+                        markAsReadInternal()
+                    }
                 }
             }
         }
