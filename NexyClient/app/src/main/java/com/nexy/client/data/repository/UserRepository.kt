@@ -115,10 +115,10 @@ class UserRepository @Inject constructor(
         }
     }
 
-    suspend fun updateProfile(displayName: String, bio: String, avatarUrl: String?, email: String?, password: String?, readReceiptsEnabled: Boolean? = null, typingIndicatorsEnabled: Boolean? = null): Result<User> {
+    suspend fun updateProfile(displayName: String, bio: String, avatarUrl: String?, email: String?, password: String?, readReceiptsEnabled: Boolean? = null, typingIndicatorsEnabled: Boolean? = null, showOnlineStatus: Boolean? = null): Result<User> {
         return withContext(Dispatchers.IO) {
             try {
-                val request = UpdateProfileRequest(displayName, bio, avatarUrl, email, password, readReceiptsEnabled, typingIndicatorsEnabled)
+                val request = UpdateProfileRequest(displayName, bio, avatarUrl, email, password, readReceiptsEnabled, typingIndicatorsEnabled, showOnlineStatus)
                 val response = apiService.updateProfile(request)
                 if (response.isSuccessful && response.body() != null) {
                     val updatedUser = response.body()!!
@@ -142,6 +142,8 @@ class UserRepository @Inject constructor(
         status = status?.name ?: UserStatus.OFFLINE.name,
         bio = bio,
         readReceiptsEnabled = readReceiptsEnabled,
+        showOnlineStatus = showOnlineStatus,
+        onlineStatus = onlineStatus,
         publicKey = publicKey,
         createdAt = createdAt
     )
@@ -155,6 +157,8 @@ class UserRepository @Inject constructor(
         status = UserStatus.valueOf(status),
         bio = bio,
         readReceiptsEnabled = readReceiptsEnabled,
+        showOnlineStatus = showOnlineStatus,
+        onlineStatus = onlineStatus,
         publicKey = publicKey,
         createdAt = createdAt
     )

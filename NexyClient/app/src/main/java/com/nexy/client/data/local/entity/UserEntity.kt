@@ -14,6 +14,8 @@ data class UserEntity(
     val status: String,
     val bio: String?,
     val readReceiptsEnabled: Boolean = true,
+    val showOnlineStatus: Boolean = true,
+    val onlineStatus: String? = null,
     val publicKey: String?,
     val createdAt: String?,
     val lastSeen: Long = System.currentTimeMillis()

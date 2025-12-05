@@ -16,7 +16,7 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 	query := `
 		INSERT INTO users (username, email, password_hash, display_name, avatar_url, bio)
 		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, read_receipts_enabled, typing_indicators_enabled, created_at, updated_at`
+		RETURNING id, read_receipts_enabled, typing_indicators_enabled, show_online_status, created_at, updated_at`
 
 	return r.db.QueryRowContext(ctx, query,
 		user.Username,
@@ -25,19 +25,22 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 		user.DisplayName,
 		user.AvatarURL,
 		user.Bio,
-	).Scan(&user.ID, &user.ReadReceiptsEnabled, &user.TypingIndicatorsEnabled, &user.CreatedAt, &user.UpdatedAt)
+	).Scan(&user.ID, &user.ReadReceiptsEnabled, &user.TypingIndicatorsEnabled, &user.ShowOnlineStatus, &user.CreatedAt, &user.UpdatedAt)
 }
 
 // GetByID retrieves user by ID
 func (r *UserRepository) GetByID(ctx context.Context, id int) (*models.User, error) {
 	user := &models.User{}
 	query := `
-		SELECT id, username, email, password_hash, display_name, avatar_url, bio, read_receipts_enabled, typing_indicators_enabled, created_at, updated_at
+		SELECT id, username, email, password_hash, display_name, avatar_url, bio, 
+		       read_receipts_enabled, typing_indicators_enabled, show_online_status, last_seen, 
+		       created_at, updated_at
 		FROM users
 		WHERE id = $1`
 
 	var avatarURL sql.NullString
 	var bio sql.NullString
+	var lastSeen sql.NullTime
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&user.ID,
 		&user.Username,
@@ -48,6 +51,8 @@ func (r *UserRepository) GetByID(ctx context.Context, id int) (*models.User, err
 		&bio,
 		&user.ReadReceiptsEnabled,
 		&user.TypingIndicatorsEnabled,
+		&user.ShowOnlineStatus,
+		&lastSeen,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -60,6 +65,9 @@ func (r *UserRepository) GetByID(ctx context.Context, id int) (*models.User, err
 	if bio.Valid {
 		user.Bio = bio.String
 	}
+	if lastSeen.Valid {
+		user.LastSeen = &lastSeen.Time
+	}
 	return user, err
 }
 
@@ -67,8 +75,9 @@ func (r *UserRepository) GetByID(ctx context.Context, id int) (*models.User, err
 func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
 	query := `
 		UPDATE users
-		SET display_name = $1, avatar_url = $2, bio = $3, read_receipts_enabled = $4, typing_indicators_enabled = $5, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $6
+		SET display_name = $1, avatar_url = $2, bio = $3, read_receipts_enabled = $4, 
+		    typing_indicators_enabled = $5, show_online_status = $6, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $7
 		RETURNING updated_at`
 
 	return r.db.QueryRowContext(ctx, query,
@@ -77,8 +86,16 @@ func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
 		user.Bio,
 		user.ReadReceiptsEnabled,
 		user.TypingIndicatorsEnabled,
+		user.ShowOnlineStatus,
 		user.ID,
 	).Scan(&user.UpdatedAt)
+}
+
+// UpdateLastSeen updates user's last seen timestamp
+func (r *UserRepository) UpdateLastSeen(ctx context.Context, userID int) error {
+	query := `UPDATE users SET last_seen = CURRENT_TIMESTAMP WHERE id = $1`
+	_, err := r.db.ExecContext(ctx, query, userID)
+	return err
 }
 
 // UpdateAvatar updates user avatar URL

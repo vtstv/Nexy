@@ -15,6 +15,7 @@ import coil.compose.AsyncImage
 import com.nexy.client.ServerConfig
 import com.nexy.client.data.models.ChatMember
 import com.nexy.client.data.models.MemberRole
+import com.nexy.client.ui.components.OnlineStatusIndicator
 
 @Composable
 fun MemberItem(
@@ -115,11 +116,21 @@ private fun MemberInfo(member: ChatMember) {
             text = member.user?.displayName ?: member.user?.username ?: "User ${member.userId}",
             style = MaterialTheme.typography.bodyLarge
         )
-        Text(
-            text = member.role.name,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        // Show online status if available, otherwise show role
+        val onlineStatus = member.user?.onlineStatus
+        if (!onlineStatus.isNullOrEmpty()) {
+            OnlineStatusIndicator(
+                onlineStatus = onlineStatus,
+                showDot = true,
+                showText = true
+            )
+        } else {
+            Text(
+                text = member.role.name,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 

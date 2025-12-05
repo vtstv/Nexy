@@ -29,6 +29,15 @@ data class User(
 
     @SerializedName("typing_indicators_enabled")
     val typingIndicatorsEnabled: Boolean = true,
+
+    @SerializedName("show_online_status")
+    val showOnlineStatus: Boolean = true,
+
+    @SerializedName("last_seen")
+    val lastSeen: String? = null,
+
+    @SerializedName("online_status")
+    val onlineStatus: String? = null,
     
     @SerializedName("public_key")
     val publicKey: String? = null,

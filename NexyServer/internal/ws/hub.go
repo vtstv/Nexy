@@ -50,6 +50,7 @@ type ChatRepository interface {
 
 type UserRepository interface {
 	GetByID(ctx context.Context, id int) (*models.User, error)
+	UpdateLastSeen(ctx context.Context, userID int) error
 }
 
 type Chat struct {
@@ -110,6 +111,11 @@ func (h *Hub) unregisterClient(client *Client) {
 
 	ctx := context.Background()
 	h.redis.Del(ctx, userOnlineKey(client.userID))
+
+	// Update last seen when user disconnects
+	if err := h.userRepo.UpdateLastSeen(ctx, client.userID); err != nil {
+		log.Printf("Error updating last seen for user %d: %v", client.userID, err)
+	}
 
 	offlineMsg, _ := NewNexyMessage(TypeOffline, client.userID, nil, OnlineBody{UserID: client.userID})
 	h.broadcastToAll(offlineMsg, h.unregisterClientFunc)
@@ -201,4 +207,33 @@ func (h *Hub) BroadcastDelete(msg *models.Message) {
 
 func userOnlineKey(userID int) string {
 	return "user:online:" + string(rune(userID))
+}
+
+func (h *Hub) IsUserOnline(userID int) bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	_, online := h.clients[userID]
+	return online
+}
+
+func (h *Hub) GetOnlineUserIDs() map[int]bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	result := make(map[int]bool)
+	for userID := range h.clients {
+		result[userID] = true
+	}
+	return result
+}
+
+func (h *Hub) GetOnlineUserIDsForUsers(userIDs []int) map[int]bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	result := make(map[int]bool)
+	for _, userID := range userIDs {
+		if _, online := h.clients[userID]; online {
+			result[userID] = true
+		}
+	}
+	return result
 }

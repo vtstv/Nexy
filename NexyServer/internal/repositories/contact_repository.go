@@ -29,7 +29,8 @@ func (r *ContactRepository) GetContacts(userID int) ([]models.ContactWithUser, e
 	query := `
 		SELECT 
 			c.id, c.user_id, c.contact_user_id, c.status, c.created_at, c.updated_at,
-			u.id, u.username, u.email, u.display_name, u.avatar_url, u.bio, u.created_at, u.updated_at
+			u.id, u.username, u.email, u.display_name, u.avatar_url, u.bio, 
+			u.show_online_status, u.last_seen, u.created_at, u.updated_at
 		FROM contacts c
 		JOIN users u ON c.contact_user_id = u.id
 		WHERE c.user_id = $1 AND c.status = 'accepted'
@@ -45,14 +46,18 @@ func (r *ContactRepository) GetContacts(userID int) ([]models.ContactWithUser, e
 	var contacts []models.ContactWithUser
 	for rows.Next() {
 		var c models.ContactWithUser
+		var lastSeen sql.NullTime
 		err := rows.Scan(
 			&c.ID, &c.UserID, &c.ContactUserID, &c.Status, &c.CreatedAt, &c.UpdatedAt,
 			&c.ContactUser.ID, &c.ContactUser.Username, &c.ContactUser.Email,
 			&c.ContactUser.DisplayName, &c.ContactUser.AvatarURL, &c.ContactUser.Bio,
-			&c.ContactUser.CreatedAt, &c.ContactUser.UpdatedAt,
+			&c.ContactUser.ShowOnlineStatus, &lastSeen, &c.ContactUser.CreatedAt, &c.ContactUser.UpdatedAt,
 		)
 		if err != nil {
 			return nil, err
+		}
+		if lastSeen.Valid {
+			c.ContactUser.LastSeen = &lastSeen.Time
 		}
 		contacts = append(contacts, c)
 	}

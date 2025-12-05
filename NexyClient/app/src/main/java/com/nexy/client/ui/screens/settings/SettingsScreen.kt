@@ -74,6 +74,7 @@ fun SettingsScreen(
     val isBackgroundServiceEnabled by viewModel.isBackgroundServiceEnabled.collectAsState()
     val readReceiptsEnabled by viewModel.readReceiptsEnabled.collectAsState()
     val typingIndicatorsEnabled by viewModel.typingIndicatorsEnabled.collectAsState()
+    val showOnlineStatus by viewModel.showOnlineStatus.collectAsState()
     val sessions by viewModel.sessions.collectAsState()
     val isLoadingSessions by viewModel.isLoadingSessions.collectAsState()
     
@@ -202,6 +203,17 @@ fun SettingsScreen(
                             Switch(
                                 checked = typingIndicatorsEnabled,
                                 onCheckedChange = { viewModel.setTypingIndicatorsEnabled(it) }
+                            )
+                        }
+                    )
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text("Online Status") },
+                        supportingContent = { Text("Show your online status. When disabled, you won't see others' status either.") },
+                        trailingContent = {
+                            Switch(
+                                checked = showOnlineStatus,
+                                onCheckedChange = { viewModel.setShowOnlineStatus(it) }
                             )
                         }
                     )

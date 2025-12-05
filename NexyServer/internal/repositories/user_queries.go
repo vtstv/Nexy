@@ -15,12 +15,15 @@ import (
 func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.User, error) {
 	user := &models.User{}
 	query := `
-		SELECT id, username, email, password_hash, display_name, avatar_url, bio, read_receipts_enabled, typing_indicators_enabled, created_at, updated_at
+		SELECT id, username, email, password_hash, display_name, avatar_url, bio, 
+		       read_receipts_enabled, typing_indicators_enabled, show_online_status, last_seen, 
+		       created_at, updated_at
 		FROM users
 		WHERE email = $1`
 
 	var avatarURL sql.NullString
 	var bio sql.NullString
+	var lastSeen sql.NullTime
 	err := r.db.QueryRowContext(ctx, query, email).Scan(
 		&user.ID,
 		&user.Username,
@@ -31,6 +34,8 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.
 		&bio,
 		&user.ReadReceiptsEnabled,
 		&user.TypingIndicatorsEnabled,
+		&user.ShowOnlineStatus,
+		&lastSeen,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -43,6 +48,9 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.
 	if bio.Valid {
 		user.Bio = bio.String
 	}
+	if lastSeen.Valid {
+		user.LastSeen = &lastSeen.Time
+	}
 	return user, err
 }
 
@@ -50,25 +58,41 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.
 func (r *UserRepository) GetByUsername(ctx context.Context, username string) (*models.User, error) {
 	user := &models.User{}
 	query := `
-		SELECT id, username, email, password_hash, display_name, avatar_url, bio, read_receipts_enabled, typing_indicators_enabled, created_at, updated_at
+		SELECT id, username, email, password_hash, display_name, avatar_url, bio, 
+		       read_receipts_enabled, typing_indicators_enabled, show_online_status, last_seen, 
+		       created_at, updated_at
 		FROM users
 		WHERE username = $1`
 
+	var avatarURL sql.NullString
+	var bio sql.NullString
+	var lastSeen sql.NullTime
 	err := r.db.QueryRowContext(ctx, query, username).Scan(
 		&user.ID,
 		&user.Username,
 		&user.Email,
 		&user.PasswordHash,
 		&user.DisplayName,
-		&user.AvatarURL,
-		&user.Bio,
+		&avatarURL,
+		&bio,
 		&user.ReadReceiptsEnabled,
 		&user.TypingIndicatorsEnabled,
+		&user.ShowOnlineStatus,
+		&lastSeen,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("user not found")
+	}
+	if avatarURL.Valid {
+		user.AvatarURL = avatarURL.String
+	}
+	if bio.Valid {
+		user.Bio = bio.String
+	}
+	if lastSeen.Valid {
+		user.LastSeen = &lastSeen.Time
 	}
 	return user, err
 }
@@ -76,7 +100,9 @@ func (r *UserRepository) GetByUsername(ctx context.Context, username string) (*m
 // Search searches for users by query
 func (r *UserRepository) Search(ctx context.Context, query string, limit int) ([]*models.User, error) {
 	sqlQuery := `
-		SELECT id, username, email, display_name, avatar_url, bio, read_receipts_enabled, typing_indicators_enabled, created_at, updated_at
+		SELECT id, username, email, display_name, avatar_url, bio, 
+		       read_receipts_enabled, typing_indicators_enabled, show_online_status, last_seen, 
+		       created_at, updated_at
 		FROM users
 		WHERE username ILIKE $1 OR display_name ILIKE $1 OR email ILIKE $1
 		LIMIT $2`
@@ -92,6 +118,7 @@ func (r *UserRepository) Search(ctx context.Context, query string, limit int) ([
 		user := &models.User{}
 		var avatarURL sql.NullString
 		var bio sql.NullString
+		var lastSeen sql.NullTime
 		err := rows.Scan(
 			&user.ID,
 			&user.Username,
@@ -101,6 +128,8 @@ func (r *UserRepository) Search(ctx context.Context, query string, limit int) ([
 			&bio,
 			&user.ReadReceiptsEnabled,
 			&user.TypingIndicatorsEnabled,
+			&user.ShowOnlineStatus,
+			&lastSeen,
 			&user.CreatedAt,
 			&user.UpdatedAt,
 		)
@@ -112,6 +141,9 @@ func (r *UserRepository) Search(ctx context.Context, query string, limit int) ([
 		}
 		if bio.Valid {
 			user.Bio = bio.String
+		}
+		if lastSeen.Valid {
+			user.LastSeen = &lastSeen.Time
 		}
 		users = append(users, user)
 	}

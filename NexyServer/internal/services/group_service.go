@@ -8,8 +8,10 @@ import (
 )
 
 type GroupService struct {
-	chatRepo *repositories.ChatRepository
-	userRepo *repositories.UserRepository
+	chatRepo            *repositories.ChatRepository
+	userRepo            *repositories.UserRepository
+	onlineStatusService *OnlineStatusService
+	onlineChecker       OnlineChecker
 }
 
 func NewGroupService(chatRepo *repositories.ChatRepository, userRepo *repositories.UserRepository) *GroupService {
@@ -17,4 +19,12 @@ func NewGroupService(chatRepo *repositories.ChatRepository, userRepo *repositori
 		chatRepo: chatRepo,
 		userRepo: userRepo,
 	}
+}
+
+func (s *GroupService) SetOnlineStatusService(service *OnlineStatusService) {
+	s.onlineStatusService = service
+}
+
+func (s *GroupService) SetOnlineChecker(checker OnlineChecker) {
+	s.onlineChecker = checker
 }

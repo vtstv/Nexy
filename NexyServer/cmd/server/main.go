@@ -54,11 +54,20 @@ func main() {
 	messageService := services.NewMessageService(messageRepo, chatRepo, fileService)
 	qrService := services.NewQRService()
 	e2eService := services.NewE2EService(e2eRepo)
+	onlineStatusService := services.NewOnlineStatusService(userRepo)
 	contactService := services.NewContactService(contactRepo, userRepo)
 
 	nexyChatRepo := nexy.NewNexyChatRepo(chatRepo)
 	hub := nexy.NewHub(redisClient.Client, messageRepo, nexyChatRepo, userRepo)
 	go hub.Run()
+
+	// Wire up online status service and hub to contact service
+	contactService.SetOnlineStatusService(onlineStatusService)
+	contactService.SetOnlineChecker(hub)
+
+	// Wire up online status service and hub to group service
+	groupService.SetOnlineStatusService(onlineStatusService)
+	groupService.SetOnlineChecker(hub)
 
 	authController := controllers.NewAuthController(authService, sessionRepo, folderRepo)
 	userController := controllers.NewUserController(userService, qrService)

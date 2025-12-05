@@ -22,6 +22,7 @@ import coil.compose.AsyncImage
 import com.nexy.client.ServerConfig
 import com.nexy.client.data.models.ContactStatus
 import com.nexy.client.data.models.ContactWithUser
+import com.nexy.client.ui.components.OnlineStatusIndicator
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -194,16 +195,14 @@ private fun ContactItem(
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium
                 )
-                // Online status indicator
-                if (contact.contactUser.status == com.nexy.client.data.models.UserStatus.ONLINE) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .background(
-                                color = MaterialTheme.colorScheme.primary,
-                                shape = CircleShape
-                            )
+            }
+            // Online status using new Telegram-style component
+            contact.contactUser.onlineStatus?.let { status ->
+                if (status.isNotEmpty()) {
+                    OnlineStatusIndicator(
+                        onlineStatus = status,
+                        showDot = true,
+                        showText = true
                     )
                 }
             }

@@ -35,11 +35,27 @@ func (s *GroupService) GetGroupMembers(ctx context.Context, groupID, userID int,
 		return nil, err
 	}
 
+	// Get requesting user for privacy filter
+	requestingUser, _ := s.userRepo.GetByID(ctx, userID)
+
 	// Load user information for each member
 	for _, member := range members {
 		user, err := s.userRepo.GetByID(ctx, member.UserID)
 		if err == nil {
 			member.User = user
+
+			// Apply online status with privacy filter
+			if s.onlineStatusService != nil && requestingUser != nil {
+				isOnline := false
+				if s.onlineChecker != nil {
+					isOnline = s.onlineChecker.IsUserOnline(member.UserID)
+				}
+				member.User.OnlineStatus = s.onlineStatusService.ApplyPrivacyFilter(
+					requestingUser,
+					member.User,
+					isOnline,
+				)
+			}
 		}
 	}
 

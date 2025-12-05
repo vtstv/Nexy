@@ -6,17 +6,20 @@ package models
 import "time"
 
 type User struct {
-	ID                      int       `json:"id"`
-	Username                string    `json:"username"`
-	Email                   string    `json:"email"`
-	PasswordHash            string    `json:"-"`
-	DisplayName             string    `json:"display_name"`
-	AvatarURL               string    `json:"avatar_url"`
-	Bio                     string    `json:"bio"`
-	ReadReceiptsEnabled     bool      `json:"read_receipts_enabled"`
-	TypingIndicatorsEnabled bool      `json:"typing_indicators_enabled"`
-	CreatedAt               time.Time `json:"created_at"`
-	UpdatedAt               time.Time `json:"updated_at"`
+	ID                      int        `json:"id"`
+	Username                string     `json:"username"`
+	Email                   string     `json:"email"`
+	PasswordHash            string     `json:"-"`
+	DisplayName             string     `json:"display_name"`
+	AvatarURL               string     `json:"avatar_url"`
+	Bio                     string     `json:"bio"`
+	ReadReceiptsEnabled     bool       `json:"read_receipts_enabled"`
+	TypingIndicatorsEnabled bool       `json:"typing_indicators_enabled"`
+	ShowOnlineStatus        bool       `json:"show_online_status"`
+	LastSeen                *time.Time `json:"last_seen,omitempty"`
+	OnlineStatus            string     `json:"online_status,omitempty"`
+	CreatedAt               time.Time  `json:"created_at"`
+	UpdatedAt               time.Time  `json:"updated_at"`
 }
 
 type RefreshToken struct {

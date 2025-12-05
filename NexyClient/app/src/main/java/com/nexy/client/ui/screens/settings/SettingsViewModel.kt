@@ -85,6 +85,9 @@ class SettingsViewModel @Inject constructor(
     private val _typingIndicatorsEnabled = MutableStateFlow(true)
     val typingIndicatorsEnabled: StateFlow<Boolean> = _typingIndicatorsEnabled.asStateFlow()
 
+    private val _showOnlineStatus = MutableStateFlow(true)
+    val showOnlineStatus: StateFlow<Boolean> = _showOnlineStatus.asStateFlow()
+
     private val _sessions = MutableStateFlow<List<UserSession>>(emptyList())
     val sessions: StateFlow<List<UserSession>> = _sessions.asStateFlow()
 
@@ -110,6 +113,7 @@ class SettingsViewModel @Inject constructor(
                 userRepository.getUserById(userId).onSuccess { user ->
                     _readReceiptsEnabled.value = user.readReceiptsEnabled
                     _typingIndicatorsEnabled.value = user.typingIndicatorsEnabled
+                    _showOnlineStatus.value = user.showOnlineStatus
                 }
             }
         }
@@ -128,7 +132,8 @@ class SettingsViewModel @Inject constructor(
                          email = user.email,
                          password = null,
                          readReceiptsEnabled = enabled,
-                         typingIndicatorsEnabled = null
+                         typingIndicatorsEnabled = null,
+                         showOnlineStatus = null
                      )
                 }
             }
@@ -315,7 +320,29 @@ class SettingsViewModel @Inject constructor(
                         email = user.email,
                         password = null,
                         readReceiptsEnabled = null,
-                        typingIndicatorsEnabled = enabled
+                        typingIndicatorsEnabled = enabled,
+                        showOnlineStatus = null
+                    )
+                }
+            }
+        }
+    }
+
+    fun setShowOnlineStatus(enabled: Boolean) {
+        viewModelScope.launch {
+            _showOnlineStatus.value = enabled
+            val userId = stateManager.loadCurrentUserId()
+            if (userId != null && userId > 0) {
+                userRepository.getUserById(userId).onSuccess { user ->
+                    userRepository.updateProfile(
+                        displayName = user.displayName ?: "",
+                        bio = user.bio ?: "",
+                        avatarUrl = user.avatarUrl,
+                        email = user.email,
+                        password = null,
+                        readReceiptsEnabled = null,
+                        typingIndicatorsEnabled = null,
+                        showOnlineStatus = enabled
                     )
                 }
             }

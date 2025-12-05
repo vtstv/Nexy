@@ -22,5 +22,8 @@ data class UpdateProfileRequest(
     val readReceiptsEnabled: Boolean? = null,
 
     @SerializedName("typing_indicators_enabled")
-    val typingIndicatorsEnabled: Boolean? = null
+    val typingIndicatorsEnabled: Boolean? = null,
+
+    @SerializedName("show_online_status")
+    val showOnlineStatus: Boolean? = null
 )

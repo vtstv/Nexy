@@ -162,20 +162,6 @@ Key endpoints:
 - `GET /api/messages/:chatId` - Get messages
 - `WS /ws` - WebSocket connection
 
-## 🧪 Testing
-
-### Backend
-```bash
-cd NexyServer
-go test ./...
-```
-
-### Android
-```bash
-cd NexyClient
-./gradlew test
-./gradlew connectedAndroidTest
-```
 
 ## 📄 License
 

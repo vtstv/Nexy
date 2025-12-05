@@ -11,9 +11,17 @@ import (
 	"github.com/vtstv/nexy/internal/repositories"
 )
 
+// OnlineChecker interface for checking if users are online
+type OnlineChecker interface {
+	IsUserOnline(userID int) bool
+	GetOnlineUserIDs() map[int]bool
+}
+
 type ContactService struct {
-	contactRepo *repositories.ContactRepository
-	userRepo    *repositories.UserRepository
+	contactRepo         *repositories.ContactRepository
+	userRepo            *repositories.UserRepository
+	onlineStatusService *OnlineStatusService
+	onlineChecker       OnlineChecker
 }
 
 func NewContactService(contactRepo *repositories.ContactRepository, userRepo *repositories.UserRepository) *ContactService {
@@ -21,6 +29,14 @@ func NewContactService(contactRepo *repositories.ContactRepository, userRepo *re
 		contactRepo: contactRepo,
 		userRepo:    userRepo,
 	}
+}
+
+func (s *ContactService) SetOnlineStatusService(service *OnlineStatusService) {
+	s.onlineStatusService = service
+}
+
+func (s *ContactService) SetOnlineChecker(checker OnlineChecker) {
+	s.onlineChecker = checker
 }
 
 func (s *ContactService) AddContact(userID, contactUserID int) error {
@@ -59,7 +75,30 @@ func (s *ContactService) AddContact(userID, contactUserID int) error {
 }
 
 func (s *ContactService) GetContacts(userID int) ([]models.ContactWithUser, error) {
-	return s.contactRepo.GetContacts(userID)
+	contacts, err := s.contactRepo.GetContacts(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Apply online status with privacy rules
+	if s.onlineStatusService != nil && s.userRepo != nil {
+		requestingUser, err := s.userRepo.GetByID(context.Background(), userID)
+		if err == nil {
+			for i := range contacts {
+				isOnline := false
+				if s.onlineChecker != nil {
+					isOnline = s.onlineChecker.IsUserOnline(contacts[i].ContactUser.ID)
+				}
+				contacts[i].ContactUser.OnlineStatus = s.onlineStatusService.ApplyPrivacyFilter(
+					requestingUser,
+					&contacts[i].ContactUser,
+					isOnline,
+				)
+			}
+		}
+	}
+
+	return contacts, nil
 }
 
 func (s *ContactService) UpdateContactStatus(userID, contactUserID int, status string) error {
