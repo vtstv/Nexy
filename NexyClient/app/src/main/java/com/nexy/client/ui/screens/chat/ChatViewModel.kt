@@ -16,6 +16,8 @@ import com.nexy.client.ui.screens.chat.handlers.SearchHandler
 import com.nexy.client.ui.screens.chat.handlers.TypingHandler
 import com.nexy.client.ui.screens.chat.state.ChatUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -68,6 +70,9 @@ class ChatViewModel @Inject constructor(
     private var lastKnownMessageId: String? = null
     // Flag to track if this chat screen is currently active/visible
     private var isChatActive = false
+    // Debounce job for read receipts (Telegram-style: don't spam server)
+    private var readReceiptDebounceJob: Job? = null
+    private val READ_RECEIPT_DEBOUNCE_MS = 500L
     
     fun onChatOpened() {
         // Re-fetch chat info from server to get current firstUnreadMessageId
@@ -99,6 +104,9 @@ class ChatViewModel @Inject constructor(
     fun onChatClosed() {
         android.util.Log.d("ChatViewModel", "onChatClosed: marking as read now")
         isChatActive = false  // Mark chat as inactive
+        // Cancel any pending debounced read receipt and send immediately
+        readReceiptDebounceJob?.cancel()
+        readReceiptDebounceJob = null
         viewModelScope.launch {
             markAsReadInternal()
         }
@@ -266,10 +274,15 @@ class ChatViewModel @Inject constructor(
     }
     
     // Called when user scrolls to see new messages (Telegram style - mark as read when visible)
+    // Uses debounce to avoid spamming server when scrolling through many messages
     fun onUserSawNewMessages() {
         if (!isChatActive) return
-        android.util.Log.d("ChatViewModel", "User saw new messages, marking as read")
-        viewModelScope.launch {
+        
+        // Cancel previous pending read receipt and schedule new one (debounce)
+        readReceiptDebounceJob?.cancel()
+        readReceiptDebounceJob = viewModelScope.launch {
+            delay(READ_RECEIPT_DEBOUNCE_MS)
+            android.util.Log.d("ChatViewModel", "User saw new messages (debounced), marking as read")
             markAsReadInternal()
         }
     }

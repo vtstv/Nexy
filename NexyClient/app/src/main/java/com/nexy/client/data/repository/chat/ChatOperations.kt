@@ -32,6 +32,9 @@ class ChatOperations @Inject constructor(
     companion object {
         private const val TAG = "ChatOperations"
     }
+    
+    // Track last sent read receipt per chat to avoid duplicates (incremental reads)
+    private val lastSentReadReceiptId = mutableMapOf<Int, String>()
 
     fun getAllChats(): Flow<List<Chat>> {
         return chatDao.getAllChats().map { entities ->
@@ -50,26 +53,38 @@ class ChatOperations @Inject constructor(
             val currentUserId = tokenManager.getUserId()
             Log.d(TAG, "markChatAsRead: chatId=$chatId, currentUserId=$currentUserId")
             
-            // Get the last message in the chat (regardless of sender)
-            val lastMessage = messageDao.getLastMessage(chatId)
-            Log.d(TAG, "markChatAsRead: lastMessage=${lastMessage?.id}, senderId=${lastMessage?.senderId}")
+            if (currentUserId == null) {
+                Log.e(TAG, "markChatAsRead: currentUserId is null, cannot send read receipt")
+                return@withContext
+            }
             
-            if (lastMessage == null) {
-                Log.d(TAG, "markChatAsRead: No messages to mark as read")
+            // Get the last INCOMING message (not our own) - no need to mark our messages as read
+            val lastIncomingMessage = messageDao.getLastIncomingMessage(chatId, currentUserId)
+            Log.d(TAG, "markChatAsRead: lastIncomingMessage=${lastIncomingMessage?.id}, senderId=${lastIncomingMessage?.senderId}")
+            
+            if (lastIncomingMessage == null) {
+                Log.d(TAG, "markChatAsRead: No incoming messages to mark as read")
+                // Still update local DB to clear unread count
+                chatDao.markChatAsRead(chatId)
+                return@withContext
+            }
+            
+            // Incremental check: don't send if we already sent for this message or later
+            val lastSentId = lastSentReadReceiptId[chatId]
+            if (lastSentId == lastIncomingMessage.id) {
+                Log.d(TAG, "markChatAsRead: Already sent read receipt for message ${lastIncomingMessage.id}, skipping")
                 return@withContext
             }
             
             // Update local DB first
             chatDao.markChatAsRead(chatId)
             
-            // Send read receipt to server - always send for the last message
-            // The server will mark all messages up to this one as read
-            if (currentUserId != null) {
-                Log.d(TAG, "markChatAsRead: Sending read receipt for message ${lastMessage.id}")
-                webSocketClient.sendReadReceipt(lastMessage.id, chatId, currentUserId)
-            } else {
-                Log.e(TAG, "markChatAsRead: currentUserId is null, cannot send read receipt")
-            }
+            // Send read receipt to server
+            Log.d(TAG, "markChatAsRead: Sending read receipt for message ${lastIncomingMessage.id}")
+            webSocketClient.sendReadReceipt(lastIncomingMessage.id, chatId, currentUserId)
+            
+            // Track that we sent this read receipt
+            lastSentReadReceiptId[chatId] = lastIncomingMessage.id
         }
     }
 
