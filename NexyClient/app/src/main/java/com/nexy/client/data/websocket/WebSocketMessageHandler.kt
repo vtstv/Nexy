@@ -90,10 +90,10 @@ class WebSocketMessageHandler @Inject constructor(
         
         Log.d(TAG, "Saving incoming message to DB: chatId=${message.chatId}, messageId=${message.id}, content=${message.content}")
         
-        // Ensure sender exists locally for avatar display
+        // Ensure sender exists locally for avatar display (force refresh to get latest avatar)
         if (message.senderId != 0) {
             try {
-                userRepository.getUserById(message.senderId)
+                userRepository.getUserById(message.senderId, forceRefresh = true)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to fetch sender ${message.senderId}", e)
             }
@@ -101,6 +101,8 @@ class WebSocketMessageHandler @Inject constructor(
         
         // Ensure chat exists locally
         val existingChat = chatDao.getChatById(message.chatId)
+        var isChatMuted = existingChat?.muted == true
+        
         if (existingChat == null) {
             Log.d(TAG, "Chat ${message.chatId} missing locally, fetching from API")
             var chatInserted = false
@@ -108,8 +110,10 @@ class WebSocketMessageHandler @Inject constructor(
                 val response = apiService.getChatById(message.chatId)
                 if (response.isSuccessful && response.body() != null) {
                     val chat = response.body()!!
-                    chatDao.insertChat(chatMappers.modelToEntity(chat))
-                    Log.d(TAG, "Chat ${message.chatId} fetched and inserted")
+                    val chatEntity = chatMappers.modelToEntity(chat)
+                    chatDao.insertChat(chatEntity)
+                    isChatMuted = chatEntity.muted
+                    Log.d(TAG, "Chat ${message.chatId} fetched and inserted, muted=$isChatMuted")
                     chatInserted = true
                 } else {
                     Log.e(TAG, "Failed to fetch chat ${message.chatId}: ${response.code()}")
@@ -166,11 +170,8 @@ class WebSocketMessageHandler @Inject constructor(
                 Log.e(TAG, "Failed to update chat last message", e)
             }
             
-            // Show notification for new messages
-            // In a real app, we'd check if the chat is currently open/visible to avoid spamming
-            // For now, we'll just show it.
-            // We might want to fetch the sender name, but for now we'll use "New Message"
-            if (settingsManager.isPushNotificationsEnabled()) {
+            // Show notification for new messages (if chat is not muted)
+            if (settingsManager.isPushNotificationsEnabled() && !isChatMuted) {
                 notificationHelper.showNotification("New Message", message.content, message.chatId)
             }
             

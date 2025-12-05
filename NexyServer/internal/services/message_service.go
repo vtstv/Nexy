@@ -15,13 +15,15 @@ import (
 type MessageService struct {
 	messageRepo *repositories.MessageRepository
 	chatRepo    *repositories.ChatRepository
+	userRepo    *repositories.UserRepository
 	fileService *FileService
 }
 
-func NewMessageService(messageRepo *repositories.MessageRepository, chatRepo *repositories.ChatRepository, fileService *FileService) *MessageService {
+func NewMessageService(messageRepo *repositories.MessageRepository, chatRepo *repositories.ChatRepository, userRepo *repositories.UserRepository, fileService *FileService) *MessageService {
 	return &MessageService{
 		messageRepo: messageRepo,
 		chatRepo:    chatRepo,
+		userRepo:    userRepo,
 		fileService: fileService,
 	}
 }
@@ -46,7 +48,22 @@ func (s *MessageService) GetChatHistory(ctx context.Context, chatID, userID, lim
 		limit = 50
 	}
 
-	return s.messageRepo.GetByChatID(ctx, chatID, limit, offset)
+	messages, err := s.messageRepo.GetByChatID(ctx, chatID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+
+	// Enrich messages with sender info
+	for _, msg := range messages {
+		if msg.SenderID > 0 {
+			sender, err := s.userRepo.GetByID(ctx, msg.SenderID)
+			if err == nil && sender != nil {
+				msg.Sender = sender
+			}
+		}
+	}
+
+	return messages, nil
 }
 
 func (s *MessageService) UpdateMessage(ctx context.Context, messageID string, userID int, content string) (*models.Message, error) {

@@ -107,6 +107,7 @@ type Message struct {
 	MessageID   string    `json:"message_id"`
 	ChatID      int       `json:"chat_id"`
 	SenderID    int       `json:"sender_id"`
+	Sender      *User     `json:"sender,omitempty"`
 	MessageType string    `json:"message_type"`
 	Content     string    `json:"content,omitempty"`
 	MediaURL    string    `json:"media_url,omitempty"`

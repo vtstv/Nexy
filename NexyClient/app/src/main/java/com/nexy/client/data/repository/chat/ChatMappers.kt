@@ -19,7 +19,7 @@ class ChatMappers @Inject constructor() {
         unreadCount = chat.unreadCount,
         createdAt = parseTimestamp(chat.createdAt),
         updatedAt = parseTimestamp(chat.updatedAt),
-        muted = chat.muted
+        muted = isMuted(chat.mutedUntil)
     )
 
     fun entityToModel(entity: ChatEntity) = Chat(
@@ -45,6 +45,18 @@ class ChatMappers @Inject constructor() {
             sdf.parse(withoutMillis)?.time ?: System.currentTimeMillis()
         } catch (e: Exception) {
             System.currentTimeMillis()
+        }
+    }
+    
+    private fun isMuted(mutedUntil: String?): Boolean {
+        if (mutedUntil == null) return false
+        return try {
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault())
+            val withoutMillis = mutedUntil.substringBefore('.')
+            val mutedUntilTime = sdf.parse(withoutMillis)?.time ?: return false
+            System.currentTimeMillis() < mutedUntilTime
+        } catch (e: Exception) {
+            false
         }
     }
 }
