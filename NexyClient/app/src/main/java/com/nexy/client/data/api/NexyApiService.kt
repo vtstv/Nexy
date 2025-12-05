@@ -174,7 +174,7 @@ interface NexyApiService {
     ): Response<Unit>
     
     @POST("chats/groups/{groupId}/join")
-    suspend fun joinPublicGroup(@Path("groupId") groupId: Int): Response<Unit>
+    suspend fun joinPublicGroup(@Path("groupId") groupId: Int): Response<Chat>
     
     @POST("chats/groups/@{username}")
     suspend fun joinGroupByUsername(@Path("username") username: String): Response<Chat>

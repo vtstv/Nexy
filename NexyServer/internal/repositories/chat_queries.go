@@ -258,15 +258,18 @@ func (r *ChatRepository) GetByUsername(ctx context.Context, username string) (*m
 }
 
 // SearchPublicGroups searches for public groups
-func (r *ChatRepository) SearchPublicGroups(ctx context.Context, query string, limit int) ([]*models.Chat, error) {
+func (r *ChatRepository) SearchPublicGroups(ctx context.Context, query string, limit, userID int) ([]*models.Chat, error) {
 	sqlQuery := `
-		SELECT id, type, group_type, name, username, description, avatar_url, created_by, default_permissions, created_at, updated_at
-		FROM chats
-		WHERE group_type = 'public_group' AND (name ILIKE $1 OR username ILIKE $1 OR description ILIKE $1)
-		ORDER BY created_at DESC
+		SELECT 
+			c.id, c.type, c.group_type, c.name, c.username, c.description, c.avatar_url, c.created_by, c.default_permissions, c.created_at, c.updated_at,
+			(SELECT COUNT(*) FROM chat_members cm WHERE cm.chat_id = c.id) as member_count,
+			EXISTS(SELECT 1 FROM chat_members cm WHERE cm.chat_id = c.id AND cm.user_id = $3) as is_member
+		FROM chats c
+		WHERE c.group_type = 'public_group' AND (c.name ILIKE $1 OR c.username ILIKE $1 OR c.description ILIKE $1)
+		ORDER BY c.created_at DESC
 		LIMIT $2`
 
-	rows, err := r.db.QueryContext(ctx, sqlQuery, "%"+query+"%", limit)
+	rows, err := r.db.QueryContext(ctx, sqlQuery, "%"+query+"%", limit, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -291,6 +294,8 @@ func (r *ChatRepository) SearchPublicGroups(ctx context.Context, query string, l
 			&defaultPermissions,
 			&chat.CreatedAt,
 			&chat.UpdatedAt,
+			&chat.MemberCount,
+			&chat.IsMember,
 		)
 		if err != nil {
 			return nil, err

@@ -63,6 +63,8 @@ type Chat struct {
 	UpdatedAt          time.Time        `json:"updated_at"`
 	ParticipantIds     []int            `json:"participant_ids,omitempty"`
 	DefaultPermissions *ChatPermissions `json:"default_permissions,omitempty"`
+	MemberCount        int              `json:"member_count,omitempty"`
+	IsMember           bool             `json:"is_member,omitempty"`
 }
 
 type ChatPermissions struct {

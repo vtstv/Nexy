@@ -23,5 +23,6 @@ data class ChatUiState(
     val searchResults: List<Message> = emptyList(),
     val editingMessage: Message? = null,
     val isTyping: Boolean = false,
-    val typingUser: String? = null
+    val typingUser: String? = null,
+    val isMember: Boolean = true
 )

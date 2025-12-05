@@ -156,11 +156,12 @@ func (s *UserService) GetChat(ctx context.Context, userID, chatID int) (*models.
 
 	if !isMember {
 		// If not member, check if it's a public group
-		if chat.Username == "" {
+		if chat.GroupType != "public_group" {
 			return nil, fmt.Errorf("access denied: user %d is not a member of chat %d and chat is not public", userID, chatID)
 		}
 	}
 
+	chat.IsMember = isMember
 	return chat, nil
 }
 

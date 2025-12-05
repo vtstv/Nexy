@@ -2,12 +2,15 @@ package com.nexy.client.ui.screens.group
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.nexy.client.data.api.NexyApiService
 import com.nexy.client.data.models.Chat
+import com.nexy.client.data.repository.ChatRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
@@ -23,7 +26,7 @@ sealed class SearchGroupsUiState {
 @OptIn(FlowPreview::class)
 @HiltViewModel
 class SearchGroupsViewModel @Inject constructor(
-    private val apiService: NexyApiService
+    private val chatRepository: ChatRepository
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow<SearchGroupsUiState>(SearchGroupsUiState.Idle)
@@ -31,6 +34,9 @@ class SearchGroupsViewModel @Inject constructor(
     
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _navigationEvent = MutableSharedFlow<Int>()
+    val navigationEvent: SharedFlow<Int> = _navigationEvent.asSharedFlow()
     
     init {
         viewModelScope.launch {
@@ -53,28 +59,29 @@ class SearchGroupsViewModel @Inject constructor(
     private fun searchGroups(query: String) {
         viewModelScope.launch {
             _uiState.value = SearchGroupsUiState.Loading
-            try {
-                val response = apiService.searchPublicGroups(query)
-                if (response.isSuccessful) {
-                    _uiState.value = SearchGroupsUiState.Success(response.body() ?: emptyList())
-                } else {
-                    _uiState.value = SearchGroupsUiState.Error("Failed to search groups")
+            chatRepository.searchPublicGroups(query)
+                .onSuccess { groups ->
+                    _uiState.value = SearchGroupsUiState.Success(groups)
                 }
-            } catch (e: Exception) {
-                _uiState.value = SearchGroupsUiState.Error(e.message ?: "Unknown error")
-            }
+                .onFailure { e ->
+                    _uiState.value = SearchGroupsUiState.Error(e.message ?: "Unknown error")
+                }
         }
     }
     
     fun joinGroup(groupId: Int) {
         viewModelScope.launch {
-            try {
-                val response = apiService.joinPublicGroup(groupId)
-                if (response.isSuccessful) {
-                    _searchQuery.value = _searchQuery.value
+            chatRepository.joinPublicGroup(groupId)
+                .onSuccess {
+                    val currentQuery = _searchQuery.value
+                    if (currentQuery.isNotBlank()) {
+                        searchGroups(currentQuery)
+                    }
+                    _navigationEvent.emit(groupId)
                 }
-            } catch (e: Exception) {
-            }
+                .onFailure {
+                    // TODO: Show error
+                }
         }
     }
 }

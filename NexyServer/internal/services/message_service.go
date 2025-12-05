@@ -27,9 +27,19 @@ func NewMessageService(messageRepo *repositories.MessageRepository, chatRepo *re
 }
 
 func (s *MessageService) GetChatHistory(ctx context.Context, chatID, userID, limit, offset int) ([]*models.Message, error) {
-	isMember, err := s.chatRepo.IsMember(ctx, chatID, userID)
-	if err != nil || !isMember {
+	chat, err := s.chatRepo.GetByID(ctx, chatID)
+	if err != nil {
 		return nil, err
+	}
+
+	isMember, err := s.chatRepo.IsMember(ctx, chatID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Allow access if user is a member OR if it's a public group
+	if !isMember && chat.GroupType != "public_group" {
+		return nil, errors.New("not a member of this chat")
 	}
 
 	if limit <= 0 || limit > 100 {

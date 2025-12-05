@@ -127,7 +127,8 @@ class ChatViewModel @Inject constructor(
                         groupType = chatInfo.groupType,
                         participantIds = chatInfo.participantIds,
                         isSelfChat = chatInfo.isSelfChat,
-                        isCreator = chatInfo.isCreator
+                        isCreator = chatInfo.isCreator,
+                        isMember = chatInfo.isMember
                     )
                 }
             } catch (e: Exception) {
@@ -309,6 +310,20 @@ class ChatViewModel @Inject constructor(
         }
     }
     // endregion
+
+    fun joinGroup() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            stateManager.joinGroup(chatId)
+                .onSuccess {
+                    _uiState.value = _uiState.value.copy(isLoading = false, isMember = true)
+                    initializeChat() // Reload chat info
+                }
+                .onFailure { error ->
+                    _uiState.value = _uiState.value.copy(isLoading = false, error = error.message ?: "Failed to join group")
+                }
+        }
+    }
 
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)

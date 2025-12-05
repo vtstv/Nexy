@@ -199,23 +199,34 @@ fun ChatScreen(
                         )
                     }
                     
-                    MessageInput(
-                        text = uiState.messageText,
-                        onTextChange = viewModel::onMessageTextChanged,
-                        onSend = {
-                            viewModel.sendMessage(replyToId = replyToMessage?.serverId)
-                            replyToMessage = null
-                        },
-                        onSendFile = { fileUri, fileName ->
-                            viewModel.sendFileMessage(context, fileUri, fileName)
-                        },
-                        showEmojiPicker = showEmojiPicker,
-                        onToggleEmojiPicker = { showEmojiPicker = !showEmojiPicker },
-                        replyToMessage = replyToMessage,
-                        onCancelReply = { replyToMessage = null },
-                        editingMessage = uiState.editingMessage,
-                        onCancelEdit = viewModel::cancelEditing
-                    )
+                    if (!uiState.isMember && uiState.groupType == com.nexy.client.data.models.GroupType.PUBLIC_GROUP) {
+                        Button(
+                            onClick = viewModel::joinGroup,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                        ) {
+                            Text("Join Group")
+                        }
+                    } else {
+                        MessageInput(
+                            text = uiState.messageText,
+                            onTextChange = viewModel::onMessageTextChanged,
+                            onSend = {
+                                viewModel.sendMessage(replyToId = replyToMessage?.serverId)
+                                replyToMessage = null
+                            },
+                            onSendFile = { fileUri, fileName ->
+                                viewModel.sendFileMessage(context, fileUri, fileName)
+                            },
+                            showEmojiPicker = showEmojiPicker,
+                            onToggleEmojiPicker = { showEmojiPicker = !showEmojiPicker },
+                            replyToMessage = replyToMessage,
+                            onCancelReply = { replyToMessage = null },
+                            editingMessage = uiState.editingMessage,
+                            onCancelEdit = viewModel::cancelEditing
+                        )
+                    }
                 }
             }
         }

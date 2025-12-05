@@ -27,14 +27,14 @@ func (c *GroupController) JoinPublicGroup(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	err = c.groupService.JoinPublicGroup(r.Context(), groupID, userID)
+	chat, err := c.groupService.JoinPublicGroup(r.Context(), groupID, userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"message": "joined successfully"}`))
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(chat)
 }
 
 // JoinGroupByUsername allows joining a public group by username
@@ -60,7 +60,7 @@ func (c *GroupController) JoinGroupByUsername(w http.ResponseWriter, r *http.Req
 
 // SearchPublicGroups searches for public groups
 func (c *GroupController) SearchPublicGroups(w http.ResponseWriter, r *http.Request) {
-	_, ok := middleware.GetUserID(r)
+	userID, ok := middleware.GetUserID(r)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -82,7 +82,7 @@ func (c *GroupController) SearchPublicGroups(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	groups, err := c.groupService.SearchPublicGroups(r.Context(), query, limit)
+	groups, err := c.groupService.SearchPublicGroups(r.Context(), query, limit, userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

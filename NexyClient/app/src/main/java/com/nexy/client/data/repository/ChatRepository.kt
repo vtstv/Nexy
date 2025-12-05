@@ -110,7 +110,7 @@ class ChatRepository @Inject constructor(
 
     suspend fun createGroupInviteLink(groupId: Int): Result<InviteLink> = chatOperations.createGroupInviteLink(groupId)
     
-    suspend fun joinPublicGroup(groupId: Int): Result<Unit> {
+    suspend fun joinPublicGroup(groupId: Int): Result<Chat> {
         return chatOperations.joinPublicGroup(groupId)
     }
     
@@ -123,6 +123,8 @@ class ChatRepository @Inject constructor(
     }
 
     fun observeTypingEvents(): kotlinx.coroutines.flow.Flow<Triple<Int, Boolean, Int?>> = messageOperations.observeTypingEvents()
+
+    suspend fun searchPublicGroups(query: String): Result<List<Chat>> = chatOperations.searchPublicGroups(query)
 }
 
 // ChatInfo data class for UI

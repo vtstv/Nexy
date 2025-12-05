@@ -13,6 +13,7 @@ import com.nexy.client.data.models.InviteLink
 import com.nexy.client.data.models.JoinChatResponse
 import com.nexy.client.data.models.UseInviteRequest
 import com.nexy.client.data.models.ValidateInviteRequest
+import com.nexy.client.data.models.Chat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -143,12 +144,14 @@ class ChatInviteOperations @Inject constructor(
         }
     }
     
-    suspend fun joinPublicGroup(groupId: Int): Result<Unit> {
+    suspend fun joinPublicGroup(groupId: Int): Result<Chat> {
         return withContext(Dispatchers.IO) {
             try {
                 val response = apiService.joinPublicGroup(groupId)
-                if (response.isSuccessful) {
-                    Result.success(Unit)
+                if (response.isSuccessful && response.body() != null) {
+                    val chat = response.body()!!
+                    chatDao.insertChat(chatMappers.modelToEntity(chat))
+                    Result.success(chat)
                 } else {
                     Result.failure(Exception("Failed to join group"))
                 }

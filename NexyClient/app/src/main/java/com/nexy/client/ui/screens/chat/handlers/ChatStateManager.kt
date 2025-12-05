@@ -45,13 +45,18 @@ class ChatStateManager @Inject constructor(
             groupType = chat.groupType,
             participantIds = chat.participantIds ?: emptyList(),
             isSelfChat = chat.participantIds?.size == 1 && chat.participantIds.contains(currentUserId),
-            isCreator = chat.createdBy == currentUserId
+            isCreator = chat.createdBy == currentUserId,
+            isMember = chat.isMember || (chat.participantIds?.contains(currentUserId) == true)
         )
     }
 
     suspend fun getUserName(userId: Int): String? {
         val userResult = userRepository.getUserById(userId)
         return userResult.getOrNull()?.displayName ?: userResult.getOrNull()?.username
+    }
+
+    suspend fun joinGroup(chatId: Int): Result<Unit> {
+        return chatRepository.joinPublicGroup(chatId).map { }
     }
 }
 
@@ -62,5 +67,6 @@ data class ChatInfo(
     val groupType: GroupType?,
     val participantIds: List<Int>,
     val isSelfChat: Boolean,
-    val isCreator: Boolean
+    val isCreator: Boolean,
+    val isMember: Boolean
 )

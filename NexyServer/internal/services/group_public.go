@@ -11,23 +11,23 @@ import (
 )
 
 // JoinPublicGroup allows a user to join a public group
-func (s *GroupService) JoinPublicGroup(ctx context.Context, groupID, userID int) error {
+func (s *GroupService) JoinPublicGroup(ctx context.Context, groupID, userID int) (*models.Chat, error) {
 	chat, err := s.chatRepo.GetByID(ctx, groupID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if chat.GroupType != "public_group" {
-		return errors.New("group is not public")
+		return nil, errors.New("group is not public")
 	}
 
 	isMember, err := s.chatRepo.IsMember(ctx, groupID, userID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if isMember {
-		return errors.New("already a member")
+		return nil, errors.New("already a member")
 	}
 
 	member := &models.ChatMember{
@@ -37,7 +37,11 @@ func (s *GroupService) JoinPublicGroup(ctx context.Context, groupID, userID int)
 		Permissions: chat.DefaultPermissions,
 	}
 
-	return s.chatRepo.AddMember(ctx, member)
+	if err := s.chatRepo.AddMember(ctx, member); err != nil {
+		return nil, err
+	}
+
+	return chat, nil
 }
 
 // JoinGroupByUsername allows a user to join a public group by its username
@@ -51,15 +55,10 @@ func (s *GroupService) JoinGroupByUsername(ctx context.Context, username string,
 		return nil, errors.New("group is not public")
 	}
 
-	err = s.JoinPublicGroup(ctx, chat.ID, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	return chat, nil
+	return s.JoinPublicGroup(ctx, chat.ID, userID)
 }
 
 // SearchPublicGroups searches for public groups by query
-func (s *GroupService) SearchPublicGroups(ctx context.Context, query string, limit int) ([]*models.Chat, error) {
-	return s.chatRepo.SearchPublicGroups(ctx, query, limit)
+func (s *GroupService) SearchPublicGroups(ctx context.Context, query string, limit, userID int) ([]*models.Chat, error) {
+	return s.chatRepo.SearchPublicGroups(ctx, query, limit, userID)
 }

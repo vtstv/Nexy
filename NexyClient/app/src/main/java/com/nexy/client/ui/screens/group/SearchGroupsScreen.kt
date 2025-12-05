@@ -25,6 +25,12 @@ fun SearchGroupsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
 
+    LaunchedEffect(Unit) {
+        viewModel.navigationEvent.collect { chatId ->
+            onGroupClick(chatId)
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -189,13 +195,21 @@ fun GroupSearchItem(
                 }
                 
                 Text(
-                    text = "${group.participantIds?.size ?: 0} members",
+                    text = "${group.memberCount} members",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             
-            if (group.groupType == GroupType.PUBLIC_GROUP) {
+            if (group.isMember) {
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "Joined",
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+            } else if (group.groupType == GroupType.PUBLIC_GROUP) {
                 Spacer(Modifier.width(8.dp))
                 Button(onClick = onJoin) {
                     Text("Join")

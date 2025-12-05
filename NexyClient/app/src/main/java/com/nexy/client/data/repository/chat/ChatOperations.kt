@@ -252,9 +252,24 @@ class ChatOperations @Inject constructor(
     suspend fun createGroupInviteLink(groupId: Int, usageLimit: Int? = null, expiresIn: Int? = null) =
         chatInviteOperations.createGroupInviteLink(groupId, usageLimit, expiresIn)
     
-    suspend fun joinPublicGroup(groupId: Int) =
+    suspend fun joinPublicGroup(groupId: Int): Result<Chat> =
         chatInviteOperations.joinPublicGroup(groupId)
     
     suspend fun transferOwnership(groupId: Int, newOwnerId: Int) =
         chatInviteOperations.transferOwnership(groupId, newOwnerId)
+
+    suspend fun searchPublicGroups(query: String): Result<List<Chat>> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.searchPublicGroups(query)
+                if (response.isSuccessful) {
+                    Result.success(response.body() ?: emptyList())
+                } else {
+                    Result.failure(Exception("Failed to search groups"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
 }
