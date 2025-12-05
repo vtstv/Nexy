@@ -25,12 +25,14 @@ import coil.compose.AsyncImage
 import com.nexy.client.data.models.InvitePreviewResponse
 
 /**
- * Simple invite card shown in chat messages - just shows "Group Invite" and Join button
- * Clicking Join will open the full dialog with group info
+ * Invite card shown in chat messages - shows group name, avatar and Join button
+ * Loads preview automatically when displayed
  */
 @Composable
 fun InviteLinkCard(
     inviteCode: String,
+    preview: InvitePreviewResponse? = null,
+    isLoading: Boolean = false,
     onJoinClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -59,7 +61,7 @@ fun InviteLinkCard(
                 modifier = Modifier
                     .padding(12.dp)
             ) {
-                // Group icon
+                // Group avatar
                 Box(
                     modifier = Modifier
                         .size(44.dp)
@@ -67,12 +69,21 @@ fun InviteLinkCard(
                         .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Group,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    if (!preview?.avatarUrl.isNullOrEmpty()) {
+                        AsyncImage(
+                            model = preview?.avatarUrl,
+                            contentDescription = "Group avatar",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Group,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
                 
                 Spacer(modifier = Modifier.width(12.dp))
@@ -81,20 +92,65 @@ fun InviteLinkCard(
                 Column(
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text(
-                        text = "Group Invite",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    
-                    Text(
-                        text = "Tap to join group",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    if (isLoading) {
+                        Text(
+                            text = "Loading...",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else if (preview != null && preview.valid) {
+                        Text(
+                            text = preview.chatName ?: "Group Invite",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        if (preview.memberCount != null) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "${preview.memberCount} members",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    } else if (preview != null && !preview.valid) {
+                        Text(
+                            text = "Invalid Invite",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Text(
+                            text = preview.errorMessage ?: "Link expired",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        Text(
+                            text = "Group Invite",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Tap to join",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
                 
                 Spacer(modifier = Modifier.width(8.dp))
@@ -102,6 +158,7 @@ fun InviteLinkCard(
                 // Join button
                 Button(
                     onClick = onJoinClick,
+                    enabled = !isLoading && (preview == null || preview.valid),
                     shape = RoundedCornerShape(20.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary

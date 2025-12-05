@@ -3,6 +3,7 @@ package com.nexy.client.ui.screens.chat.state
 import androidx.compose.ui.text.input.TextFieldValue
 import com.nexy.client.data.models.ChatType
 import com.nexy.client.data.models.GroupType
+import com.nexy.client.data.models.InvitePreviewResponse
 import com.nexy.client.data.models.Message
 
 data class ChatUiState(
@@ -29,5 +30,7 @@ data class ChatUiState(
     val otherUserOnlineStatus: String? = null,
     val firstUnreadMessageId: String? = null,
     val isConnected: Boolean = true,
-    val pendingMessageCount: Int = 0
+    val pendingMessageCount: Int = 0,
+    val invitePreviews: Map<String, InvitePreviewResponse> = emptyMap(),
+    val loadingInviteCodes: Set<String> = emptySet()
 )

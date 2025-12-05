@@ -253,7 +253,9 @@ fun ChatScreen(
                                 userId.toIntOrNull()?.let { id ->
                                     onNavigateToUserProfile?.invoke(id)
                                 }
-                            }
+                            },
+                            invitePreviewProvider = { code -> viewModel.getInvitePreview(code) },
+                            isLoadingInvitePreview = { code -> viewModel.isLoadingInvitePreview(code) }
                         )
                     }
                     

@@ -17,6 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.nexy.client.data.models.ChatType
+import com.nexy.client.data.models.InvitePreviewResponse
 import com.nexy.client.data.models.Message
 import com.nexy.client.ui.screens.chat.utils.formatDateHeader
 import com.nexy.client.ui.screens.chat.utils.isSameDay
@@ -42,7 +43,9 @@ fun MessageList(
     onOpenFile: (String) -> Unit,
     onSaveFile: (String) -> Unit,
     onInviteLinkClick: (String) -> Unit = {},
-    onUserLinkClick: (String) -> Unit = {}
+    onUserLinkClick: (String) -> Unit = {},
+    invitePreviewProvider: (String) -> InvitePreviewResponse? = { null },
+    isLoadingInvitePreview: (String) -> Boolean = { false }
 ) {
     val reversedMessages = remember(messages) { messages.reversed() }
     var isDateVisible by remember { mutableStateOf(false) }
@@ -166,7 +169,9 @@ fun MessageList(
                         onOpenFile = onOpenFile,
                         onSaveFile = onSaveFile,
                         onInviteLinkClick = onInviteLinkClick,
-                        onUserLinkClick = onUserLinkClick
+                        onUserLinkClick = onUserLinkClick,
+                        invitePreviewProvider = invitePreviewProvider,
+                        isLoadingInvitePreview = isLoadingInvitePreview
                     )
                 }
             }

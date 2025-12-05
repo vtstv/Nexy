@@ -410,6 +410,44 @@ class ChatViewModel @Inject constructor(
             response.chat?.id ?: throw Exception("No chat returned")
         }
     }
+    
+    // Invite preview loading for cards in chat
+    fun loadInvitePreview(code: String) {
+        // Skip if already loaded or loading
+        if (_uiState.value.invitePreviews.containsKey(code) || 
+            _uiState.value.loadingInviteCodes.contains(code)) {
+            return
+        }
+        
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                loadingInviteCodes = _uiState.value.loadingInviteCodes + code
+            )
+            
+            membershipHandler.validateGroupInvite(code)
+                .onSuccess { preview ->
+                    _uiState.value = _uiState.value.copy(
+                        invitePreviews = _uiState.value.invitePreviews + (code to preview),
+                        loadingInviteCodes = _uiState.value.loadingInviteCodes - code
+                    )
+                }
+                .onFailure {
+                    _uiState.value = _uiState.value.copy(
+                        loadingInviteCodes = _uiState.value.loadingInviteCodes - code
+                    )
+                }
+        }
+    }
+    
+    fun getInvitePreview(code: String): com.nexy.client.data.models.InvitePreviewResponse? {
+        // Trigger loading if not loaded yet
+        loadInvitePreview(code)
+        return _uiState.value.invitePreviews[code]
+    }
+    
+    fun isLoadingInvitePreview(code: String): Boolean {
+        return _uiState.value.loadingInviteCodes.contains(code)
+    }
     // endregion
     
     private fun refreshChatInfo() {

@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.nexy.client.data.models.InvitePreviewResponse
 import com.nexy.client.data.models.Message
 import com.nexy.client.ui.components.LinkParser
 import com.nexy.client.ui.components.LinkedText
@@ -37,7 +38,9 @@ fun MessageBubble(
     onOpenFile: (String) -> Unit = {},
     onSaveFile: (String) -> Unit = {},
     onInviteLinkClick: (String) -> Unit = {},
-    onUserLinkClick: (String) -> Unit = {}
+    onUserLinkClick: (String) -> Unit = {},
+    invitePreviewProvider: (String) -> InvitePreviewResponse? = { null },
+    isLoadingInvitePreview: (String) -> Boolean = { false }
 ) {
     val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -112,6 +115,8 @@ fun MessageBubble(
                             // Show invite card for messages with invite links
                             InviteLinkCard(
                                 inviteCode = inviteCode,
+                                preview = invitePreviewProvider(inviteCode),
+                                isLoading = isLoadingInvitePreview(inviteCode),
                                 onJoinClick = { onInviteLinkClick(inviteCode) }
                             )
                         } else {
