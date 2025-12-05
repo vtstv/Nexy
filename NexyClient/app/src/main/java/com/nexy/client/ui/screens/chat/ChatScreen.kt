@@ -60,8 +60,9 @@ fun ChatScreen(
         hasScrolledToBottom.value = false // Reset scroll flag when changing chat
     }
     
+    // Called each time screen becomes visible - reset unread divider
     LaunchedEffect(Unit) {
-        viewModel.markAsRead()
+        viewModel.onChatOpened()
     }
     
     // Initial scroll to bottom when messages are first loaded
@@ -189,6 +190,7 @@ fun ChatScreen(
                             fontScale = fontScale,
                             incomingTextColor = incomingTextColor,
                             outgoingTextColor = outgoingTextColor,
+                            firstUnreadMessageId = uiState.firstUnreadMessageId,
                             onDeleteMessage = viewModel::deleteMessage,
                             onReplyMessage = { message -> replyToMessage = message },
                             onEditMessage = viewModel::startEditing,

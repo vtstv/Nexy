@@ -69,6 +69,7 @@ type Chat struct {
 	MemberCount        int              `json:"member_count,omitempty"`
 	IsMember           bool             `json:"is_member,omitempty"`
 	MutedUntil         *time.Time       `json:"muted_until,omitempty"`
+	UnreadCount        int              `json:"unread_count"`
 }
 
 type ChatPermissions struct {

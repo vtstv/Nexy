@@ -40,7 +40,10 @@ data class Chat(
     val defaultPermissions: ChatPermissions? = null,
     
     val lastMessage: Message? = null,
+    
+    @SerializedName("unread_count")
     val unreadCount: Int = 0,
+    
     val muted: Boolean = false,
 
     @SerializedName("member_count")

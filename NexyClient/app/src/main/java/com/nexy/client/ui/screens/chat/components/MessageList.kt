@@ -33,6 +33,7 @@ fun MessageList(
     fontScale: Float = 1.0f,
     incomingTextColor: Long = 0L,
     outgoingTextColor: Long = 0L,
+    firstUnreadMessageId: String? = null,
     onDeleteMessage: (String) -> Unit,
     onReplyMessage: (Message) -> Unit = {},
     onEditMessage: (Message) -> Unit = {},
@@ -123,10 +124,17 @@ fun MessageList(
                 } else {
                     !isSameDay(message.timestamp, nextMessage.timestamp)
                 }
+                
+                val showUnreadDivider = firstUnreadMessageId != null && message.id == firstUnreadMessageId
 
                 Column(
                     modifier = Modifier.fillMaxWidth()
                 ) {
+                    if (showUnreadDivider) {
+                        UnreadMessagesDivider()
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                    
                     if (showDateHeader) {
                         DateHeader(
                             timestamp = message.timestamp,
@@ -200,5 +208,30 @@ fun DateHeader(timestamp: String?, onClick: () -> Unit = {}) {
                     .padding(horizontal = 12.dp, vertical = 4.dp)
             )
         }
+    }
+}
+
+@Composable
+fun UnreadMessagesDivider() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        HorizontalDivider(
+            modifier = Modifier.weight(1f),
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+        )
+        Text(
+            text = "Unread Messages",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(horizontal = 12.dp)
+        )
+        HorizontalDivider(
+            modifier = Modifier.weight(1f),
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+        )
     }
 }

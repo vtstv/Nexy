@@ -33,3 +33,23 @@ func (r *MessageRepository) MarkMessagesAsRead(ctx context.Context, chatID, user
 	_, err := r.db.ExecContext(ctx, query, chatID, userID, lastMessageID)
 	return err
 }
+
+// GetUnreadCount returns the number of unread messages for a user in a chat
+func (r *MessageRepository) GetUnreadCount(ctx context.Context, chatID, userID int) (int, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM messages m
+		WHERE m.chat_id = $1
+		AND m.sender_id != $2
+		AND m.is_deleted = FALSE
+		AND NOT EXISTS (
+			SELECT 1 FROM message_status ms
+			WHERE ms.message_id = m.id
+			AND ms.user_id = $2
+			AND ms.status = 'read'
+		)`
+
+	var count int
+	err := r.db.QueryRowContext(ctx, query, chatID, userID).Scan(&count)
+	return count, err
+}

@@ -91,7 +91,20 @@ func (r *ChatRepository) GetSelfChat(ctx context.Context, userID int) (*models.C
 // GetUserChats retrieves all chats for a user
 func (r *ChatRepository) GetUserChats(ctx context.Context, userID int) ([]*models.Chat, error) {
 	query := `
-		SELECT c.id, c.type, c.name, c.avatar_url, c.created_by, c.created_at, c.updated_at, cm.muted_until
+		SELECT c.id, c.type, c.name, c.avatar_url, c.created_by, c.created_at, c.updated_at, cm.muted_until,
+			COALESCE((
+				SELECT COUNT(*)
+				FROM messages m
+				WHERE m.chat_id = c.id
+				AND m.sender_id != $1
+				AND m.is_deleted = FALSE
+				AND NOT EXISTS (
+					SELECT 1 FROM message_status ms
+					WHERE ms.message_id = m.id
+					AND ms.user_id = $1
+					AND ms.status = 'read'
+				)
+			), 0) as unread_count
 		FROM chats c
 		INNER JOIN chat_members cm ON c.id = cm.chat_id
 		WHERE cm.user_id = $1
@@ -117,6 +130,7 @@ func (r *ChatRepository) GetUserChats(ctx context.Context, userID int) ([]*model
 			&chat.CreatedAt,
 			&chat.UpdatedAt,
 			&mutedUntil,
+			&chat.UnreadCount,
 		)
 		if err != nil {
 			return nil, err

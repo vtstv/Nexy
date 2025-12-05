@@ -116,10 +116,12 @@ fun ContactsScreen(
     
     // Delete confirmation dialog
     contactToDelete?.let { contact ->
+        val contactDisplayName = contact.contactUser.displayName?.takeIf { it.isNotBlank() }
+            ?: contact.contactUser.username
         AlertDialog(
             onDismissRequest = { contactToDelete = null },
             title = { Text("Remove Contact") },
-            text = { Text("Remove ${contact.contactUser.username} from your contacts?") },
+            text = { Text("Remove $contactDisplayName from your contacts?") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -147,6 +149,8 @@ private fun ContactItem(
     onBlock: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val displayName = contact.contactUser.displayName?.takeIf { it.isNotBlank() } 
+        ?: contact.contactUser.username
     
     Row(
         modifier = Modifier
@@ -175,7 +179,7 @@ private fun ContactItem(
                 )
             } else {
                 Text(
-                    text = contact.contactUser.username.firstOrNull()?.uppercase() ?: "?",
+                    text = displayName.firstOrNull()?.uppercase() ?: "?",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     fontWeight = FontWeight.Bold
@@ -191,7 +195,7 @@ private fun ContactItem(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = contact.contactUser.username,
+                    text = displayName,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium
                 )

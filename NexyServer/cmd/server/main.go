@@ -47,7 +47,7 @@ func main() {
 	folderRepo := repositories.NewFolderRepository(db)
 
 	authService := services.NewAuthService(userRepo, refreshTokenRepo, &cfg.JWT)
-	userService := services.NewUserService(userRepo, chatRepo)
+	userService := services.NewUserService(userRepo, chatRepo, messageRepo)
 	groupService := services.NewGroupService(chatRepo, userRepo)
 	inviteService := services.NewInviteService(inviteRepo)
 	fileService := services.NewFileService(fileRepo, &cfg.Upload)

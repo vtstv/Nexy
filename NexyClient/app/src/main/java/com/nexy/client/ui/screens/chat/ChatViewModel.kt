@@ -60,14 +60,74 @@ class ChatViewModel @Inject constructor(
         }
     }
     
+    fun onChatOpened() {
+        // Reset unread divider state and re-check for unread messages
+        android.util.Log.d("ChatViewModel", "onChatOpened: resetting unread divider state")
+        firstUnreadMessageId = null
+        unreadDividerCalculated = false
+        initialUnreadCount = 0
+        _uiState.value = _uiState.value.copy(firstUnreadMessageId = null)
+        
+        viewModelScope.launch {
+            loadCurrentUserAndChatInfo()
+            // Recalculate divider with current messages
+            recalculateUnreadDivider()
+            markAsReadInternal()
+        }
+    }
+    
+    private fun recalculateUnreadDivider() {
+        val messages = _uiState.value.messages
+        if (initialUnreadCount > 0 && messages.isNotEmpty()) {
+            android.util.Log.d("ChatViewModel", "Recalculating unread divider: unreadCount=$initialUnreadCount, totalMessages=${messages.size}")
+            if (messages.size >= initialUnreadCount) {
+                val firstUnreadIndex = messages.size - initialUnreadCount
+                firstUnreadMessageId = messages.getOrNull(firstUnreadIndex)?.id
+                android.util.Log.d("ChatViewModel", "First unread message ID: $firstUnreadMessageId at index $firstUnreadIndex")
+                _uiState.value = _uiState.value.copy(firstUnreadMessageId = firstUnreadMessageId)
+            }
+            unreadDividerCalculated = true
+        }
+    }
+    
     fun setChatId(newChatId: Int, savedStateHandle: SavedStateHandle) {
         savedStateHandle["chatId"] = newChatId
     }
 
     private fun initializeChat() {
-        loadCurrentUser()
-        loadChatName()
-        loadMessages()
+        viewModelScope.launch {
+            loadCurrentUserAndChatInfo()
+            // Mark as read AFTER we've captured the unread count but BEFORE loading messages
+            // This way, the unread count is saved and won't be affected by markAsRead
+            markAsReadInternal()
+            loadMessages()
+        }
+    }
+    
+    private suspend fun loadCurrentUserAndChatInfo() {
+        val userId = stateManager.loadCurrentUserId()
+        _uiState.value = _uiState.value.copy(currentUserId = userId)
+        
+        try {
+            stateManager.loadChatInfo(chatId, userId)?.let { chatInfo ->
+                initialUnreadCount = chatInfo.unreadCount
+                android.util.Log.d("ChatViewModel", "Chat info loaded: unreadCount=$initialUnreadCount")
+                _uiState.value = _uiState.value.copy(
+                    chatName = chatInfo.chatName,
+                    chatAvatarUrl = chatInfo.chatAvatarUrl,
+                    chatType = chatInfo.chatType,
+                    groupType = chatInfo.groupType,
+                    participantIds = chatInfo.participantIds,
+                    isSelfChat = chatInfo.isSelfChat,
+                    isCreator = chatInfo.isCreator,
+                    isMember = chatInfo.isMember,
+                    mutedUntil = chatInfo.mutedUntil,
+                    otherUserOnlineStatus = chatInfo.otherUserOnlineStatus
+                )
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("ChatViewModel", "Failed to load chat info", e)
+        }
     }
 
     private fun observeTypingEvents() {
@@ -108,43 +168,34 @@ class ChatViewModel @Inject constructor(
     }
     // endregion
 
+    private var initialUnreadCount: Int = 0
+    private var firstUnreadMessageId: String? = null
+    private var unreadDividerCalculated: Boolean = false
+
     // region Load Data
-    private fun loadCurrentUser() {
-        viewModelScope.launch {
-            val userId = stateManager.loadCurrentUserId()
-            _uiState.value = _uiState.value.copy(currentUserId = userId)
-        }
-    }
-    
-    private fun loadChatName() {
-        viewModelScope.launch {
-            try {
-                val currentUserId = stateManager.loadCurrentUserId()
-                stateManager.loadChatInfo(chatId, currentUserId)?.let { chatInfo ->
-                    _uiState.value = _uiState.value.copy(
-                        chatName = chatInfo.chatName,
-                        chatAvatarUrl = chatInfo.chatAvatarUrl,
-                        chatType = chatInfo.chatType,
-                        groupType = chatInfo.groupType,
-                        participantIds = chatInfo.participantIds,
-                        isSelfChat = chatInfo.isSelfChat,
-                        isCreator = chatInfo.isCreator,
-                        isMember = chatInfo.isMember,
-                        mutedUntil = chatInfo.mutedUntil,
-                        otherUserOnlineStatus = chatInfo.otherUserOnlineStatus
-                    )
-                }
-            } catch (e: Exception) {
-                // Ignore
-            }
-        }
-    }
     
     private fun loadMessages() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             messageOps.observeMessages(chatId).collect { messages ->
-                _uiState.value = _uiState.value.copy(messages = messages, isLoading = false)
+                if (!unreadDividerCalculated && initialUnreadCount > 0 && messages.isNotEmpty()) {
+                    val currentUserId = _uiState.value.currentUserId
+                    android.util.Log.d("ChatViewModel", "Calculating unread divider: unreadCount=$initialUnreadCount, currentUserId=$currentUserId, totalMessages=${messages.size}")
+                    
+                    // Get the last N messages (where N = unreadCount) - these are unread
+                    // Messages are ordered ASC by timestamp, so last ones are newest
+                    if (messages.size >= initialUnreadCount) {
+                        val firstUnreadIndex = messages.size - initialUnreadCount
+                        firstUnreadMessageId = messages.getOrNull(firstUnreadIndex)?.id
+                        android.util.Log.d("ChatViewModel", "First unread message ID: $firstUnreadMessageId at index $firstUnreadIndex")
+                    }
+                    unreadDividerCalculated = true
+                }
+                _uiState.value = _uiState.value.copy(
+                    messages = messages,
+                    isLoading = false,
+                    firstUnreadMessageId = firstUnreadMessageId
+                )
             }
         }
         
@@ -196,10 +247,9 @@ class ChatViewModel @Inject constructor(
         }
     }
     
-    fun markAsRead() {
-        viewModelScope.launch {
-            messageOps.markAsRead(chatId)
-        }
+    private suspend fun markAsReadInternal() {
+        android.util.Log.d("ChatViewModel", "markAsRead called, initialUnreadCount=$initialUnreadCount saved")
+        messageOps.markAsRead(chatId)
     }
     // endregion
 
@@ -332,7 +382,7 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             chatRepository.muteChat(chatId, duration, until)
                 .onSuccess {
-                    loadChatName()
+                    refreshChatInfo()
                 }
                 .onFailure { e ->
                     _uiState.value = _uiState.value.copy(error = e.message)
@@ -344,11 +394,31 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             chatRepository.unmuteChat(chatId)
                 .onSuccess {
-                    loadChatName()
+                    refreshChatInfo()
                 }
                 .onFailure { e ->
                     _uiState.value = _uiState.value.copy(error = e.message)
                 }
+        }
+    }
+    
+    private fun refreshChatInfo() {
+        viewModelScope.launch {
+            val currentUserId = stateManager.loadCurrentUserId()
+            stateManager.loadChatInfo(chatId, currentUserId)?.let { chatInfo ->
+                _uiState.value = _uiState.value.copy(
+                    chatName = chatInfo.chatName,
+                    chatAvatarUrl = chatInfo.chatAvatarUrl,
+                    chatType = chatInfo.chatType,
+                    groupType = chatInfo.groupType,
+                    participantIds = chatInfo.participantIds,
+                    isSelfChat = chatInfo.isSelfChat,
+                    isCreator = chatInfo.isCreator,
+                    isMember = chatInfo.isMember,
+                    mutedUntil = chatInfo.mutedUntil,
+                    otherUserOnlineStatus = chatInfo.otherUserOnlineStatus
+                )
+            }
         }
     }
 

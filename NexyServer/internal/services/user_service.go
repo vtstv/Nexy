@@ -10,14 +10,16 @@ import (
 type UserService struct {
 	userRepo            *repositories.UserRepository
 	chatRepo            *repositories.ChatRepository
+	messageRepo         *repositories.MessageRepository
 	onlineStatusService *OnlineStatusService
 	onlineChecker       OnlineChecker
 }
 
-func NewUserService(userRepo *repositories.UserRepository, chatRepo *repositories.ChatRepository) *UserService {
+func NewUserService(userRepo *repositories.UserRepository, chatRepo *repositories.ChatRepository, messageRepo *repositories.MessageRepository) *UserService {
 	return &UserService{
-		userRepo: userRepo,
-		chatRepo: chatRepo,
+		userRepo:    userRepo,
+		chatRepo:    chatRepo,
+		messageRepo: messageRepo,
 	}
 }
 
