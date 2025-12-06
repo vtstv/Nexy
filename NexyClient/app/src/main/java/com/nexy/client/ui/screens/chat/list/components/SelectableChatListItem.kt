@@ -93,16 +93,20 @@ fun SelectableChatListItem(
                     color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            when {
-                                chatWithInfo.isSelfChat -> Icons.Default.StickyNote2
-                                chat.type == ChatType.GROUP -> Icons.Default.People
-                                else -> Icons.Default.Person
-                            },
-                            contentDescription = null,
-                            modifier = Modifier.size(28.dp),
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                        if (chatWithInfo.isSelfChat) {
+                            Icon(
+                                Icons.Default.StickyNote2,
+                                contentDescription = null,
+                                modifier = Modifier.size(28.dp),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        } else {
+                            Text(
+                                text = chatWithInfo.displayName.take(2).uppercase(),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
                     }
                 }
             }
