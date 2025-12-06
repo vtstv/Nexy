@@ -54,8 +54,8 @@ class MessageOperations @Inject constructor(
     
     suspend fun getLastMessageForChat(chatId: Int): Message? {
         return withContext(Dispatchers.IO) {
-            val entity = messageDao.getLastMessage(chatId)
-            entity?.let { messageMappers.entityToModel(it) }
+            val messageWithSender = messageDao.getLastMessageWithSender(chatId)
+            messageWithSender?.let { messageMappers.messageWithSenderToModel(it) }
         }
     }
     

@@ -50,6 +50,10 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp DESC LIMIT 1")
     suspend fun getLastMessage(chatId: Int): MessageEntity?
     
+    @Transaction
+    @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp DESC LIMIT 1")
+    suspend fun getLastMessageWithSender(chatId: Int): MessageWithSender?
+    
     // Get last incoming (not from current user) message - for read receipts
     @Query("SELECT * FROM messages WHERE chatId = :chatId AND senderId != :currentUserId ORDER BY timestamp DESC LIMIT 1")
     suspend fun getLastIncomingMessage(chatId: Int, currentUserId: Int): MessageEntity?

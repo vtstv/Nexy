@@ -86,8 +86,24 @@ class ChatListLoadingDelegate @Inject constructor(
                         val lastMessage = chatRepository.getLastMessageForChat(chat.id)
                         val preview = when {
                             lastMessage == null -> "No messages"
-                            lastMessage.mediaUrl != null -> "📎 ${lastMessage.content ?: "Attachment"}"
-                            else -> lastMessage.content ?: ""
+                            lastMessage.mediaUrl != null -> {
+                                val prefix = if (chat.type == ChatType.GROUP && lastMessage.sender != null) {
+                                    val senderName = lastMessage.sender.displayName?.takeIf { it.isNotBlank() }
+                                        ?: lastMessage.sender.username?.takeIf { it.isNotBlank() }
+                                        ?: "User ${lastMessage.senderId}"
+                                    "$senderName: "
+                                } else ""
+                                "${prefix}📎 ${lastMessage.content ?: "Attachment"}"
+                            }
+                            else -> {
+                                val prefix = if (chat.type == ChatType.GROUP && lastMessage.sender != null) {
+                                    val senderName = lastMessage.sender.displayName?.takeIf { it.isNotBlank() }
+                                        ?: lastMessage.sender.username?.takeIf { it.isNotBlank() }
+                                        ?: "User ${lastMessage.senderId}"
+                                    "$senderName: "
+                                } else ""
+                                prefix + (lastMessage.content ?: "")
+                            }
                         }
                         val timeStr = lastMessage?.timestamp?.let { formatMessageTime(it) }
 
