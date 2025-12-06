@@ -11,7 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
@@ -73,13 +73,13 @@ fun ProfileScreen(
                 title = { Text(stringResource(R.string.my_profile)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 },
                 actions = {
                     TextButton(
                         onClick = {
-                            viewModel.updateProfile(displayName, bio, selectedAvatarUri, email, password.takeIf { it.isNotEmpty() }, uiState.user?.readReceiptsEnabled ?: true)
+                            viewModel.updateProfile(displayName, bio, selectedAvatarUri, email, password.takeIf { it.isNotEmpty() }, readReceiptsEnabled)
                         },
                         enabled = !uiState.isSaving
                     ) {
@@ -111,15 +111,17 @@ fun ProfileScreen(
                         .size(120.dp)
                         .clickable { launcher.launch("image/*") }
                 ) {
-                    val model = if (selectedAvatarUri != null) {
-                        selectedAvatarUri
-                    } else {
-                        val url = ServerConfig.getFileUrl(uiState.user?.avatarUrl)
-                        // Force Coil to reload by adding timestamp if it's a network URL
-                        if (url != null && !url.startsWith("content://")) {
-                            "$url?t=${System.currentTimeMillis()}"
+                    val model = remember(uiState.user, selectedAvatarUri) {
+                        if (selectedAvatarUri != null) {
+                            selectedAvatarUri
                         } else {
-                            url
+                            val url = ServerConfig.getFileUrl(uiState.user?.avatarUrl)
+                            // Force Coil to reload by adding timestamp if it's a network URL
+                            if (url != null && !url.startsWith("content://")) {
+                                "$url?t=${System.currentTimeMillis()}"
+                            } else {
+                                url
+                            }
                         }
                     }
 
