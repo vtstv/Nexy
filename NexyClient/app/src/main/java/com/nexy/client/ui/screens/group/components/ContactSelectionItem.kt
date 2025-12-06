@@ -13,6 +13,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.nexy.client.ServerConfig
 import com.nexy.client.data.models.ContactWithUser
 
 @Composable
@@ -49,9 +50,10 @@ private fun ContactAvatar(
     avatarUrl: String?,
     displayName: String
 ) {
-    if (avatarUrl != null) {
+    val url = ServerConfig.getFileUrl(avatarUrl)
+    if (url != null) {
         AsyncImage(
-            model = avatarUrl,
+            model = url,
             contentDescription = null,
             modifier = Modifier
                 .size(40.dp)
@@ -67,7 +69,8 @@ private fun ContactAvatar(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = displayName.take(1).uppercase(),
+                text = displayName.take(2).uppercase(),
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
         }

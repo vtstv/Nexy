@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -225,15 +226,32 @@ fun InviteMembersScreen(
                             headlineContent = { Text(user.displayName?.takeIf { it.isNotBlank() } ?: user.username) },
                             supportingContent = { Text("@${user.username}") },
                             leadingContent = {
-                                AsyncImage(
-                                    model = ServerConfig.getFileUrl(user.avatarUrl),
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                                    error = rememberVectorPainter(Icons.Default.Person)
-                                )
+                                val avatarUrl = ServerConfig.getFileUrl(user.avatarUrl)
+                                if (avatarUrl != null) {
+                                    AsyncImage(
+                                        model = avatarUrl,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Surface(
+                                        modifier = Modifier.size(40.dp),
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.primaryContainer
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Text(
+                                                text = (user.displayName?.firstOrNull() ?: user.username.firstOrNull() ?: '?')
+                                                    .toString().uppercase(),
+                                                style = MaterialTheme.typography.titleMedium,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                            )
+                                        }
+                                    }
+                                }
                             },
                             trailingContent = {
                                 IconButton(onClick = { viewModel.addMember(chatId, user) }) {
