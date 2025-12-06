@@ -94,7 +94,7 @@ func main() {
 	wsHandler := nexy.NewWSHandler(hub)
 	wsController := controllers.NewWSController(wsHandler, authService)
 
-	authMiddleware := middleware.NewAuthMiddleware(authService)
+	authMiddleware := middleware.NewAuthMiddleware(authService, redisClient.Client)
 	corsMiddleware := middleware.NewCORSMiddleware(&cfg.CORS)
 	rateLimiter := middleware.NewRateLimiter(&cfg.RateLimit)
 

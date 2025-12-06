@@ -1,0 +1,10 @@
+.env
+backups/
+nexy-admin
+nexy-admin.exe
+*.log
+
+# Editor files
+notepad.exe
+Notepad.exe
+*.tmp

@@ -241,6 +241,34 @@ func (h *Hub) IsUserOnline(userID int) bool {
 	return online && len(clients) > 0
 }
 
+// DisconnectBannedUser disconnects all connections for a banned user
+func (h *Hub) DisconnectBannedUser(userID int) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	clients, ok := h.clients[userID]
+	if !ok || len(clients) == 0 {
+		return
+	}
+
+	log.Printf("Disconnecting banned user %d (%d connections)", userID, len(clients))
+
+	// Close all connections for this user
+	for _, client := range clients {
+		// Send ban notification before closing
+		banMsg := []byte(`{"type":"system","message":"Your account has been banned"}`)
+		client.conn.WriteMessage(1, banMsg) // 1 = TextMessage
+		client.conn.Close()
+	}
+
+	// Remove all clients for this user
+	delete(h.clients, userID)
+
+	// Remove from Redis
+	ctx := context.Background()
+	h.redis.Del(ctx, userOnlineKey(userID))
+}
+
 func (h *Hub) GetOnlineUserIDs() map[int]bool {
 	h.mu.RLock()
 	defer h.mu.RUnlock()

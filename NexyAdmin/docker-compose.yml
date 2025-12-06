@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  nexy-admin:
+    build: .
+    container_name: nexy-admin
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgres://nexy_user:nexy_password@postgres:5432/nexy?sslmode=disable
+      - REDIS_URL=redis:6379
+      - REDIS_PASSWORD=
+      - ADMIN_JWT_SECRET=your-admin-secret-key
+      - ADMIN_PORT=3000
+      - BACKUP_PATH=/backups
+    volumes:
+      - ./backups:/backups
+    networks:
+      - nexy-network
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: nexy-admin-postgres
+    environment:
+      - POSTGRES_USER=nexy_user
+      - POSTGRES_PASSWORD=nexy_password
+      - POSTGRES_DB=nexy
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - nexy-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: nexy-admin-redis
+    networks:
+      - nexy-network
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+
+networks:
+  nexy-network:
+    driver: bridge

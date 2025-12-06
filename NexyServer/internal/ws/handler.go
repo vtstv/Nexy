@@ -2,6 +2,7 @@ package nexy
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -27,6 +28,23 @@ func NewWSHandler(hub *Hub) *WSHandler {
 }
 
 func (h *WSHandler) ServeWS(w http.ResponseWriter, r *http.Request, userID int, deviceID string) {
+	// Check if user is banned before allowing WebSocket connection
+	if h.hub.redis != nil {
+		banKey := "banned:user:" + string(rune(userID))
+		if userID > 0 {
+			ctx := context.Background()
+			banKey = "banned:user:" + string(rune(userID+'0'))
+			// Fix: use fmt.Sprintf for proper string conversion
+			banKey = "banned:user:" + fmt.Sprint(userID)
+			result, err := h.hub.redis.Get(ctx, banKey).Result()
+			if err == nil && result == "1" {
+				log.Printf("Banned user %d attempted WebSocket connection", userID)
+				http.Error(w, "Account has been banned", http.StatusForbidden)
+				return
+			}
+		}
+	}
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("WebSocket upgrade error: %v", err)

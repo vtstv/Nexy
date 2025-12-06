@@ -2,9 +2,11 @@ package middleware
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/vtstv/nexy/internal/services"
 )
 
@@ -14,10 +16,14 @@ const UserIDKey contextKey = "user_id"
 
 type AuthMiddleware struct {
 	authService *services.AuthService
+	redisClient *redis.Client
 }
 
-func NewAuthMiddleware(authService *services.AuthService) *AuthMiddleware {
-	return &AuthMiddleware{authService: authService}
+func NewAuthMiddleware(authService *services.AuthService, redisClient *redis.Client) *AuthMiddleware {
+	return &AuthMiddleware{
+		authService: authService,
+		redisClient: redisClient,
+	}
 }
 
 func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
@@ -38,6 +44,16 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 		if err != nil {
 			http.Error(w, "Invalid token", http.StatusUnauthorized)
 			return
+		}
+
+		// Check if user is banned
+		if m.redisClient != nil {
+			banKey := fmt.Sprintf("banned:user:%d", userID)
+			result, err := m.redisClient.Get(r.Context(), banKey).Result()
+			if err == nil && result == "1" {
+				http.Error(w, "Account has been banned", http.StatusForbidden)
+				return
+			}
 		}
 
 		ctx := context.WithValue(r.Context(), UserIDKey, userID)
