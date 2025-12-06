@@ -4,7 +4,7 @@
 package com.nexy.client.ui.screens.chat.list.selection
 
 import androidx.compose.runtime.Stable
-import com.nexy.client.ui.screens.chat.ChatWithInfo
+import com.nexy.client.ui.screens.chat.list.state.ChatWithInfo
 
 @Stable
 data class ChatSelectionState(

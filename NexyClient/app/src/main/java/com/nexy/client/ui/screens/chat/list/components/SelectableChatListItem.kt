@@ -36,7 +36,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.nexy.client.ServerConfig
 import com.nexy.client.data.models.ChatType
-import com.nexy.client.ui.screens.chat.ChatWithInfo
+import com.nexy.client.ui.screens.chat.list.state.ChatWithInfo
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

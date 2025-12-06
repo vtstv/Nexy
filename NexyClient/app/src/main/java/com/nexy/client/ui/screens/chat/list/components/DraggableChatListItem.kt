@@ -19,7 +19,7 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import com.nexy.client.ui.screens.chat.ChatWithInfo
+import com.nexy.client.ui.screens.chat.list.state.ChatWithInfo
 import com.nexy.client.ui.screens.chat.list.ChatListItem
 
 @Composable

@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import com.nexy.client.data.models.ChatFolder as ApiFolderModel
-import com.nexy.client.ui.screens.chat.ChatWithInfo
+import com.nexy.client.ui.screens.chat.list.state.ChatWithInfo
 import com.nexy.client.ui.screens.chat.list.components.ChatListBody
 import com.nexy.client.ui.screens.chat.list.components.ChatSearchField
 import com.nexy.client.ui.screens.chat.list.components.FolderTab

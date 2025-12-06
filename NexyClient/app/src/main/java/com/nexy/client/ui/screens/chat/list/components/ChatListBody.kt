@@ -16,7 +16,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.nexy.client.R
 import com.nexy.client.data.models.ChatType
-import com.nexy.client.ui.screens.chat.ChatWithInfo
+import com.nexy.client.ui.screens.chat.list.state.ChatWithInfo
 import com.nexy.client.ui.screens.chat.list.selection.ChatSelectionState
 
 @Composable

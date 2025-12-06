@@ -9,7 +9,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.nexy.client.data.models.ChatFolder as ApiFolderModel
 import com.nexy.client.data.models.ChatType
-import com.nexy.client.ui.screens.chat.ChatWithInfo
+import com.nexy.client.ui.screens.chat.list.state.ChatWithInfo
 
 val FolderColors = listOf(
     Color(0xFF3390EC), // Blue (default)

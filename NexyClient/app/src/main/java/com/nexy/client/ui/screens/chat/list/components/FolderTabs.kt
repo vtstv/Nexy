@@ -31,7 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nexy.client.R
 import com.nexy.client.data.models.ChatFolder as ApiFolderModel
-import com.nexy.client.ui.screens.chat.ChatWithInfo
+import com.nexy.client.ui.screens.chat.list.state.ChatWithInfo
 
 @Composable
 fun FolderCountBadge(
