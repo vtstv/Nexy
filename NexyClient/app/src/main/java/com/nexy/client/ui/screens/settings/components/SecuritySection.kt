@@ -30,7 +30,8 @@ fun SecuritySection(
     onBiometricToggle: (Boolean) -> Unit,
     onLoadSessions: () -> Unit,
     onLogoutSession: (Int) -> Unit,
-    onLogoutAllOtherSessions: () -> Unit
+    onLogoutAllOtherSessions: () -> Unit,
+    onUpdateSessionSettings: (sessionId: Int, acceptSecretChats: Boolean?, acceptCalls: Boolean?) -> Unit = { _, _, _ -> }
 ) {
     var showTerminateAllDialog by remember { mutableStateOf(false) }
     
@@ -94,7 +95,10 @@ fun SecuritySection(
             CircularProgressIndicator(modifier = Modifier.size(24.dp))
         }
     } else if (currentSession != null) {
-        CurrentDeviceItem(session = currentSession)
+        CurrentDeviceItem(
+            session = currentSession,
+            onUpdateSessionSettings = onUpdateSessionSettings
+        )
         
         // Terminate all other sessions button 
         if (otherSessions.isNotEmpty()) {
@@ -195,7 +199,13 @@ fun SecuritySection(
 }
 
 @Composable
-private fun CurrentDeviceItem(session: UserSession) {
+private fun CurrentDeviceItem(
+    session: UserSession,
+    onUpdateSessionSettings: (sessionId: Int, acceptSecretChats: Boolean?, acceptCalls: Boolean?) -> Unit
+) {
+    var acceptSecretChats by remember(session.acceptSecretChats) { mutableStateOf(session.acceptSecretChats) }
+    var acceptCalls by remember(session.acceptCalls) { mutableStateOf(session.acceptCalls) }
+
     ListItem(
         headlineContent = { 
             Text(
@@ -221,6 +231,49 @@ private fun CurrentDeviceItem(session: UserSession) {
             DeviceIcon(
                 deviceType = session.deviceType,
                 isCurrentDevice = true
+            )
+        }
+    )
+    
+    // Session settings for current device
+    ListItem(
+        headlineContent = { Text("Accept Secret Chats") },
+        supportingContent = { Text("Allow encrypted chats on this device") },
+        trailingContent = {
+            Switch(
+                checked = acceptSecretChats,
+                onCheckedChange = { checked ->
+                    acceptSecretChats = checked
+                    onUpdateSessionSettings(session.id, checked, null)
+                }
+            )
+        },
+        leadingContent = {
+            Icon(
+                Icons.Default.Lock,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    )
+    
+    ListItem(
+        headlineContent = { Text("Accept Calls") },
+        supportingContent = { Text("Allow incoming calls on this device") },
+        trailingContent = {
+            Switch(
+                checked = acceptCalls,
+                onCheckedChange = { checked ->
+                    acceptCalls = checked
+                    onUpdateSessionSettings(session.id, null, checked)
+                }
+            )
+        },
+        leadingContent = {
+            Icon(
+                Icons.Default.Call,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     )

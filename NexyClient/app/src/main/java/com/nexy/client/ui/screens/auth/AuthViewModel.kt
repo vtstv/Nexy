@@ -1,10 +1,14 @@
 package com.nexy.client.ui.screens.auth
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nexy.client.data.repository.AuthRepository
+import com.nexy.client.data.websocket.WebSocketMessageHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -18,20 +22,51 @@ data class AuthUiState(
     val rememberMe: Boolean = false,
     val isLoading: Boolean = false,
     val isAuthenticated: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val sessionTerminatedReason: String? = null
 )
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val webSocketMessageHandler: WebSocketMessageHandler
 ) : ViewModel() {
+    
+    companion object {
+        private const val TAG = "AuthViewModel"
+    }
     
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
     
+    private val _forceLogoutEvent = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val forceLogoutEvent: SharedFlow<String> = _forceLogoutEvent
+    
     init {
         checkAuthStatus()
         loadSavedCredentials()
+        observeSessionTermination()
+    }
+    
+    private fun observeSessionTermination() {
+        viewModelScope.launch {
+            webSocketMessageHandler.sessionTerminatedEvents.collect { reason ->
+                Log.w(TAG, "Session terminated by server: $reason")
+                forceLogout(reason)
+            }
+        }
+    }
+    
+    private fun forceLogout(reason: String) {
+        viewModelScope.launch {
+            authRepository.logout(clearCredentials = false)
+            _uiState.value = AuthUiState(sessionTerminatedReason = reason)
+            _forceLogoutEvent.emit(reason)
+        }
+    }
+    
+    fun clearSessionTerminatedReason() {
+        _uiState.value = _uiState.value.copy(sessionTerminatedReason = null)
     }
     
     private fun checkAuthStatus() {

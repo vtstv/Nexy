@@ -54,7 +54,7 @@ func (r *SessionRepository) CreateFromLogin(ctx context.Context, userID int, dev
 
 func (r *SessionRepository) GetByUserID(ctx context.Context, userID int) ([]models.UserSession, error) {
 	query := `
-		SELECT id, user_id, refresh_token_id, device_id, device_name, device_type, ip_address, user_agent, last_active, created_at, is_current
+		SELECT id, user_id, refresh_token_id, device_id, device_name, device_type, ip_address, user_agent, last_active, created_at, is_current, COALESCE(accept_secret_chats, TRUE), COALESCE(accept_calls, TRUE)
 		FROM user_sessions
 		WHERE user_id = $1
 		ORDER BY last_active DESC`
@@ -81,6 +81,8 @@ func (r *SessionRepository) GetByUserID(ctx context.Context, userID int) ([]mode
 			&s.LastActive,
 			&s.CreatedAt,
 			&s.IsCurrent,
+			&s.AcceptSecretChats,
+			&s.AcceptCalls,
 		); err != nil {
 			return nil, err
 		}
@@ -156,6 +158,84 @@ func (r *SessionRepository) GetByRefreshTokenID(ctx context.Context, tokenID int
 		&s.LastActive,
 		&s.CreatedAt,
 		&s.IsCurrent,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if refreshTokenID.Valid {
+		id := int(refreshTokenID.Int64)
+		s.RefreshTokenID = &id
+	}
+	return &s, nil
+}
+
+func (r *SessionRepository) GetByID(ctx context.Context, sessionID int) (*models.UserSession, error) {
+	query := `
+		SELECT id, user_id, refresh_token_id, device_id, device_name, device_type, ip_address, user_agent, last_active, created_at, is_current, COALESCE(accept_secret_chats, TRUE), COALESCE(accept_calls, TRUE)
+		FROM user_sessions
+		WHERE id = $1`
+
+	var s models.UserSession
+	var refreshTokenID sql.NullInt64
+	err := r.db.QueryRowContext(ctx, query, sessionID).Scan(
+		&s.ID,
+		&s.UserID,
+		&refreshTokenID,
+		&s.DeviceID,
+		&s.DeviceName,
+		&s.DeviceType,
+		&s.IPAddress,
+		&s.UserAgent,
+		&s.LastActive,
+		&s.CreatedAt,
+		&s.IsCurrent,
+		&s.AcceptSecretChats,
+		&s.AcceptCalls,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if refreshTokenID.Valid {
+		id := int(refreshTokenID.Int64)
+		s.RefreshTokenID = &id
+	}
+	return &s, nil
+}
+
+func (r *SessionRepository) UpdateSettings(ctx context.Context, sessionID int, acceptSecretChats, acceptCalls bool) error {
+	query := `UPDATE user_sessions SET accept_secret_chats = $1, accept_calls = $2 WHERE id = $3`
+	_, err := r.db.ExecContext(ctx, query, acceptSecretChats, acceptCalls, sessionID)
+	return err
+}
+
+func (r *SessionRepository) GetByDeviceID(ctx context.Context, userID int, deviceID string) (*models.UserSession, error) {
+	query := `
+		SELECT id, user_id, refresh_token_id, device_id, device_name, device_type, ip_address, user_agent, last_active, created_at, is_current, COALESCE(accept_secret_chats, TRUE), COALESCE(accept_calls, TRUE)
+		FROM user_sessions
+		WHERE user_id = $1 AND device_id = $2`
+
+	var s models.UserSession
+	var refreshTokenID sql.NullInt64
+	err := r.db.QueryRowContext(ctx, query, userID, deviceID).Scan(
+		&s.ID,
+		&s.UserID,
+		&refreshTokenID,
+		&s.DeviceID,
+		&s.DeviceName,
+		&s.DeviceType,
+		&s.IPAddress,
+		&s.UserAgent,
+		&s.LastActive,
+		&s.CreatedAt,
+		&s.IsCurrent,
+		&s.AcceptSecretChats,
+		&s.AcceptCalls,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil

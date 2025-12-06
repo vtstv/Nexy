@@ -14,16 +14,18 @@ type Client struct {
 	conn     *websocket.Conn
 	send     chan []byte
 	userID   int
+	deviceID string
 	mu       sync.Mutex
 	isClosed bool
 }
 
-func newClient(hub *Hub, conn *websocket.Conn, userID int) *Client {
+func newClient(hub *Hub, conn *websocket.Conn, userID int, deviceID string) *Client {
 	return &Client{
-		hub:    hub,
-		conn:   conn,
-		send:   make(chan []byte, 256),
-		userID: userID,
+		hub:      hub,
+		conn:     conn,
+		send:     make(chan []byte, 256),
+		userID:   userID,
+		deviceID: deviceID,
 	}
 }
 

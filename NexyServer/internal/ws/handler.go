@@ -26,14 +26,14 @@ func NewWSHandler(hub *Hub) *WSHandler {
 	return &WSHandler{hub: hub}
 }
 
-func (h *WSHandler) ServeWS(w http.ResponseWriter, r *http.Request, userID int) {
+func (h *WSHandler) ServeWS(w http.ResponseWriter, r *http.Request, userID int, deviceID string) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("WebSocket upgrade error: %v", err)
 		return
 	}
 
-	client := newClient(h.hub, conn, userID)
+	client := newClient(h.hub, conn, userID, deviceID)
 
 	client.hub.register <- client
 

@@ -8,10 +8,10 @@ import (
 
 func (h *Hub) sendToUser(userID int, message *NexyMessage, unregisterFunc func(*Client)) {
 	h.mu.RLock()
-	client, ok := h.clients[userID]
+	clients, ok := h.clients[userID]
 	h.mu.RUnlock()
 
-	if !ok {
+	if !ok || len(clients) == 0 {
 		log.Printf("User %d not connected, will send FCM notification", userID)
 
 		// Send FCM notification for chat messages when user is offline
@@ -27,13 +27,16 @@ func (h *Hub) sendToUser(userID int, message *NexyMessage, unregisterFunc func(*
 		return
 	}
 
-	select {
-	case client.send <- data:
-		log.Printf("Message sent to user %d", userID)
-	default:
-		log.Printf("Send channel full for user %d, unregistering", userID)
-		if unregisterFunc != nil {
-			go unregisterFunc(client)
+	// Send to all connections for this user
+	for _, client := range clients {
+		select {
+		case client.send <- data:
+			log.Printf("Message sent to user %d, deviceID=%s", userID, client.deviceID)
+		default:
+			log.Printf("Send channel full for user %d, deviceID=%s, unregistering", userID, client.deviceID)
+			if unregisterFunc != nil {
+				go unregisterFunc(client)
+			}
 		}
 	}
 }
@@ -46,13 +49,13 @@ func (h *Hub) broadcastToAll(message *NexyMessage, unregisterFunc func(*Client))
 	}
 
 	h.mu.RLock()
-	clients := make([]*Client, 0, len(h.clients))
-	for _, client := range h.clients {
-		clients = append(clients, client)
+	var allClients []*Client
+	for _, userClients := range h.clients {
+		allClients = append(allClients, userClients...)
 	}
 	h.mu.RUnlock()
 
-	for _, client := range clients {
+	for _, client := range allClients {
 		select {
 		case client.send <- data:
 		default:
@@ -81,21 +84,23 @@ func (h *Hub) broadcastToChatMembers(chatID int, message *NexyMessage) {
 	data, _ := json.Marshal(message)
 
 	h.mu.RLock()
-	onlineClients := make(map[int]*Client)
-	for id, client := range h.clients {
-		onlineClients[id] = client
+	onlineClients := make(map[int][]*Client)
+	for id, clients := range h.clients {
+		onlineClients[id] = clients
 	}
 	h.mu.RUnlock()
 
 	for _, memberID := range memberIDs {
-		if client, ok := onlineClients[memberID]; ok {
-			// Member is online, send via WebSocket
-			select {
-			case client.send <- data:
-			default:
-				go func(c *Client) {
-					h.unregister <- c
-				}(client)
+		if clients, ok := onlineClients[memberID]; ok && len(clients) > 0 {
+			// Member is online, send via WebSocket to all their devices
+			for _, client := range clients {
+				select {
+				case client.send <- data:
+				default:
+					go func(c *Client) {
+						h.unregister <- c
+					}(client)
+				}
 			}
 		} else {
 			// Member is offline, send FCM notification

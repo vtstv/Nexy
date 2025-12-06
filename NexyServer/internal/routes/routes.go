@@ -189,6 +189,7 @@ func (rt *Router) Setup() *mux.Router {
 	sessions.Use(rt.authMiddleware.Authenticate)
 	sessions.HandleFunc("", rt.sessionController.GetSessions).Methods("GET")
 	sessions.HandleFunc("/{id:[0-9]+}", rt.sessionController.DeleteSession).Methods("DELETE")
+	sessions.HandleFunc("/{id:[0-9]+}/settings", rt.sessionController.UpdateSessionSettings).Methods("PUT")
 	sessions.HandleFunc("/others", rt.sessionController.DeleteAllOtherSessions).Methods("DELETE")
 
 	// Folders endpoints (chat folders)

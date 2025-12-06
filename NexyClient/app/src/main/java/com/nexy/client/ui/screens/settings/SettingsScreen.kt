@@ -231,7 +231,10 @@ fun SettingsScreen(
                         onBiometricToggle = { viewModel.setBiometricEnabled(it) },
                         onLoadSessions = { viewModel.loadSessions() },
                         onLogoutSession = { sessionId -> viewModel.logoutSession(sessionId) },
-                        onLogoutAllOtherSessions = { viewModel.logoutAllOtherSessions() }
+                        onLogoutAllOtherSessions = { viewModel.logoutAllOtherSessions() },
+                        onUpdateSessionSettings = { sessionId, acceptSecretChats, acceptCalls ->
+                            viewModel.updateSessionSettings(sessionId, acceptSecretChats, acceptCalls)
+                        }
                     )
                 }
                 SettingsCategory.PRIVACY -> {

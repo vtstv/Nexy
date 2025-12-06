@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,15 +20,60 @@ import com.nexy.client.R
 fun LoginScreen(
     onNavigateToRegister: () -> Unit,
     onLoginSuccess: () -> Unit,
+    sessionTerminatedReason: String? = null,
+    onSessionTerminatedShown: () -> Unit = {},
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var passwordVisible by remember { mutableStateOf(false) }
+    var showSessionTerminatedDialog by remember { mutableStateOf(false) }
     
     LaunchedEffect(uiState.isAuthenticated) {
         if (uiState.isAuthenticated) {
             onLoginSuccess()
         }
+    }
+    
+    LaunchedEffect(sessionTerminatedReason) {
+        if (sessionTerminatedReason != null) {
+            showSessionTerminatedDialog = true
+        }
+    }
+    
+    if (showSessionTerminatedDialog && sessionTerminatedReason != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showSessionTerminatedDialog = false
+                onSessionTerminatedShown()
+            },
+            icon = {
+                Icon(
+                    Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = { Text("Session Ended") },
+            text = {
+                Text(
+                    when (sessionTerminatedReason) {
+                        "session_terminated_by_user" -> "Your session was terminated from another device."
+                        "all_sessions_terminated" -> "All your other sessions were terminated."
+                        else -> "Your session has ended. Please log in again."
+                    }
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showSessionTerminatedDialog = false
+                        onSessionTerminatedShown()
+                    }
+                ) {
+                    Text("OK")
+                }
+            }
+        )
     }
     
     Column(

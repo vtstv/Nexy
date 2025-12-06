@@ -50,5 +50,11 @@ func (c *WSController) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c.wsHandler.ServeWS(w, r, userID)
+	// Get device ID from query parameter or header
+	deviceID := r.URL.Query().Get("device_id")
+	if deviceID == "" {
+		deviceID = r.Header.Get("X-Device-ID")
+	}
+
+	c.wsHandler.ServeWS(w, r, userID, deviceID)
 }

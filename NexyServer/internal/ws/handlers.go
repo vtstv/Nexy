@@ -187,10 +187,10 @@ func (h *Hub) handleTypingMessage(message *NexyMessage, unregisterFunc func(*Cli
 
 		// Check if recipient is connected
 		h.mu.RLock()
-		client, ok := h.clients[memberID]
+		clients, ok := h.clients[memberID]
 		h.mu.RUnlock()
 
-		if !ok {
+		if !ok || len(clients) == 0 {
 			continue
 		}
 
@@ -205,11 +205,14 @@ func (h *Hub) handleTypingMessage(message *NexyMessage, unregisterFunc func(*Cli
 			continue
 		}
 
-		select {
-		case client.send <- data:
-		default:
-			if unregisterFunc != nil {
-				go unregisterFunc(client)
+		// Send to all devices
+		for _, client := range clients {
+			select {
+			case client.send <- data:
+			default:
+				if unregisterFunc != nil {
+					go unregisterFunc(client)
+				}
 			}
 		}
 	}
@@ -275,10 +278,10 @@ func (h *Hub) handleStatusMessage(message *NexyMessage, unregisterFunc func(*Cli
 
 					// Check if recipient is connected
 					h.mu.RLock()
-					client, ok := h.clients[memberID]
+					clients, ok := h.clients[memberID]
 					h.mu.RUnlock()
 
-					if !ok {
+					if !ok || len(clients) == 0 {
 						log.Printf("Recipient %d not connected", memberID)
 						continue
 					}
@@ -296,13 +299,16 @@ func (h *Hub) handleStatusMessage(message *NexyMessage, unregisterFunc func(*Cli
 					}
 
 					log.Printf("Sending read receipt to user %d", memberID)
-					select {
-					case client.send <- data:
-						log.Printf("Read receipt sent to user %d", memberID)
-					default:
-						log.Printf("Failed to send read receipt to user %d (channel full)", memberID)
-						if unregisterFunc != nil {
-							go unregisterFunc(client)
+					// Send to all devices
+					for _, client := range clients {
+						select {
+						case client.send <- data:
+							log.Printf("Read receipt sent to user %d, deviceID=%s", memberID, client.deviceID)
+						default:
+							log.Printf("Failed to send read receipt to user %d (channel full)", memberID)
+							if unregisterFunc != nil {
+								go unregisterFunc(client)
+							}
 						}
 					}
 				}

@@ -390,4 +390,25 @@ class SettingsViewModel @Inject constructor(
             }
         }
     }
+
+    fun updateSessionSettings(sessionId: Int, acceptSecretChats: Boolean?, acceptCalls: Boolean?) {
+        viewModelScope.launch {
+            try {
+                val request = com.nexy.client.data.models.UpdateSessionSettingsRequest(
+                    acceptSecretChats = acceptSecretChats,
+                    acceptCalls = acceptCalls
+                )
+                val response = apiService.updateSessionSettings(sessionId, request)
+                if (response.isSuccessful) {
+                    response.body()?.let { updatedSession ->
+                        _sessions.value = _sessions.value.map { session ->
+                            if (session.id == sessionId) updatedSession else session
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("SettingsViewModel", "Failed to update session settings", e)
+            }
+        }
+    }
 }

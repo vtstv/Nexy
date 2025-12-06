@@ -232,6 +232,12 @@ interface NexyApiService {
     @DELETE("sessions/{sessionId}")
     suspend fun deleteSession(@Path("sessionId") sessionId: Int): Response<Unit>
 
+    @PUT("sessions/{sessionId}/settings")
+    suspend fun updateSessionSettings(
+        @Path("sessionId") sessionId: Int,
+        @Body request: UpdateSessionSettingsRequest
+    ): Response<UserSession>
+
     @DELETE("sessions/others")
     suspend fun deleteAllOtherSessions(): Response<Unit>
 

@@ -211,7 +211,13 @@ data class UserSession(
     val createdAt: String,
     
     @SerializedName("is_current")
-    val isCurrent: Boolean
+    val isCurrent: Boolean,
+    
+    @SerializedName("accept_secret_chats")
+    val acceptSecretChats: Boolean = true,
+    
+    @SerializedName("accept_calls")
+    val acceptCalls: Boolean = true
 )
 
 // Chat Folders
@@ -322,5 +328,13 @@ data class AddChatsToFolderRequest(
 data class ReorderFoldersRequest(
     @SerializedName("positions")
     val positions: Map<Int, Int>
+)
+
+data class UpdateSessionSettingsRequest(
+    @SerializedName("accept_secret_chats")
+    val acceptSecretChats: Boolean? = null,
+    
+    @SerializedName("accept_calls")
+    val acceptCalls: Boolean? = null
 )
 

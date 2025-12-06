@@ -86,6 +86,7 @@ func main() {
 	contactController := controllers.NewContactController(contactService)
 	turnController := controllers.NewTURNController(cfg)
 	sessionController := controllers.NewSessionController(sessionRepo, refreshTokenRepo)
+	sessionController.SetNotifier(hub)
 	folderController := controllers.NewFolderController(folderRepo)
 	syncController := controllers.NewSyncController(syncService)
 	fcmController := controllers.NewFcmController(fcmService)

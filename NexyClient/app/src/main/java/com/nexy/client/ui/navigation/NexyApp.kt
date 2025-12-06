@@ -4,6 +4,7 @@
 package com.nexy.client.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -48,6 +49,16 @@ fun NexyApp() {
     val authViewModel: AuthViewModel = viewModel()
     val navigationViewModel: NavigationViewModel = viewModel()
     val selectedChatId by navigationViewModel.selectedChatId.collectAsState()
+    val authState by authViewModel.uiState.collectAsState()
+    
+    // Observe force logout events
+    LaunchedEffect(Unit) {
+        authViewModel.forceLogoutEvent.collect { reason ->
+            navController.navigate(Screen.Login.route) {
+                popUpTo(0) { inclusive = true }
+            }
+        }
+    }
     
     NavHost(
         navController = navController,
@@ -62,7 +73,9 @@ fun NexyApp() {
                     navController.navigate(Screen.ChatList.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
-                }
+                },
+                sessionTerminatedReason = authState.sessionTerminatedReason,
+                onSessionTerminatedShown = { authViewModel.clearSessionTerminatedReason() }
             )
         }
         

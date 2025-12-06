@@ -41,7 +41,8 @@ class ChatListConnectionDelegate @Inject constructor(
         scope.launch {
             val token = tokenManager.getAccessToken()
             if (token != null) {
-                webSocketClient.connect(token)
+                val deviceId = tokenManager.getDeviceId()
+                webSocketClient.connect(token, deviceId)
             }
         }
     }

@@ -32,17 +32,19 @@ type RefreshToken struct {
 }
 
 type UserSession struct {
-	ID             int       `json:"id"`
-	UserID         int       `json:"user_id"`
-	RefreshTokenID *int      `json:"refresh_token_id,omitempty"`
-	DeviceID       string    `json:"device_id"`
-	DeviceName     string    `json:"device_name"`
-	DeviceType     string    `json:"device_type"`
-	IPAddress      string    `json:"ip_address"`
-	UserAgent      string    `json:"user_agent,omitempty"`
-	LastActive     time.Time `json:"last_active"`
-	CreatedAt      time.Time `json:"created_at"`
-	IsCurrent      bool      `json:"is_current"`
+	ID                int       `json:"id"`
+	UserID            int       `json:"user_id"`
+	RefreshTokenID    *int      `json:"refresh_token_id,omitempty"`
+	DeviceID          string    `json:"device_id"`
+	DeviceName        string    `json:"device_name"`
+	DeviceType        string    `json:"device_type"`
+	IPAddress         string    `json:"ip_address"`
+	UserAgent         string    `json:"user_agent,omitempty"`
+	LastActive        time.Time `json:"last_active"`
+	CreatedAt         time.Time `json:"created_at"`
+	IsCurrent         bool      `json:"is_current"`
+	AcceptSecretChats bool      `json:"accept_secret_chats"`
+	AcceptCalls       bool      `json:"accept_calls"`
 }
 
 type InviteLink struct {

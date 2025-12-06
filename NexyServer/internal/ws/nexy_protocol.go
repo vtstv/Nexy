@@ -12,27 +12,28 @@ const (
 type MessageType string
 
 const (
-	TypeChatMessage     MessageType = "chat_message"
-	TypeChatCreated     MessageType = "chat_created"
-	TypeAddedToGroup    MessageType = "added_to_group"
-	TypeKickedFromGroup MessageType = "kicked_from_group"
-	TypeBannedFromGroup MessageType = "banned_from_group"
-	TypeTyping          MessageType = "typing"
-	TypeDelivered       MessageType = "delivered"
-	TypeRead            MessageType = "read"
-	TypeEdit            MessageType = "edit"
-	TypeDelete          MessageType = "delete"
-	TypeOnline          MessageType = "online"
-	TypeOffline         MessageType = "offline"
-	TypeHeartbeat       MessageType = "heartbeat"
-	TypeAck             MessageType = "ack"
-	TypeError           MessageType = "error"
-	TypeCallOffer       MessageType = "call_offer"
-	TypeCallAnswer      MessageType = "call_answer"
-	TypeICECandidate    MessageType = "ice_candidate"
-	TypeCallCancel      MessageType = "call_cancel"
-	TypeCallEnd         MessageType = "call_end"
-	TypeCallBusy        MessageType = "call_busy"
+	TypeChatMessage       MessageType = "chat_message"
+	TypeChatCreated       MessageType = "chat_created"
+	TypeAddedToGroup      MessageType = "added_to_group"
+	TypeKickedFromGroup   MessageType = "kicked_from_group"
+	TypeBannedFromGroup   MessageType = "banned_from_group"
+	TypeTyping            MessageType = "typing"
+	TypeDelivered         MessageType = "delivered"
+	TypeRead              MessageType = "read"
+	TypeEdit              MessageType = "edit"
+	TypeDelete            MessageType = "delete"
+	TypeOnline            MessageType = "online"
+	TypeOffline           MessageType = "offline"
+	TypeHeartbeat         MessageType = "heartbeat"
+	TypeAck               MessageType = "ack"
+	TypeError             MessageType = "error"
+	TypeCallOffer         MessageType = "call_offer"
+	TypeCallAnswer        MessageType = "call_answer"
+	TypeICECandidate      MessageType = "ice_candidate"
+	TypeCallCancel        MessageType = "call_cancel"
+	TypeCallEnd           MessageType = "call_end"
+	TypeCallBusy          MessageType = "call_busy"
+	TypeSessionTerminated MessageType = "session_terminated"
 )
 
 type NexyMessage struct {
@@ -143,6 +144,11 @@ type ICECandidateBody struct {
 type CallCancelBody struct {
 	CallID string `json:"call_id"`
 	Reason string `json:"reason,omitempty"`
+}
+
+type SessionTerminatedBody struct {
+	SessionID int    `json:"session_id"`
+	Reason    string `json:"reason"`
 }
 
 func NewNexyMessage(msgType MessageType, senderID int, chatID *int, body interface{}) (*NexyMessage, error) {

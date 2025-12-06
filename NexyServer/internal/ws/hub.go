@@ -19,7 +19,7 @@ const (
 )
 
 type Hub struct {
-	clients      map[int]*Client
+	clients      map[int][]*Client // Changed to slice to support multiple devices per user
 	register     chan *Client
 	unregister   chan *Client
 	broadcast    chan *NexyMessage
@@ -67,7 +67,7 @@ type Chat struct {
 
 func NewHub(redisClient *redis.Client, messageRepo MessageRepository, chatRepo ChatRepository, userRepo UserRepository, fcmService FcmService) *Hub {
 	return &Hub{
-		clients:      make(map[int]*Client),
+		clients:      make(map[int][]*Client),
 		register:     make(chan *Client),
 		unregister:   make(chan *Client),
 		broadcast:    make(chan *NexyMessage, 256),
@@ -95,7 +95,7 @@ func (h *Hub) Run() {
 
 func (h *Hub) registerClient(client *Client) {
 	h.mu.Lock()
-	h.clients[client.userID] = client
+	h.clients[client.userID] = append(h.clients[client.userID], client)
 	h.mu.Unlock()
 
 	ctx := context.Background()
@@ -104,30 +104,47 @@ func (h *Hub) registerClient(client *Client) {
 	onlineMsg, _ := NewNexyMessage(TypeOnline, client.userID, nil, OnlineBody{UserID: client.userID})
 	h.broadcastToAll(onlineMsg, h.unregisterClientFunc)
 
-	log.Printf("Client connected: user_id=%d", client.userID)
+	log.Printf("Client connected: user_id=%d, deviceID=%s, total_connections=%d", client.userID, client.deviceID, len(h.clients[client.userID]))
 }
 
 func (h *Hub) unregisterClient(client *Client) {
 	h.mu.Lock()
-	// Only remove if this is the same client (prevents race condition with reconnects)
-	if existingClient, ok := h.clients[client.userID]; ok && existingClient == client {
-		delete(h.clients, client.userID)
-		client.closeConnection()
+	// Remove this specific client from the slice
+	if clients, ok := h.clients[client.userID]; ok {
+		for i, c := range clients {
+			if c == client {
+				h.clients[client.userID] = append(clients[:i], clients[i+1:]...)
+				break
+			}
+		}
+		// If no more clients for this user, delete the key
+		if len(h.clients[client.userID]) == 0 {
+			delete(h.clients, client.userID)
+		}
 	}
+	client.closeConnection()
 	h.mu.Unlock()
 
 	ctx := context.Background()
-	h.redis.Del(ctx, userOnlineKey(client.userID))
 
-	// Update last seen when user disconnects
-	if err := h.userRepo.UpdateLastSeen(ctx, client.userID); err != nil {
-		log.Printf("Error updating last seen for user %d: %v", client.userID, err)
+	// Only mark user as offline if no more connections
+	h.mu.RLock()
+	hasMoreClients := len(h.clients[client.userID]) > 0
+	h.mu.RUnlock()
+
+	if !hasMoreClients {
+		h.redis.Del(ctx, userOnlineKey(client.userID))
+
+		// Update last seen when user disconnects
+		if err := h.userRepo.UpdateLastSeen(ctx, client.userID); err != nil {
+			log.Printf("Error updating last seen for user %d: %v", client.userID, err)
+		}
+
+		offlineMsg, _ := NewNexyMessage(TypeOffline, client.userID, nil, OnlineBody{UserID: client.userID})
+		h.broadcastToAll(offlineMsg, h.unregisterClientFunc)
 	}
 
-	offlineMsg, _ := NewNexyMessage(TypeOffline, client.userID, nil, OnlineBody{UserID: client.userID})
-	h.broadcastToAll(offlineMsg, h.unregisterClientFunc)
-
-	log.Printf("Client disconnected: user_id=%d", client.userID)
+	log.Printf("Client disconnected: user_id=%d, deviceID=%s", client.userID, client.deviceID)
 
 	// Check if user was typing in any chats and broadcast stop typing
 	chatIDs := h.clearTypingStatusForUser(client.userID)
@@ -219,16 +236,18 @@ func userOnlineKey(userID int) string {
 func (h *Hub) IsUserOnline(userID int) bool {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	_, online := h.clients[userID]
-	return online
+	clients, online := h.clients[userID]
+	return online && len(clients) > 0
 }
 
 func (h *Hub) GetOnlineUserIDs() map[int]bool {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	result := make(map[int]bool)
-	for userID := range h.clients {
-		result[userID] = true
+	for userID, clients := range h.clients {
+		if len(clients) > 0 {
+			result[userID] = true
+		}
 	}
 	return result
 }
@@ -238,9 +257,54 @@ func (h *Hub) GetOnlineUserIDsForUsers(userIDs []int) map[int]bool {
 	defer h.mu.RUnlock()
 	result := make(map[int]bool)
 	for _, userID := range userIDs {
-		if _, online := h.clients[userID]; online {
+		if clients, online := h.clients[userID]; online && len(clients) > 0 {
 			result[userID] = true
 		}
 	}
 	return result
+}
+
+func (h *Hub) NotifySessionTerminated(userID int, sessionID int, targetDeviceID string, reason string) {
+	log.Printf("NotifySessionTerminated: userID=%d, sessionID=%d, targetDeviceID=%s, reason=%s", userID, sessionID, targetDeviceID, reason)
+
+	h.mu.RLock()
+	clients, exists := h.clients[userID]
+	h.mu.RUnlock()
+
+	if !exists || len(clients) == 0 {
+		log.Printf("NotifySessionTerminated: user %d has no active WebSocket connection", userID)
+		return
+	}
+
+	terminatedBody := SessionTerminatedBody{
+		SessionID: sessionID,
+		Reason:    reason,
+	}
+	bodyBytes, _ := json.Marshal(terminatedBody)
+
+	msg := &NexyMessage{
+		Header: NexyHeader{
+			Type:      TypeSessionTerminated,
+			Timestamp: time.Now().Unix(),
+			SenderID:  0,
+		},
+		Body: bodyBytes,
+	}
+
+	msgData, err := json.Marshal(msg)
+	if err != nil {
+		log.Printf("Error marshaling session terminated message: %v", err)
+		return
+	}
+
+	// Send only to the specific device that was terminated
+	for _, client := range clients {
+		if client.deviceID == targetDeviceID {
+			log.Printf("NotifySessionTerminated: sending message to user %d, deviceID=%s: %s", userID, client.deviceID, string(msgData))
+			client.send <- msgData
+			return // Found the target device, exit
+		}
+	}
+
+	log.Printf("NotifySessionTerminated: target device %s not currently connected for user %d", targetDeviceID, userID)
 }

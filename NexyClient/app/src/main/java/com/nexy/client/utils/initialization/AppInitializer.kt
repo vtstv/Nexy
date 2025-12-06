@@ -56,7 +56,8 @@ class AppInitializer @Inject constructor(
     private fun connectWebSocketIfAuthenticated() {
         CoroutineScope(Dispatchers.IO).launch {
             tokenManager.getAccessToken()?.let { token ->
-                webSocketClient.connect(token)
+                val deviceId = tokenManager.getDeviceId()
+                webSocketClient.connect(token, deviceId)
             }
         }
     }

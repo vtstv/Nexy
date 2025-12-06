@@ -43,8 +43,9 @@ class NexyWebSocketClient(
     private var messageCallback: ((NexyMessage) -> Unit)? = null
     private var messagePreviewCallback: (() -> Unit)? = null
     private var authToken: String? = null
+    private var deviceId: String? = null
     
-    fun connect(token: String) {
+    fun connect(token: String, deviceId: String? = null) {
         if (_connectionState.value == ConnectionState.CONNECTED && authToken == token) {
             Log.d(TAG, "Already connected with same token, skipping connect")
             return
@@ -52,10 +53,17 @@ class NexyWebSocketClient(
         
         Log.d(TAG, "Connecting to WebSocket: $serverUrl")
         authToken = token
+        this.deviceId = deviceId
         disconnect()
         
+        // Build URL with token and optional device_id
+        var wsUrl = "$serverUrl?token=$token"
+        if (deviceId != null) {
+            wsUrl += "&device_id=$deviceId"
+        }
+        
         val request = Request.Builder()
-            .url("$serverUrl?token=$token")
+            .url(wsUrl)
             .build()
         
         _connectionState.value = ConnectionState.CONNECTING
@@ -339,7 +347,7 @@ class NexyWebSocketClient(
             delay(3_000)
             if (authToken != null) {
                 Log.d(TAG, "Attempting to reconnect...")
-                connect(authToken!!)
+                connect(authToken!!, deviceId)
             } else {
                 Log.e(TAG, "Cannot reconnect: Auth token is null")
             }
