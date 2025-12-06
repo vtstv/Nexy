@@ -126,7 +126,7 @@ class ChatViewModel @Inject constructor(
             stateManager.loadChatInfo(chatId, userId)?.let { chatInfo ->
                 readReceiptHandler.saveFirstUnreadMessageId(chatInfo.firstUnreadMessageId)
 
-                android.util.Log.d("ChatViewModel", "Chat info loaded: unreadCount=${chatInfo.unreadCount}, firstUnreadMessageId=${chatInfo.firstUnreadMessageId}")
+                android.util.Log.d("ChatViewModel", "Chat info loaded: unreadCount=${chatInfo.unreadCount}, firstUnreadMessageId=${chatInfo.firstUnreadMessageId}, userRole=${chatInfo.userRole}")
                 _uiState.value = _uiState.value.copy(
                     chatName = chatInfo.chatName,
                     chatAvatarUrl = chatInfo.chatAvatarUrl,
@@ -139,7 +139,8 @@ class ChatViewModel @Inject constructor(
                     mutedUntil = chatInfo.mutedUntil,
                     otherUserOnlineStatus = chatInfo.otherUserOnlineStatus,
                     firstUnreadMessageId = readReceiptHandler.getSavedFirstUnreadMessageId() ?: chatInfo.firstUnreadMessageId,
-                    recipientVoiceMessagesEnabled = chatInfo.recipientVoiceMessagesEnabled
+                    recipientVoiceMessagesEnabled = chatInfo.recipientVoiceMessagesEnabled,
+                    userRole = chatInfo.userRole
                 )
             }
         } catch (e: Exception) {

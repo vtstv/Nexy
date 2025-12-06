@@ -121,8 +121,26 @@ func (s *MessageService) DeleteMessage(ctx context.Context, messageID string, us
 		return nil, errors.New("message not found")
 	}
 
-	// Verify ownership
-	if msg.SenderID != userID {
+	// Check if user can delete this message
+	canDelete := false
+
+	// User can always delete their own messages
+	if msg.SenderID == userID {
+		canDelete = true
+	} else {
+		// For group messages, check if user is admin or owner
+		chat, err := s.chatRepo.GetByID(ctx, msg.ChatID)
+		if err == nil && chat != nil && (chat.Type == "group" || chat.Type == "channel") {
+			member, err := s.chatRepo.GetChatMember(ctx, msg.ChatID, userID)
+			if err == nil && member != nil {
+				if member.Role == "owner" || member.Role == "admin" {
+					canDelete = true
+				}
+			}
+		}
+	}
+
+	if !canDelete {
 		return nil, errors.New("unauthorized")
 	}
 

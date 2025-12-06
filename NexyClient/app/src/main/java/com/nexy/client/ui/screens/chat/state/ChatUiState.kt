@@ -34,5 +34,6 @@ data class ChatUiState(
     val invitePreviews: Map<String, InvitePreviewResponse> = emptyMap(),
     val loadingInviteCodes: Set<String> = emptySet(),
     val voiceMessagesEnabled: Boolean = true,
-    val recipientVoiceMessagesEnabled: Boolean = true
+    val recipientVoiceMessagesEnabled: Boolean = true,
+    val userRole: String? = null
 )

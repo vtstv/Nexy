@@ -238,6 +238,7 @@ fun ChatScreen(
                             outgoingTextColor = outgoingTextColor,
                             avatarSize = avatarSize,
                             firstUnreadMessageId = uiState.firstUnreadMessageId,
+                            userRole = uiState.userRole,
                             onDeleteMessage = viewModel::deleteMessage,
                             onReplyMessage = { message -> replyToMessage = message },
                             onEditMessage = viewModel::startEditing,

@@ -28,6 +28,7 @@ class ChatStateManager @Inject constructor(
         
         var otherUserOnlineStatus: String? = null
         var recipientVoiceMessagesEnabled = true
+        var userRole: String? = null
         
         val name = if (chat.type == ChatType.PRIVATE) {
             if (chat.participantIds != null && currentUserId != null) {
@@ -41,6 +42,13 @@ class ChatStateManager @Inject constructor(
                 "Chat"
             }
         } else {
+            // Load user role for group chats
+            if (currentUserId != null && chat.isMember) {
+                val membersResult = chatRepository.getGroupMembers(chatId)
+                membersResult.getOrNull()?.find { it.userId == currentUserId }?.let { member ->
+                    userRole = member.role.name.lowercase()
+                }
+            }
             chat.name ?: "Group Chat"
         }
         
@@ -57,7 +65,8 @@ class ChatStateManager @Inject constructor(
             otherUserOnlineStatus = otherUserOnlineStatus,
             unreadCount = chat.unreadCount,
             firstUnreadMessageId = chat.firstUnreadMessageId,
-            recipientVoiceMessagesEnabled = recipientVoiceMessagesEnabled
+            recipientVoiceMessagesEnabled = recipientVoiceMessagesEnabled,
+            userRole = userRole
         )
     }
 
@@ -94,5 +103,6 @@ data class ChatInfo(
     val otherUserOnlineStatus: String? = null,
     val unreadCount: Int = 0,
     val firstUnreadMessageId: String? = null,
-    val recipientVoiceMessagesEnabled: Boolean = true
+    val recipientVoiceMessagesEnabled: Boolean = true,
+    val userRole: String? = null
 )

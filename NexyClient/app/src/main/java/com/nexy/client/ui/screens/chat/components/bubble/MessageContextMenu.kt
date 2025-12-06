@@ -17,6 +17,7 @@ fun MessageContextMenu(
     onDismiss: () -> Unit,
     messageContent: String,
     isOwnMessage: Boolean,
+    canDeleteMessage: Boolean = false,
     hasAttachment: Boolean,
     isDownloaded: Boolean,
     onReply: () -> Unit,
@@ -91,6 +92,9 @@ fun MessageContextMenu(
                 },
                 leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
             )
+        }
+        
+        if (canDeleteMessage) {
             DropdownMenuItem(
                 text = { Text("Delete") },
                 onClick = {

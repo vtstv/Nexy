@@ -240,9 +240,9 @@ func (r *MessageRepository) DeleteMessage(ctx context.Context, messageID string,
 	query := `
 		UPDATE messages 
 		SET is_deleted = true, updated_at = CURRENT_TIMESTAMP
-		WHERE message_id = $1 AND sender_id = $2`
+		WHERE message_id = $1`
 
-	result, err := r.db.ExecContext(ctx, query, messageID, userID)
+	result, err := r.db.ExecContext(ctx, query, messageID)
 	if err != nil {
 		return err
 	}

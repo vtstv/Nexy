@@ -36,6 +36,7 @@ fun MessageList(
     outgoingTextColor: Long = 0L,
     avatarSize: Float = 32f,
     firstUnreadMessageId: String? = null,
+    userRole: String? = null,
     onDeleteMessage: (String) -> Unit,
     onReplyMessage: (Message) -> Unit = {},
     onEditMessage: (Message) -> Unit = {},
@@ -155,10 +156,15 @@ fun MessageList(
                         }
                     }
 
+                    val isOwnMessage = message.senderId == currentUserId
+                    val canDeleteMessage = isOwnMessage || 
+                        (chatType == ChatType.GROUP && (userRole == "admin" || userRole == "owner"))
+
                     MessageBubble(
                         message = message,
-                        isOwnMessage = message.senderId == currentUserId,
+                        isOwnMessage = isOwnMessage,
                         isGroupChat = chatType == ChatType.GROUP,
+                        canDeleteMessage = canDeleteMessage,
                         repliedMessage = repliedMessage,
                         fontScale = fontScale,
                         textColor = if (message.senderId == currentUserId) outgoingTextColor else incomingTextColor,
