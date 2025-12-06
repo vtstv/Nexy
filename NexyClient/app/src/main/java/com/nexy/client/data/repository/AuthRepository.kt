@@ -71,18 +71,48 @@ class AuthRepository @Inject constructor(
                 // Disconnect WebSocket first
                 webSocketClient.disconnect()
                 
-                apiService.logout()
+                try {
+                    apiService.logout()
+                } catch (e: Exception) {
+                    // Ignore API logout failure, proceed with local cleanup
+                }
+                
                 tokenManager.clearTokens()
-                database.clearAllTables()
+                
+                // Explicitly clear all tables to ensure no data leaks
+                database.chatDao().deleteAllChats()
+                database.messageDao().deleteAllMessages()
+                database.userDao().deleteAllUsers()
+                database.pendingMessageDao().deleteAll()
+                database.searchHistoryDao().clearHistory()
+                
+                // Fallback to clearAllTables to catch any other tables
+                try {
+                    database.clearAllTables()
+                } catch (e: Exception) {
+                    // Ignore if clearAllTables fails (e.g. open transaction)
+                }
+                
                 if (clearCredentials) {
                     tokenManager.clearCredentials()
                 }
                 Result.success(Unit)
             } catch (e: Exception) {
-                // Still disconnect and clear tokens even if API call fails
+                // Ensure cleanup happens even on unexpected errors
                 webSocketClient.disconnect()
                 tokenManager.clearTokens()
-                database.clearAllTables()
+                
+                try {
+                    database.chatDao().deleteAllChats()
+                    database.messageDao().deleteAllMessages()
+                    database.userDao().deleteAllUsers()
+                    database.pendingMessageDao().deleteAll()
+                    database.searchHistoryDao().clearHistory()
+                    database.clearAllTables()
+                } catch (cleanupError: Exception) {
+                    // Log error but continue
+                }
+                
                 if (clearCredentials) {
                     tokenManager.clearCredentials()
                 }

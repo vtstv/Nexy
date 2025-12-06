@@ -52,4 +52,7 @@ interface PendingMessageDao {
     
     @Query("SELECT COUNT(*) FROM pending_messages WHERE sendState = 'ERROR'")
     fun getFailedCount(): Flow<Int>
+    
+    @Query("DELETE FROM pending_messages")
+    suspend fun deleteAll()
 }
