@@ -53,6 +53,8 @@ class WebSocketMessageHandler @Inject constructor(
                     "chat_message" -> handleChatMessage(nexyMessage)
                     "chat_created" -> handleChatCreated(nexyMessage)
                     "added_to_group" -> handleAddedToGroup(nexyMessage)
+                    "kicked_from_group" -> handleKickedFromGroup(nexyMessage)
+                    "banned_from_group" -> handleBannedFromGroup(nexyMessage)
                     "ack" -> handleAck(nexyMessage)
                     "read" -> handleReadReceipt(nexyMessage)
                     "edit" -> handleEditMessage(nexyMessage)
@@ -264,6 +266,38 @@ class WebSocketMessageHandler @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching group details for $chatId", e)
+        }
+    }
+    
+    private suspend fun handleKickedFromGroup(nexyMessage: NexyMessage) {
+        val body = nexyMessage.body ?: return
+        
+        val chatId = (body["chat_id"] as? Double)?.toInt() ?: return
+        
+        Log.d(TAG, "Received kicked_from_group: chatId=$chatId")
+        
+        // Remove chat from local database
+        chatDao.deleteChatById(chatId)
+        
+        if (settingsManager.isPushNotificationsEnabled()) {
+            notificationHelper.showNotification("Removed from Group", "You were kicked from the group", chatId)
+        }
+    }
+    
+    private suspend fun handleBannedFromGroup(nexyMessage: NexyMessage) {
+        val body = nexyMessage.body ?: return
+        
+        val chatId = (body["chat_id"] as? Double)?.toInt() ?: return
+        val reason = body["reason"] as? String
+        
+        Log.d(TAG, "Received banned_from_group: chatId=$chatId, reason=$reason")
+        
+        // Remove chat from local database
+        chatDao.deleteChatById(chatId)
+        
+        if (settingsManager.isPushNotificationsEnabled()) {
+            val message = if (!reason.isNullOrEmpty()) "Reason: $reason" else "You were banned from the group"
+            notificationHelper.showNotification("Banned from Group", message, chatId)
         }
     }
     

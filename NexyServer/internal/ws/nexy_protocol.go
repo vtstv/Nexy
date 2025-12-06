@@ -12,25 +12,27 @@ const (
 type MessageType string
 
 const (
-	TypeChatMessage  MessageType = "chat_message"
-	TypeChatCreated  MessageType = "chat_created"
-	TypeAddedToGroup MessageType = "added_to_group"
-	TypeTyping       MessageType = "typing"
-	TypeDelivered    MessageType = "delivered"
-	TypeRead         MessageType = "read"
-	TypeEdit         MessageType = "edit"
-	TypeDelete       MessageType = "delete"
-	TypeOnline       MessageType = "online"
-	TypeOffline      MessageType = "offline"
-	TypeHeartbeat    MessageType = "heartbeat"
-	TypeAck          MessageType = "ack"
-	TypeError        MessageType = "error"
-	TypeCallOffer    MessageType = "call_offer"
-	TypeCallAnswer   MessageType = "call_answer"
-	TypeICECandidate MessageType = "ice_candidate"
-	TypeCallCancel   MessageType = "call_cancel"
-	TypeCallEnd      MessageType = "call_end"
-	TypeCallBusy     MessageType = "call_busy"
+	TypeChatMessage     MessageType = "chat_message"
+	TypeChatCreated     MessageType = "chat_created"
+	TypeAddedToGroup    MessageType = "added_to_group"
+	TypeKickedFromGroup MessageType = "kicked_from_group"
+	TypeBannedFromGroup MessageType = "banned_from_group"
+	TypeTyping          MessageType = "typing"
+	TypeDelivered       MessageType = "delivered"
+	TypeRead            MessageType = "read"
+	TypeEdit            MessageType = "edit"
+	TypeDelete          MessageType = "delete"
+	TypeOnline          MessageType = "online"
+	TypeOffline         MessageType = "offline"
+	TypeHeartbeat       MessageType = "heartbeat"
+	TypeAck             MessageType = "ack"
+	TypeError           MessageType = "error"
+	TypeCallOffer       MessageType = "call_offer"
+	TypeCallAnswer      MessageType = "call_answer"
+	TypeICECandidate    MessageType = "ice_candidate"
+	TypeCallCancel      MessageType = "call_cancel"
+	TypeCallEnd         MessageType = "call_end"
+	TypeCallBusy        MessageType = "call_busy"
 )
 
 type NexyMessage struct {
@@ -98,6 +100,17 @@ type AddedToGroupBody struct {
 	ChatType  string `json:"chat_type"`
 	GroupType string `json:"group_type,omitempty"`
 	AddedBy   int    `json:"added_by"`
+}
+
+type KickedFromGroupBody struct {
+	ChatID   int `json:"chat_id"`
+	KickedBy int `json:"kicked_by"`
+}
+
+type BannedFromGroupBody struct {
+	ChatID   int    `json:"chat_id"`
+	BannedBy int    `json:"banned_by"`
+	Reason   string `json:"reason,omitempty"`
 }
 
 type AckBody struct {

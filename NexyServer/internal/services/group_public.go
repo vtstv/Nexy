@@ -24,6 +24,15 @@ func (s *GroupService) JoinPublicGroup(ctx context.Context, groupID, userID int)
 		return nil, errors.New("group is not public")
 	}
 
+	// Check if user is banned
+	isBanned, err := s.chatRepo.IsBanned(ctx, groupID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if isBanned {
+		return nil, errors.New("you are banned from this group")
+	}
+
 	isMember, err := s.chatRepo.IsMember(ctx, groupID, userID)
 	if err != nil {
 		return nil, err

@@ -107,16 +107,29 @@ func (s *GroupService) AddMember(ctx context.Context, groupID, requestorID, targ
 	return s.chatRepo.AddMember(ctx, member)
 }
 
-// RemoveMember removes a member from the group
+// RemoveMember removes a member from the group (kick)
 func (s *GroupService) RemoveMember(ctx context.Context, groupID, requestorID, targetUserID int) error {
 	requestor, err := s.chatRepo.GetChatMember(ctx, groupID, requestorID)
 	if err != nil {
 		return err
 	}
 
+	// Only owners and admins can kick others
 	if requestor.Role != "owner" && requestor.Role != "admin" {
+		// Users can only leave themselves
 		if requestorID != targetUserID {
 			return errors.New("permission denied")
+		}
+	}
+
+	// Admins cannot kick owners or other admins
+	if requestor.Role == "admin" {
+		target, err := s.chatRepo.GetChatMember(ctx, groupID, targetUserID)
+		if err != nil {
+			return err
+		}
+		if target.Role == "owner" || target.Role == "admin" {
+			return errors.New("permission denied: cannot kick owner or admin")
 		}
 	}
 
@@ -136,6 +149,115 @@ func (s *GroupService) RemoveMember(ctx context.Context, groupID, requestorID, t
 	}
 
 	return nil
+}
+
+// BanMember bans a user from the group
+func (s *GroupService) BanMember(ctx context.Context, groupID, requestorID, targetUserID int, reason string) error {
+	requestor, err := s.chatRepo.GetChatMember(ctx, groupID, requestorID)
+	if err != nil {
+		return err
+	}
+
+	// Only owners and admins can ban
+	if requestor.Role != "owner" && requestor.Role != "admin" {
+		return errors.New("permission denied")
+	}
+
+	// Admins cannot ban owners or other admins
+	if requestor.Role == "admin" {
+		target, err := s.chatRepo.GetChatMember(ctx, groupID, targetUserID)
+		if err == nil && (target.Role == "owner" || target.Role == "admin") {
+			return errors.New("permission denied: cannot ban owner or admin")
+		}
+	}
+
+	// Cannot ban yourself
+	if requestorID == targetUserID {
+		return errors.New("cannot ban yourself")
+	}
+
+	// Remove from group first
+	s.chatRepo.RemoveMember(ctx, groupID, targetUserID)
+
+	// Add to ban list
+	return s.chatRepo.BanUser(ctx, groupID, targetUserID, requestorID, reason)
+}
+
+// UnbanMember removes a ban from a user
+func (s *GroupService) UnbanMember(ctx context.Context, groupID, requestorID, targetUserID int) error {
+	requestor, err := s.chatRepo.GetChatMember(ctx, groupID, requestorID)
+	if err != nil {
+		return err
+	}
+
+	// Only owners and admins can unban
+	if requestor.Role != "owner" && requestor.Role != "admin" {
+		return errors.New("permission denied")
+	}
+
+	return s.chatRepo.UnbanUser(ctx, groupID, targetUserID)
+}
+
+// GroupBanWithUser represents a ban with user info
+type GroupBanWithUser struct {
+	ID         int          `json:"id"`
+	ChatID     int          `json:"chat_id"`
+	UserID     int          `json:"user_id"`
+	BannedBy   int          `json:"banned_by"`
+	Reason     string       `json:"reason"`
+	BannedAt   string       `json:"banned_at"`
+	User       *models.User `json:"user"`
+	BannedByUser *models.User `json:"banned_by_user"`
+}
+
+// GetBannedMembers returns list of banned users in a group with user details
+func (s *GroupService) GetBannedMembers(ctx context.Context, groupID, requestorID int) ([]*GroupBanWithUser, error) {
+	requestor, err := s.chatRepo.GetChatMember(ctx, groupID, requestorID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Only owners and admins can see ban list
+	if requestor.Role != "owner" && requestor.Role != "admin" {
+		return nil, errors.New("permission denied")
+	}
+
+	bans, err := s.chatRepo.GetBannedUsers(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Enrich with user info
+	result := make([]*GroupBanWithUser, 0, len(bans))
+	for _, ban := range bans {
+		banWithUser := &GroupBanWithUser{
+			ID:       ban.ID,
+			ChatID:   ban.ChatID,
+			UserID:   ban.UserID,
+			BannedBy: ban.BannedBy,
+			Reason:   ban.Reason,
+			BannedAt: ban.BannedAt.Format("2006-01-02T15:04:05Z"),
+		}
+
+		// Get banned user info
+		if user, err := s.userRepo.GetByID(ctx, ban.UserID); err == nil && user != nil {
+			banWithUser.User = user
+		}
+
+		// Get banner user info
+		if user, err := s.userRepo.GetByID(ctx, ban.BannedBy); err == nil && user != nil {
+			banWithUser.BannedByUser = user
+		}
+
+		result = append(result, banWithUser)
+	}
+
+	return result, nil
+}
+
+// IsBanned checks if user is banned from a group
+func (s *GroupService) IsBanned(ctx context.Context, groupID, userID int) (bool, error) {
+	return s.chatRepo.IsBanned(ctx, groupID, userID)
 }
 
 // UpdateMemberRole updates member's role in the group

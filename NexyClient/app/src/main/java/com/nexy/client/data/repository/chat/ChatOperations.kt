@@ -290,6 +290,18 @@ class ChatOperations @Inject constructor(
     
     suspend fun transferOwnership(groupId: Int, newOwnerId: Int) =
         chatInviteOperations.transferOwnership(groupId, newOwnerId)
+    
+    suspend fun kickMember(groupId: Int, userId: Int) =
+        chatInviteOperations.kickMember(groupId, userId)
+    
+    suspend fun banMember(groupId: Int, userId: Int, reason: String? = null) =
+        chatInviteOperations.banMember(groupId, userId, reason)
+    
+    suspend fun unbanMember(groupId: Int, userId: Int) =
+        chatInviteOperations.unbanMember(groupId, userId)
+    
+    suspend fun getBannedMembers(groupId: Int) =
+        chatInviteOperations.getBannedMembers(groupId)
 
     suspend fun searchPublicGroups(query: String): Result<List<Chat>> {
         return withContext(Dispatchers.IO) {

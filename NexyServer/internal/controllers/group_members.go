@@ -188,3 +188,144 @@ func (c *GroupController) TransferOwnership(w http.ResponseWriter, r *http.Reque
 
 	w.WriteHeader(http.StatusOK)
 }
+
+// KickMember kicks a member from the group
+func (c *GroupController) KickMember(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	groupID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "Invalid group ID", http.StatusBadRequest)
+		return
+	}
+	targetUserID, err := strconv.Atoi(vars["userId"])
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	err = c.groupService.RemoveMember(r.Context(), groupID, userID, targetUserID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	// Send notification to kicked user
+	if c.hub != nil {
+		kickedMsg, _ := nexy.NewNexyMessage(nexy.TypeKickedFromGroup, userID, &groupID, nexy.KickedFromGroupBody{
+			ChatID:   groupID,
+			KickedBy: userID,
+		})
+		c.hub.SendToUser(targetUserID, kickedMsg)
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+type BanMemberRequest struct {
+	Reason string `json:"reason"`
+}
+
+// BanMember bans a member from the group
+func (c *GroupController) BanMember(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	groupID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "Invalid group ID", http.StatusBadRequest)
+		return
+	}
+	targetUserID, err := strconv.Atoi(vars["userId"])
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	var req BanMemberRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// Allow empty body (no reason)
+		req.Reason = ""
+	}
+
+	err = c.groupService.BanMember(r.Context(), groupID, userID, targetUserID, req.Reason)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	// Send notification to banned user
+	if c.hub != nil {
+		bannedMsg, _ := nexy.NewNexyMessage(nexy.TypeBannedFromGroup, userID, &groupID, nexy.BannedFromGroupBody{
+			ChatID:   groupID,
+			BannedBy: userID,
+			Reason:   req.Reason,
+		})
+		c.hub.SendToUser(targetUserID, bannedMsg)
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// UnbanMember removes a ban from a user
+func (c *GroupController) UnbanMember(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	groupID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "Invalid group ID", http.StatusBadRequest)
+		return
+	}
+	targetUserID, err := strconv.Atoi(vars["userId"])
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	err = c.groupService.UnbanMember(r.Context(), groupID, userID, targetUserID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// GetBannedMembers returns list of banned users
+func (c *GroupController) GetBannedMembers(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	groupID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "Invalid group ID", http.StatusBadRequest)
+		return
+	}
+
+	bans, err := c.groupService.GetBannedMembers(r.Context(), groupID, userID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(bans)
+}

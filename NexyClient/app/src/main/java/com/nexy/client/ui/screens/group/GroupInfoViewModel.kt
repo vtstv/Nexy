@@ -135,6 +135,57 @@ class GroupInfoViewModel @Inject constructor(
             }
         }
     }
+    
+    fun kickMember(userId: Int) {
+        val chat = uiState.value.chat ?: return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            try {
+                val result = chatRepository.kickMember(chat.id, userId)
+                if (result.isSuccess) {
+                    loadGroupInfo(chat.id)
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        error = "Failed to kick member",
+                        isLoading = false
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    error = e.message ?: "Unknown error",
+                    isLoading = false
+                )
+            }
+        }
+    }
+    
+    fun banMember(userId: Int, reason: String? = null) {
+        val chat = uiState.value.chat ?: return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            try {
+                val result = chatRepository.banMember(chat.id, userId, reason)
+                if (result.isSuccess) {
+                    loadGroupInfo(chat.id)
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        error = "Failed to ban member",
+                        isLoading = false
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    error = e.message ?: "Unknown error",
+                    isLoading = false
+                )
+            }
+        }
+    }
+    
+    fun getCurrentUserRole(): com.nexy.client.data.models.MemberRole? {
+        val currentUserId = _uiState.value.currentUserId ?: return null
+        return _uiState.value.members.find { it.userId == currentUserId }?.role
+    }
 
     private suspend fun getCurrentUserId(): Int? {
         return userRepository.getCurrentUser().getOrNull()?.id
@@ -171,6 +222,57 @@ class GroupInfoViewModel @Inject constructor(
             }
         }
     }
+    
+    fun loadBannedMembers() {
+        val chat = uiState.value.chat ?: return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoadingBans = true)
+            val result = chatRepository.getBannedMembers(chat.id)
+            if (result.isSuccess) {
+                _uiState.value = _uiState.value.copy(
+                    bannedMembers = result.getOrNull() ?: emptyList(),
+                    isLoadingBans = false
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    isLoadingBans = false,
+                    error = "Failed to load banned members"
+                )
+            }
+        }
+    }
+    
+    fun unbanMember(userId: Int) {
+        val chat = uiState.value.chat ?: return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            try {
+                val result = chatRepository.unbanMember(chat.id, userId)
+                if (result.isSuccess) {
+                    loadBannedMembers()
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        error = "Failed to unban member",
+                        isLoading = false
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    error = e.message ?: "Unknown error",
+                    isLoading = false
+                )
+            }
+        }
+    }
+    
+    fun toggleBannedMembersView() {
+        val newShowBanned = !_uiState.value.showBannedMembers
+        _uiState.value = _uiState.value.copy(showBannedMembers = newShowBanned)
+        if (newShowBanned && _uiState.value.bannedMembers.isEmpty()) {
+            loadBannedMembers()
+        }
+    }
 }
 
 data class GroupInfoUiState(
@@ -183,5 +285,8 @@ data class GroupInfoUiState(
     val isLeftGroup: Boolean = false,
     val isSearching: Boolean = false,
     val searchQuery: String = "",
-    val searchResults: List<ChatMember> = emptyList()
+    val searchResults: List<ChatMember> = emptyList(),
+    val bannedMembers: List<com.nexy.client.data.api.GroupBan> = emptyList(),
+    val showBannedMembers: Boolean = false,
+    val isLoadingBans: Boolean = false
 )

@@ -155,6 +155,30 @@ interface NexyApiService {
         @Path("userId") userId: Int
     ): Response<Unit>
     
+    @POST("chats/groups/{groupId}/members/{userId}/kick")
+    suspend fun kickMember(
+        @Path("groupId") groupId: Int,
+        @Path("userId") userId: Int
+    ): Response<Unit>
+    
+    @POST("chats/groups/{groupId}/members/{userId}/ban")
+    suspend fun banMember(
+        @Path("groupId") groupId: Int,
+        @Path("userId") userId: Int,
+        @Body request: BanMemberRequest
+    ): Response<Unit>
+    
+    @POST("chats/groups/{groupId}/members/{userId}/unban")
+    suspend fun unbanMember(
+        @Path("groupId") groupId: Int,
+        @Path("userId") userId: Int
+    ): Response<Unit>
+    
+    @GET("chats/groups/{groupId}/bans")
+    suspend fun getBannedMembers(
+        @Path("groupId") groupId: Int
+    ): Response<List<GroupBan>>
+    
     @POST("chats/groups/{groupId}/members")
     suspend fun addGroupMember(
         @Path("groupId") groupId: Int,
@@ -327,6 +351,30 @@ data class CreateGroupChatRequest(
 data class AddMemberRequest(
     @com.google.gson.annotations.SerializedName("user_id")
     val userId: Int
+)
+
+data class BanMemberRequest(
+    @com.google.gson.annotations.SerializedName("reason")
+    val reason: String? = null
+)
+
+data class GroupBan(
+    @com.google.gson.annotations.SerializedName("id")
+    val id: Int,
+    @com.google.gson.annotations.SerializedName("chat_id")
+    val chatId: Int,
+    @com.google.gson.annotations.SerializedName("user_id")
+    val userId: Int,
+    @com.google.gson.annotations.SerializedName("banned_by")
+    val bannedBy: Int,
+    @com.google.gson.annotations.SerializedName("reason")
+    val reason: String?,
+    @com.google.gson.annotations.SerializedName("banned_at")
+    val bannedAt: String,
+    @com.google.gson.annotations.SerializedName("user")
+    val user: User? = null,
+    @com.google.gson.annotations.SerializedName("banned_by_user")
+    val bannedByUser: User? = null
 )
 
 data class TransferOwnershipRequest(

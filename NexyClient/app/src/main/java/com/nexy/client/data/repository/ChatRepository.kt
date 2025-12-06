@@ -135,6 +135,22 @@ class ChatRepository @Inject constructor(
     suspend fun transferOwnership(groupId: Int, newOwnerId: Int): Result<Unit> {
         return chatOperations.transferOwnership(groupId, newOwnerId)
     }
+    
+    suspend fun kickMember(groupId: Int, userId: Int): Result<Unit> {
+        return chatOperations.kickMember(groupId, userId)
+    }
+    
+    suspend fun banMember(groupId: Int, userId: Int, reason: String? = null): Result<Unit> {
+        return chatOperations.banMember(groupId, userId, reason)
+    }
+    
+    suspend fun unbanMember(groupId: Int, userId: Int): Result<Unit> {
+        return chatOperations.unbanMember(groupId, userId)
+    }
+    
+    suspend fun getBannedMembers(groupId: Int): Result<List<com.nexy.client.data.api.GroupBan>> {
+        return chatOperations.getBannedMembers(groupId)
+    }
 
     fun sendTyping(chatId: Int, isTyping: Boolean) {
         messageOperations.sendTyping(chatId, isTyping)

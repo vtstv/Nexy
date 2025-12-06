@@ -193,4 +193,65 @@ class ChatInviteOperations @Inject constructor(
             }
         }
     }
+    
+    suspend fun kickMember(groupId: Int, userId: Int): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.kickMember(groupId, userId)
+                if (response.isSuccessful) {
+                    Result.success(Unit)
+                } else {
+                    Result.failure(Exception("Failed to kick member"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+    
+    suspend fun banMember(groupId: Int, userId: Int, reason: String? = null): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val request = com.nexy.client.data.api.BanMemberRequest(reason)
+                val response = apiService.banMember(groupId, userId, request)
+                if (response.isSuccessful) {
+                    Result.success(Unit)
+                } else {
+                    Result.failure(Exception("Failed to ban member"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+    
+    suspend fun unbanMember(groupId: Int, userId: Int): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.unbanMember(groupId, userId)
+                if (response.isSuccessful) {
+                    Result.success(Unit)
+                } else {
+                    Result.failure(Exception("Failed to unban member"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+    
+    suspend fun getBannedMembers(groupId: Int): Result<List<com.nexy.client.data.api.GroupBan>> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.getBannedMembers(groupId)
+                if (response.isSuccessful) {
+                    Result.success(response.body() ?: emptyList())
+                } else {
+                    Result.failure(Exception("Failed to get banned members"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
 }

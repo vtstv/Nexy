@@ -6,11 +6,15 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PersonRemove
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -29,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.nexy.client.data.api.GroupBan
 import com.nexy.client.data.models.ChatMember
 import com.nexy.client.data.models.GroupType
 import com.nexy.client.data.models.MemberRole
@@ -47,6 +52,10 @@ fun GroupInfoScreen(
     viewModel: GroupInfoViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    
+    // Ban dialog state - must be at top level for AlertDialog to work properly
+    var showBanDialog by remember { mutableStateOf<Int?>(null) }
+    var banReason by remember { mutableStateOf("") }
 
     LaunchedEffect(chatId) {
         viewModel.loadGroupInfo(chatId)
@@ -57,6 +66,23 @@ fun GroupInfoScreen(
             viewModel.clearLeftGroupState()
             onGroupLeft()
         }
+    }
+    
+    // Ban confirmation dialog with reason - outside of LazyColumn
+    if (showBanDialog != null) {
+        BanConfirmationDialog(
+            reason = banReason,
+            onReasonChange = { banReason = it },
+            onConfirm = {
+                viewModel.banMember(showBanDialog!!, banReason.ifBlank { null })
+                showBanDialog = null
+                banReason = ""
+            },
+            onDismiss = {
+                showBanDialog = null
+                banReason = ""
+            }
+        )
     }
 
     Scaffold(
@@ -185,20 +211,41 @@ fun GroupInfoScreen(
                                     leadingContent = { Icon(Icons.Default.Add, contentDescription = null) },
                                     modifier = Modifier.clickable { onAddParticipant(chatId) }
                                 )
-                                Divider()
+                                HorizontalDivider()
+                                
+                                // Banned Members - only for admins and owners
+                                val currentUserRole = viewModel.getCurrentUserRole()
+                                if (currentUserRole == MemberRole.OWNER || currentUserRole == MemberRole.ADMIN) {
+                                    ListItem(
+                                        headlineContent = { 
+                                            Text(
+                                                if (uiState.showBannedMembers) "Show Participants" else "Banned Members"
+                                            )
+                                        },
+                                        leadingContent = { Icon(Icons.Default.Block, contentDescription = null) },
+                                        trailingContent = {
+                                            if (uiState.bannedMembers.isNotEmpty()) {
+                                                Badge { Text(uiState.bannedMembers.size.toString()) }
+                                            }
+                                        },
+                                        modifier = Modifier.clickable { viewModel.toggleBannedMembersView() }
+                                    )
+                                    HorizontalDivider()
+                                }
+                                
                                 ListItem(
                                     headlineContent = { Text("Leave Group", color = MaterialTheme.colorScheme.error) },
                                     leadingContent = { Icon(Icons.Default.ExitToApp, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
                                     modifier = Modifier.clickable { viewModel.leaveGroup() }
                                 )
-                                Divider()
+                                HorizontalDivider()
                             } else if (uiState.chat?.groupType == GroupType.PUBLIC_GROUP) {
                                 ListItem(
                                     headlineContent = { Text("Join Group", color = MaterialTheme.colorScheme.primary) },
                                     leadingContent = { Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                                     modifier = Modifier.clickable { viewModel.joinGroup() }
                                 )
-                                Divider()
+                                HorizontalDivider()
                             }
                         }
                     }
@@ -206,28 +253,60 @@ fun GroupInfoScreen(
                     // Participants List Header
                     item {
                         Text(
-                            text = "Participants",
+                            text = if (uiState.showBannedMembers) "Banned Members" else "Participants",
                             style = MaterialTheme.typography.titleMedium,
                             modifier = Modifier.padding(16.dp)
                         )
                     }
                 }
 
-                val displayMembers = if (uiState.isSearching) uiState.searchResults else uiState.members
-                
-                if (uiState.isSearching && displayMembers.isEmpty() && uiState.searchQuery.length > 2) {
-                    item {
-                        Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                            Text("No members found")
+                // Show banned members or regular participants
+                if (uiState.showBannedMembers) {
+                    if (uiState.isLoadingBans) {
+                        item {
+                            Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
+                            }
+                        }
+                    } else if (uiState.bannedMembers.isEmpty()) {
+                        item {
+                            Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                Text("No banned members", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    } else {
+                        items(uiState.bannedMembers) { ban ->
+                            BannedMemberItem(
+                                ban = ban,
+                                onUnban = { viewModel.unbanMember(ban.userId) }
+                            )
                         }
                     }
-                }
+                } else {
+                    val displayMembers = if (uiState.isSearching) uiState.searchResults else uiState.members
+                    
+                    if (uiState.isSearching && displayMembers.isEmpty() && uiState.searchQuery.length > 2) {
+                        item {
+                            Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                Text("No members found")
+                            }
+                        }
+                    }
 
-                items(displayMembers) { member ->
-                    ParticipantItem(
-                        member = member,
-                        onClick = { onParticipantClick(member.userId) }
-                    )
+                    val currentUserRole = viewModel.getCurrentUserRole()
+                    val canModerate = currentUserRole == MemberRole.OWNER || currentUserRole == MemberRole.ADMIN
+
+                    items(displayMembers) { member ->
+                        ParticipantItem(
+                            member = member,
+                            currentUserId = uiState.currentUserId,
+                            currentUserRole = currentUserRole,
+                            canModerate = canModerate,
+                            onClick = { onParticipantClick(member.userId) },
+                            onKick = { viewModel.kickMember(member.userId) },
+                            onBan = { showBanDialog = member.userId }
+                        )
+                    }
                 }
             }
         } else if (uiState.error != null) {
@@ -241,7 +320,12 @@ fun GroupInfoScreen(
 @Composable
 fun ParticipantItem(
     member: ChatMember,
-    onClick: () -> Unit
+    currentUserId: Int?,
+    currentUserRole: MemberRole?,
+    canModerate: Boolean,
+    onClick: () -> Unit,
+    onKick: () -> Unit,
+    onBan: () -> Unit
 ) {
     val user = member.user
     // Show displayName if available, otherwise username
@@ -254,6 +338,14 @@ fun ParticipantItem(
         MemberRole.ADMIN -> "Admin"
         else -> null
     }
+    
+    // Can this user be moderated by current user?
+    val canModerateThisMember = canModerate && 
+        member.userId != currentUserId && // Can't moderate yourself
+        member.role != MemberRole.OWNER && // Can't moderate owner
+        (currentUserRole == MemberRole.OWNER || member.role != MemberRole.ADMIN) // Admins can't moderate other admins
+    
+    var showMenu by remember { mutableStateOf(false) }
     
     ListItem(
         headlineContent = { Text(displayName) },
@@ -297,15 +389,159 @@ fun ParticipantItem(
             }
         },
         trailingContent = {
-            // Show role badge (Owner/Admin) on the right 
-            roleBadge?.let { badge ->
-                Text(
-                    text = badge,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Show role badge (Owner/Admin) on the right 
+                roleBadge?.let { badge ->
+                    Text(
+                        text = badge,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                
+                // Show menu for moderation if user has permission
+                if (canModerateThisMember) {
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Kick") },
+                                onClick = {
+                                    showMenu = false
+                                    onKick()
+                                },
+                                leadingIcon = { Icon(Icons.Default.PersonRemove, null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Ban") },
+                                onClick = {
+                                    showMenu = false
+                                    onBan()
+                                },
+                                leadingIcon = { Icon(Icons.Default.Block, null) },
+                                colors = MenuDefaults.itemColors(
+                                    textColor = MaterialTheme.colorScheme.error,
+                                    leadingIconColor = MaterialTheme.colorScheme.error
+                                )
+                            )
+                        }
+                    }
+                }
             }
         },
         modifier = Modifier.clickable(onClick = onClick)
+    )
+}
+
+@Composable
+fun BannedMemberItem(
+    ban: GroupBan,
+    onUnban: () -> Unit
+) {
+    val user = ban.user
+    val displayName = if (!user?.displayName.isNullOrEmpty()) user?.displayName!! else user?.username ?: "User #${ban.userId}"
+    val bannedByName = ban.bannedByUser?.let { 
+        if (!it.displayName.isNullOrEmpty()) it.displayName else it.username 
+    } ?: "Admin"
+    
+    ListItem(
+        headlineContent = { Text(displayName) },
+        supportingContent = {
+            Column {
+                Text(
+                    text = "Banned by $bannedByName",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (!ban.reason.isNullOrEmpty()) {
+                    Text(
+                        text = "Reason: ${ban.reason}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        },
+        leadingContent = {
+            val avatarUrl = ServerConfig.getFileUrl(user?.avatarUrl)
+            if (avatarUrl != null) {
+                AsyncImage(
+                    model = avatarUrl,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Surface(
+                    modifier = Modifier.size(40.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.errorContainer
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Default.Block,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
+        },
+        trailingContent = {
+            TextButton(onClick = onUnban) {
+                Text("Unban", color = MaterialTheme.colorScheme.primary)
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BanConfirmationDialog(
+    reason: String,
+    onReasonChange: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Ban Member") },
+        text = {
+            Column {
+                Text("Are you sure you want to ban this member?")
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = reason,
+                    onValueChange = onReasonChange,
+                    label = { Text("Reason (optional)") },
+                    placeholder = { Text("Enter ban reason...") },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 3
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("Ban")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
     )
 }
