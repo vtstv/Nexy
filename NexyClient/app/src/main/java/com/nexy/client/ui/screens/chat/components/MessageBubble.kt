@@ -31,6 +31,7 @@ fun MessageBubble(
     repliedMessage: Message? = null,
     fontScale: Float = 1.0f,
     textColor: Long = 0L,
+    avatarSize: Float = 32f,
     onDelete: () -> Unit = {},
     onReply: () -> Unit = {},
     onEdit: () -> Unit = {},
@@ -64,7 +65,7 @@ fun MessageBubble(
         verticalAlignment = Alignment.Bottom
     ) {
         if (!isOwnMessage && isGroupChat) {
-            MessageAvatar(sender = message.sender)
+            MessageAvatar(sender = message.sender, size = avatarSize)
             Spacer(modifier = Modifier.width(4.dp))
         }
 

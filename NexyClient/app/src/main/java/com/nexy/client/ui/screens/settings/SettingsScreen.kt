@@ -68,6 +68,7 @@ fun SettingsScreen(
     val uiScale by themeViewModel.uiScale.collectAsState()
     val incomingTextColor by themeViewModel.incomingTextColor.collectAsState()
     val outgoingTextColor by themeViewModel.outgoingTextColor.collectAsState()
+    val avatarSize by themeViewModel.avatarSize.collectAsState()
     
     val pushNotificationsEnabled by viewModel.pushNotificationsEnabled.collectAsState()
     val notificationSoundEnabled by viewModel.notificationSoundEnabled.collectAsState()
@@ -189,11 +190,13 @@ fun SettingsScreen(
                         themeStyle = themeStyle,
                         incomingTextColor = incomingTextColor,
                         outgoingTextColor = outgoingTextColor,
+                        avatarSize = avatarSize,
                         showNotepad = showNotepad,
                         onFontScaleChange = { themeViewModel.setFontScale(it) },
                         onThemeStyleChange = { themeViewModel.setThemeStyle(it) },
                         onIncomingColorClick = { showIncomingColorPicker = true },
                         onOutgoingColorClick = { showOutgoingColorPicker = true },
+                        onAvatarSizeChange = { themeViewModel.setAvatarSize(it) },
                         onShowNotepadChange = { viewModel.setShowNotepad(it) }
                     )
                     HorizontalDivider()

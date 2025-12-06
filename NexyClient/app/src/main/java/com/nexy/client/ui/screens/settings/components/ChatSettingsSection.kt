@@ -8,6 +8,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
@@ -19,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.nexy.client.ui.theme.ThemeStyle
 import com.nexy.client.ui.screens.settings.utils.getThemeColor
+import kotlin.math.roundToInt
 
 @Composable
 fun ChatSettingsSection(
@@ -26,11 +28,13 @@ fun ChatSettingsSection(
     themeStyle: ThemeStyle,
     incomingTextColor: Long,
     outgoingTextColor: Long,
+    avatarSize: Float,
     showNotepad: Boolean,
     onFontScaleChange: (Float) -> Unit,
     onThemeStyleChange: (ThemeStyle) -> Unit,
     onIncomingColorClick: () -> Unit,
     onOutgoingColorClick: () -> Unit,
+    onAvatarSizeChange: (Float) -> Unit,
     onShowNotepadChange: (Boolean) -> Unit
 ) {
     Text(
@@ -62,6 +66,24 @@ fun ChatSettingsSection(
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontSize = MaterialTheme.typography.bodyMedium.fontSize * fontScale
                     )
+                )
+            }
+        }
+    )
+
+    ListItem(
+        headlineContent = { Text("Group Avatar Size") },
+        supportingContent = { 
+            Column {
+                Slider(
+                    value = avatarSize,
+                    onValueChange = onAvatarSizeChange,
+                    valueRange = 24f..56f,
+                    steps = 7
+                )
+                Text(
+                    text = "${avatarSize.roundToInt()}dp",
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
         }
@@ -138,4 +160,92 @@ fun ChatSettingsSection(
             )
         }
     )
+    
+    HorizontalDivider()
+    
+    Text(
+        text = "Preview",
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(16.dp)
+    )
+    
+    GroupChatPreview(
+        fontScale = fontScale,
+        avatarSize = avatarSize,
+        incomingTextColor = incomingTextColor
+    )
+}
+
+@Composable
+fun GroupChatPreview(
+    fontScale: Float,
+    avatarSize: Float,
+    incomingTextColor: Long
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+        tonalElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Group Chat Example",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .padding(bottom = 8.dp)
+                        .size(avatarSize.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "A",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.width(4.dp))
+                
+                Surface(
+                    shape = RoundedCornerShape(16.dp, 16.dp, 16.dp, 0.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    Column(modifier = Modifier.padding(8.dp)) {
+                        Text(
+                            text = "Example User",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                        
+                        Text(
+                            text = "Hello! This is a group message",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontSize = MaterialTheme.typography.bodyMedium.fontSize * fontScale,
+                                color = if (incomingTextColor != 0L) Color(incomingTextColor) else Color.Unspecified
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
 }

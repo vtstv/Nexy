@@ -32,6 +32,7 @@ class ThemeViewModel @Inject constructor(
     private val UI_SCALE_KEY = androidx.datastore.preferences.core.floatPreferencesKey("ui_scale")
     private val INCOMING_TEXT_COLOR_KEY = androidx.datastore.preferences.core.longPreferencesKey("incoming_text_color")
     private val OUTGOING_TEXT_COLOR_KEY = androidx.datastore.preferences.core.longPreferencesKey("outgoing_text_color")
+    private val AVATAR_SIZE_KEY = androidx.datastore.preferences.core.floatPreferencesKey("avatar_size")
     
     private val _isDarkTheme = MutableStateFlow(true) // Default to Dark
     val isDarkTheme: StateFlow<Boolean> = _isDarkTheme.asStateFlow()
@@ -50,6 +51,9 @@ class ThemeViewModel @Inject constructor(
 
     private val _outgoingTextColor = MutableStateFlow(0xFF000000) // Default Black
     val outgoingTextColor: StateFlow<Long> = _outgoingTextColor.asStateFlow()
+
+    private val _avatarSize = MutableStateFlow(32f) // Default 32dp
+    val avatarSize: StateFlow<Float> = _avatarSize.asStateFlow()
     
     init {
         loadThemePreference()
@@ -75,6 +79,7 @@ class ThemeViewModel @Inject constructor(
                 // Or set defaults here. Let's use 0 as "Not Set" and handle defaults in UI.
                 _incomingTextColor.value = preferences[INCOMING_TEXT_COLOR_KEY] ?: 0L
                 _outgoingTextColor.value = preferences[OUTGOING_TEXT_COLOR_KEY] ?: 0L
+                _avatarSize.value = preferences[AVATAR_SIZE_KEY] ?: 32f
             }
         }
     }
@@ -128,6 +133,15 @@ class ThemeViewModel @Inject constructor(
             _outgoingTextColor.value = color
             context.dataStore.edit { preferences ->
                 preferences[OUTGOING_TEXT_COLOR_KEY] = color
+            }
+        }
+    }
+
+    fun setAvatarSize(size: Float) {
+        viewModelScope.launch {
+            _avatarSize.value = size
+            context.dataStore.edit { preferences ->
+                preferences[AVATAR_SIZE_KEY] = size
             }
         }
     }

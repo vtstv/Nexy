@@ -44,6 +44,7 @@ fun ChatScreen(
     val fontScale by themeViewModel.fontScale.collectAsState()
     val incomingTextColor by themeViewModel.incomingTextColor.collectAsState()
     val outgoingTextColor by themeViewModel.outgoingTextColor.collectAsState()
+    val avatarSize by themeViewModel.avatarSize.collectAsState()
     val listState = rememberLazyListState()
     val hasScrolledToBottom = remember { mutableStateOf(false) }
     var showEmojiPicker by remember { mutableStateOf(false) }
@@ -215,6 +216,7 @@ fun ChatScreen(
                                 fontScale = fontScale,
                                 incomingTextColor = incomingTextColor,
                                 outgoingTextColor = outgoingTextColor,
+                                avatarSize = avatarSize,
                                 onDeleteMessage = {},
                                 onReplyMessage = {},
                                 onEditMessage = {},
@@ -234,6 +236,7 @@ fun ChatScreen(
                             fontScale = fontScale,
                             incomingTextColor = incomingTextColor,
                             outgoingTextColor = outgoingTextColor,
+                            avatarSize = avatarSize,
                             firstUnreadMessageId = uiState.firstUnreadMessageId,
                             onDeleteMessage = viewModel::deleteMessage,
                             onReplyMessage = { message -> replyToMessage = message },

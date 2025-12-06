@@ -19,9 +19,11 @@ import com.nexy.client.data.models.User
 @Composable
 fun MessageAvatar(
     sender: User?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    size: Float = 32f
 ) {
     val avatarUrl = ServerConfig.getFileUrl(sender?.avatarUrl)
+    val avatarSize = size.dp
     
     if (avatarUrl != null) {
         AsyncImage(
@@ -29,14 +31,14 @@ fun MessageAvatar(
             contentDescription = "Sender avatar",
             modifier = modifier
                 .padding(bottom = 8.dp)
-                .size(32.dp)
+                .size(avatarSize)
                 .clip(CircleShape)
         )
     } else {
         Surface(
             modifier = modifier
                 .padding(bottom = 8.dp)
-                .size(32.dp),
+                .size(avatarSize),
             shape = CircleShape,
             color = MaterialTheme.colorScheme.primaryContainer
         ) {
