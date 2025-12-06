@@ -58,6 +58,7 @@ func main() {
 	onlineStatusService := services.NewOnlineStatusService(userRepo)
 	contactService := services.NewContactService(contactRepo, userRepo)
 	syncService := services.NewSyncService(syncRepo)
+	fcmService := services.NewFcmService(userRepo)
 
 	nexyChatRepo := nexy.NewNexyChatRepo(chatRepo)
 	hub := nexy.NewHub(redisClient.Client, messageRepo, nexyChatRepo, userRepo)
@@ -87,6 +88,7 @@ func main() {
 	sessionController := controllers.NewSessionController(sessionRepo, refreshTokenRepo)
 	folderController := controllers.NewFolderController(folderRepo)
 	syncController := controllers.NewSyncController(syncService)
+	fcmController := controllers.NewFcmController(fcmService)
 
 	wsHandler := nexy.NewWSHandler(hub)
 	wsController := controllers.NewWSController(wsHandler, authService)
@@ -109,6 +111,7 @@ func main() {
 		sessionController,
 		folderController,
 		syncController,
+		fcmController,
 		authMiddleware,
 		corsMiddleware,
 		rateLimiter,

@@ -2,6 +2,7 @@ package com.nexy.client
 
 import android.app.Application
 import android.util.Log
+import com.nexy.client.data.fcm.FcmManager
 import com.nexy.client.data.local.AuthTokenManager
 import com.nexy.client.data.network.NetworkMonitor
 import com.nexy.client.data.sync.MessageQueueManager
@@ -36,6 +37,9 @@ class NexyApplication : Application() {
     @Inject
     lateinit var syncManager: SyncManager
     
+    @Inject
+    lateinit var fcmManager: FcmManager
+    
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     
     override fun onCreate() {
@@ -43,6 +47,14 @@ class NexyApplication : Application() {
         
         networkMonitor.startMonitoring()
         Log.d(TAG, "Network monitoring started")
+        
+        // Initialize FCM if enabled
+        if (BuildConfig.FCM_ENABLED) {
+            Log.d(TAG, "FCM enabled - initializing")
+            fcmManager.initializeFcm()
+        } else {
+            Log.d(TAG, "FCM disabled in BuildConfig")
+        }
         
         applicationScope.launch {
             if (authTokenManager.isLoggedIn()) {

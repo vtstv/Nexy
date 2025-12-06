@@ -13,6 +13,7 @@ type User struct {
 	DisplayName             string     `json:"display_name"`
 	AvatarURL               string     `json:"avatar_url"`
 	Bio                     string     `json:"bio"`
+	FcmToken                string     `json:"-"`
 	ReadReceiptsEnabled     bool       `json:"read_receipts_enabled"`
 	TypingIndicatorsEnabled bool       `json:"typing_indicators_enabled"`
 	ShowOnlineStatus        bool       `json:"show_online_status"`

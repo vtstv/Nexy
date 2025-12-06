@@ -218,6 +218,13 @@ interface NexyApiService {
     @GET("turn/ice-servers")
     suspend fun getICEServers(): Response<ICEConfigResponse>
 
+    // FCM Token management
+    @POST("users/fcm-token")
+    suspend fun updateFcmToken(@Body request: Map<String, String>): Response<Unit>
+    
+    @DELETE("users/fcm-token")
+    suspend fun deleteFcmToken(): Response<Unit>
+
     // Session/Device management endpoints
     @GET("sessions")
     suspend fun getSessions(): Response<List<UserSession>>

@@ -22,6 +22,7 @@ type Router struct {
 	sessionController *controllers.SessionController
 	folderController  *controllers.FolderController
 	syncController    *controllers.SyncController
+	fcmController     *controllers.FcmController
 	authMiddleware    *middleware.AuthMiddleware
 	corsMiddleware    *middleware.CORSMiddleware
 	rateLimiter       *middleware.RateLimiter
@@ -41,6 +42,7 @@ func NewRouter(
 	sessionController *controllers.SessionController,
 	folderController *controllers.FolderController,
 	syncController *controllers.SyncController,
+	fcmController *controllers.FcmController,
 	authMiddleware *middleware.AuthMiddleware,
 	corsMiddleware *middleware.CORSMiddleware,
 	rateLimiter *middleware.RateLimiter,
@@ -59,6 +61,7 @@ func NewRouter(
 		sessionController: sessionController,
 		folderController:  folderController,
 		syncController:    syncController,
+		fcmController:     fcmController,
 		authMiddleware:    authMiddleware,
 		corsMiddleware:    corsMiddleware,
 		rateLimiter:       rateLimiter,
@@ -93,6 +96,10 @@ func (rt *Router) Setup() *mux.Router {
 	users.HandleFunc("/me/qr", rt.userController.GetMyQRCode).Methods("GET")
 	users.HandleFunc("/search", rt.userController.SearchUsers).Methods("GET")
 	users.HandleFunc("/{id:[0-9]+}", rt.userController.GetUserByID).Methods("GET")
+
+	// FCM token management
+	users.HandleFunc("/fcm-token", rt.fcmController.UpdateFcmToken).Methods("POST")
+	users.HandleFunc("/fcm-token", rt.fcmController.DeleteFcmToken).Methods("DELETE")
 
 	// Chats endpoints
 	chats := api.PathPrefix("/chats").Subrouter()

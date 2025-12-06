@@ -14,16 +14,24 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import com.nexy.client.BuildConfig
 import com.nexy.client.MainActivity
 import com.nexy.client.R
+import com.nexy.client.data.fcm.FcmManager
 import com.nexy.client.data.local.settingsDataStore
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class NexyFirebaseMessagingService : FirebaseMessagingService() {
+
+    @Inject
+    lateinit var fcmManager: FcmManager
 
     private val job = SupervisorJob()
     private val scope = CoroutineScope(Dispatchers.IO + job)
@@ -35,11 +43,22 @@ class NexyFirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         Log.d(TAG, "Refreshed token: $token")
+        
+        if (!BuildConfig.FCM_ENABLED) {
+            Log.d(TAG, "FCM disabled - ignoring token")
+            return
+        }
+        
         // Send token to server
-        // sendRegistrationToServer(token)
+        fcmManager.sendTokenToServer(token)
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
+        if (!BuildConfig.FCM_ENABLED) {
+            Log.d(TAG, "FCM disabled - ignoring message")
+            return
+        }
+        
         Log.d(TAG, "From: ${remoteMessage.from}")
 
         // Check if message contains a data payload.

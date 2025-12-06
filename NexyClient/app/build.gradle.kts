@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.ksp)
     alias(libs.plugins.hilt.android)
+    // Google Services plugin for FCM
+    alias(libs.plugins.google.services)
 }
 
 import java.util.Properties
@@ -32,6 +34,9 @@ android {
         }
         
         multiDexEnabled = true
+        
+        // FCM feature flag (can be disabled for builds without FCM)
+        buildConfigField("boolean", "FCM_ENABLED", "false")
     }
 
     signingConfigs {
@@ -72,6 +77,8 @@ android {
             buildConfigField("String", "SERVER_PORT", "\"8080\"")
             buildConfigField("String", "WS_PROTOCOL", "\"ws\"")
             buildConfigField("String", "HTTP_PROTOCOL", "\"http\"")
+            // FCM enabled for dev builds (set to "false" to disable)
+            buildConfigField("boolean", "FCM_ENABLED", "true")
         }
         create("prod") {
             dimension = "environment"
@@ -80,6 +87,8 @@ android {
             buildConfigField("String", "SERVER_PORT", "\"8080\"")
             buildConfigField("String", "WS_PROTOCOL", "\"ws\"")
             buildConfigField("String", "HTTP_PROTOCOL", "\"http\"")
+            // FCM enabled for production builds (set to "false" to disable)
+            buildConfigField("boolean", "FCM_ENABLED", "false")
         }
     }
     
@@ -147,8 +156,10 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging.interceptor)
     
-    // Firebase
+    // Firebase (optional - only used when FCM_ENABLED = true)
+    implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
+    implementation(libs.firebase.analytics)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
