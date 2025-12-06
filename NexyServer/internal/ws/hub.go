@@ -47,6 +47,7 @@ type ChatRepository interface {
 	Create(ctx context.Context, chat *models.Chat) error
 	AddMember(ctx context.Context, member *models.ChatMember) error
 	GetChatMembers(ctx context.Context, chatID int) ([]int, error)
+	GetByID(ctx context.Context, id int) (*models.Chat, error)
 }
 
 type UserRepository interface {

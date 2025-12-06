@@ -117,6 +117,7 @@ type BannedFromGroupBody struct {
 type AckBody struct {
 	MessageID string `json:"message_id"`
 	Status    string `json:"status"`
+	Error     string `json:"error,omitempty"`
 }
 
 type ErrorBody struct {

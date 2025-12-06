@@ -75,6 +75,34 @@ func (h *Hub) handleChatMessage(message *NexyMessage, unregisterFunc func(*Clien
 		return
 	}
 
+	// Check for voice message restriction
+	var body ChatMessageBody
+	if err := json.Unmarshal(message.Body, &body); err == nil && body.MessageType == "voice" {
+		chat, err := h.chatRepo.GetByID(ctx, *message.Header.ChatID)
+		if err == nil && chat != nil && chat.Type == "private" {
+			// Get members to find the recipient
+			members, err := h.chatRepo.GetChatMembers(ctx, chat.ID)
+			if err == nil {
+				for _, memberID := range members {
+					if memberID != message.Header.SenderID {
+						// Check if this user has voice messages enabled
+						user, err := h.userRepo.GetByID(ctx, memberID)
+						if err == nil && user != nil && !user.VoiceMessagesEnabled {
+							log.Printf("Voice message rejected: recipient %d has disabled voice messages", memberID)
+							errorAck, _ := NewNexyMessage(TypeAck, 0, nil, AckBody{
+								MessageID: message.Header.MessageID,
+								Status:    "error",
+								Error:     "Voice messages are disabled by the recipient",
+							})
+							h.sendToUser(message.Header.SenderID, errorAck, unregisterFunc)
+							return
+						}
+					}
+				}
+			}
+		}
+	}
+
 	// Save message to database
 	if err := h.messageRepo.CreateMessageFromWebSocket(ctx, message.Header.MessageID, *message.Header.ChatID, message.Header.SenderID, message.Body); err != nil {
 		log.Printf("Error saving message to database: %v", err)

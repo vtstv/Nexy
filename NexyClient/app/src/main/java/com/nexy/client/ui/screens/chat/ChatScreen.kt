@@ -288,7 +288,9 @@ fun ChatScreen(
                             replyToMessage = replyToMessage,
                             onCancelReply = { replyToMessage = null },
                             editingMessage = uiState.editingMessage,
-                            onCancelEdit = viewModel::cancelEditing
+                            onCancelEdit = viewModel::cancelEditing,
+                            voiceMessagesEnabled = uiState.voiceMessagesEnabled,
+                            recipientVoiceMessagesEnabled = uiState.recipientVoiceMessagesEnabled
                         )
                     }
                 }

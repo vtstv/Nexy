@@ -14,6 +14,7 @@ data class UserEntity(
     val status: String,
     val bio: String?,
     val readReceiptsEnabled: Boolean = true,
+    val voiceMessagesEnabled: Boolean = true,
     val showOnlineStatus: Boolean = true,
     val onlineStatus: String? = null,
     val publicKey: String?,

@@ -16,6 +16,7 @@ type User struct {
 	FcmToken                string     `json:"-"`
 	ReadReceiptsEnabled     bool       `json:"read_receipts_enabled"`
 	TypingIndicatorsEnabled bool       `json:"typing_indicators_enabled"`
+	VoiceMessagesEnabled    bool       `json:"voice_messages_enabled"`
 	ShowOnlineStatus        bool       `json:"show_online_status"`
 	LastSeen                *time.Time `json:"last_seen,omitempty"`
 	OnlineStatus            string     `json:"online_status,omitempty"`

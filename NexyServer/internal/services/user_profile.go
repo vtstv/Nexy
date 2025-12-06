@@ -45,7 +45,7 @@ func (s *UserService) SearchUsers(ctx context.Context, query string, limit int) 
 }
 
 // UpdateProfile updates user profile information
-func (s *UserService) UpdateProfile(ctx context.Context, userID int, displayName, bio, avatarURL, email, password string, readReceiptsEnabled, typingIndicatorsEnabled, showOnlineStatus *bool) (*models.User, error) {
+func (s *UserService) UpdateProfile(ctx context.Context, userID int, displayName, bio, avatarURL, email, password string, readReceiptsEnabled, typingIndicatorsEnabled, voiceMessagesEnabled, showOnlineStatus *bool) (*models.User, error) {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -71,6 +71,9 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID int, displayName
 	}
 	if typingIndicatorsEnabled != nil {
 		user.TypingIndicatorsEnabled = *typingIndicatorsEnabled
+	}
+	if voiceMessagesEnabled != nil {
+		user.VoiceMessagesEnabled = *voiceMessagesEnabled
 	}
 	if showOnlineStatus != nil {
 		user.ShowOnlineStatus = *showOnlineStatus

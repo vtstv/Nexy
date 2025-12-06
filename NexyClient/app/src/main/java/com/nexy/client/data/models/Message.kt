@@ -16,7 +16,7 @@ data class Message(
     val senderId: Int,
     
     @SerializedName("content")
-    val content: String,
+    val content: String? = null,
     
     @SerializedName("message_type")  // Server uses message_type field
     val type: MessageType,

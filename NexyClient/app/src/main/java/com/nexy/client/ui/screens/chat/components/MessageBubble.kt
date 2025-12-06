@@ -48,12 +48,12 @@ fun MessageBubble(
     var showMenu by remember { mutableStateOf(false) }
 
     val hasAttachment = message.mediaUrl != null
-    val file = if (hasAttachment) File(context.getExternalFilesDir(null), message.content) else null
+    val file = if (hasAttachment) File(context.getExternalFilesDir(null), message.content ?: "") else null
     val isDownloaded = file?.exists() == true
     
     // Check if message contains an invite link
     val inviteCode = remember(message.content) {
-        LinkParser.extractInviteCode(message.content)
+        LinkParser.extractInviteCode(message.content ?: "")
     }
 
     Row(
@@ -124,7 +124,7 @@ fun MessageBubble(
                         } else {
                             Row(verticalAlignment = Alignment.Bottom) {
                                 LinkedText(
-                                    text = message.content,
+                                    text = message.content ?: "",
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         fontSize = MaterialTheme.typography.bodyMedium.fontSize * fontScale,
                                         color = if (textColor != 0L) Color(textColor) else Color.Unspecified
@@ -166,7 +166,7 @@ fun MessageBubble(
             MessageContextMenu(
                 expanded = showMenu,
                 onDismiss = { showMenu = false },
-                messageContent = message.content,
+                messageContent = message.content ?: "",
                 isOwnMessage = isOwnMessage,
                 hasAttachment = hasAttachment,
                 isDownloaded = isDownloaded,
@@ -174,12 +174,12 @@ fun MessageBubble(
                 onCopy = onCopy,
                 onEdit = onEdit,
                 onDelete = { showDeleteDialog = true },
-                onOpenFile = { onOpenFile(message.content) },
-                onSaveFile = { onSaveFile(message.content) },
+                onOpenFile = { onOpenFile(message.content ?: "") },
+                onSaveFile = { onSaveFile(message.content ?: "") },
                 onDownloadFile = {
                     val fileId = message.mediaUrl?.substringAfterLast("/") ?: ""
                     if (fileId.isNotEmpty()) {
-                        onDownloadFile(fileId, message.content)
+                        onDownloadFile(fileId, message.content ?: "")
                     }
                 }
             )

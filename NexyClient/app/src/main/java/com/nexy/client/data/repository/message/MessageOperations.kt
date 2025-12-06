@@ -70,7 +70,7 @@ class MessageOperations @Inject constructor(
                     // Decrypt messages if needed (only in production)
                     val decryptedMessages = if (!BuildConfig.DEBUG) {
                         messages.map { message ->
-                            if (message.encrypted && message.content.startsWith("{\"ciphertext\"")) {
+                            if (message.encrypted && message.content?.startsWith("{\"ciphertext\"") == true) {
                                 decryptMessage(message)
                             } else {
                                 message
@@ -140,7 +140,7 @@ class MessageOperations @Inject constructor(
      * Decrypt a single message
      */
     private fun decryptMessage(message: Message): Message {
-        if (!message.encrypted || message.senderId == 0) {
+        if (!message.encrypted || message.senderId == 0 || message.content == null) {
             return message
         }
         
@@ -354,7 +354,7 @@ class MessageOperations @Inject constructor(
                     // Decrypt messages if needed (only in production)
                     val decryptedMessages = if (!BuildConfig.DEBUG) {
                         messages.map { message ->
-                            if (message.encrypted && message.content.startsWith("{\"ciphertext\"")) {
+                            if (message.encrypted && message.content?.startsWith("{\"ciphertext\"") == true) {
                                 decryptMessage(message)
                             } else {
                                 message

@@ -19,7 +19,7 @@ class MessageMappers @Inject constructor() {
         serverId = message.serverId,
         chatId = message.chatId,
         senderId = message.senderId,
-        content = message.content,
+        content = message.content ?: "",
         type = message.type.name,
         timestamp = parseTimestamp(message.timestamp),
         status = message.status?.name ?: MessageStatus.SENT.name,

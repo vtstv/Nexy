@@ -20,6 +20,7 @@ type UpdateProfileRequest struct {
 	Password                string `json:"password"`
 	ReadReceiptsEnabled     *bool  `json:"read_receipts_enabled"`
 	TypingIndicatorsEnabled *bool  `json:"typing_indicators_enabled"`
+	VoiceMessagesEnabled    *bool  `json:"voice_messages_enabled"`
 	ShowOnlineStatus        *bool  `json:"show_online_status"`
 }
 
@@ -77,7 +78,7 @@ func (c *UserController) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := c.userService.UpdateProfile(r.Context(), userID, req.DisplayName, req.Bio, req.AvatarURL, req.Email, req.Password, req.ReadReceiptsEnabled, req.TypingIndicatorsEnabled, req.ShowOnlineStatus)
+	user, err := c.userService.UpdateProfile(r.Context(), userID, req.DisplayName, req.Bio, req.AvatarURL, req.Email, req.Password, req.ReadReceiptsEnabled, req.TypingIndicatorsEnabled, req.VoiceMessagesEnabled, req.ShowOnlineStatus)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

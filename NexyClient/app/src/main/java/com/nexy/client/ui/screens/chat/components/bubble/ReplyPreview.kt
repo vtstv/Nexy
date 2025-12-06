@@ -49,7 +49,7 @@ fun ReplyPreview(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = if (repliedMessage.mediaUrl != null) "Photo" else repliedMessage.content,
+                    text = if (repliedMessage.mediaUrl != null) "Photo" else repliedMessage.content ?: "",
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis

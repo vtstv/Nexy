@@ -30,6 +30,9 @@ data class User(
     @SerializedName("typing_indicators_enabled")
     val typingIndicatorsEnabled: Boolean = true,
 
+    @SerializedName("voice_messages_enabled")
+    val voiceMessagesEnabled: Boolean = true,
+
     @SerializedName("show_online_status")
     val showOnlineStatus: Boolean = true,
 

@@ -27,6 +27,7 @@ class ChatStateManager @Inject constructor(
         val chat = chatResult.getOrNull() ?: return null
         
         var otherUserOnlineStatus: String? = null
+        var recipientVoiceMessagesEnabled = true
         
         val name = if (chat.type == ChatType.PRIVATE) {
             if (chat.participantIds != null && currentUserId != null) {
@@ -34,6 +35,7 @@ class ChatStateManager @Inject constructor(
                 val userResult = userRepository.getUserById(otherUserId, forceRefresh = true)
                 val otherUser = userResult.getOrNull()
                 otherUserOnlineStatus = otherUser?.onlineStatus
+                recipientVoiceMessagesEnabled = otherUser?.voiceMessagesEnabled ?: true
                 otherUser?.displayName?.takeIf { it.isNotBlank() } ?: otherUser?.username ?: "Chat"
             } else {
                 "Chat"
@@ -54,7 +56,8 @@ class ChatStateManager @Inject constructor(
             mutedUntil = chat.mutedUntil,
             otherUserOnlineStatus = otherUserOnlineStatus,
             unreadCount = chat.unreadCount,
-            firstUnreadMessageId = chat.firstUnreadMessageId
+            firstUnreadMessageId = chat.firstUnreadMessageId,
+            recipientVoiceMessagesEnabled = recipientVoiceMessagesEnabled
         )
     }
 
@@ -65,6 +68,16 @@ class ChatStateManager @Inject constructor(
 
     suspend fun joinGroup(chatId: Int): Result<Unit> {
         return chatRepository.joinPublicGroup(chatId).map { }
+    }
+
+    suspend fun getCurrentUser(): com.nexy.client.data.models.User? {
+        val userId = tokenManager.getUserId() ?: return null
+        return userRepository.getUserById(userId).getOrNull()
+    }
+
+    suspend fun getCurrentUserFlow(): kotlinx.coroutines.flow.Flow<com.nexy.client.data.models.User?> {
+        val userId = tokenManager.getUserId() ?: return kotlinx.coroutines.flow.emptyFlow()
+        return userRepository.getUserByIdFlow(userId)
     }
 }
 
@@ -80,5 +93,6 @@ data class ChatInfo(
     val mutedUntil: String? = null,
     val otherUserOnlineStatus: String? = null,
     val unreadCount: Int = 0,
-    val firstUnreadMessageId: String? = null
+    val firstUnreadMessageId: String? = null,
+    val recipientVoiceMessagesEnabled: Boolean = true
 )

@@ -245,6 +245,21 @@ class SettingsViewModel @Inject constructor(
             context.settingsDataStore.edit { preferences ->
                 preferences[VOICE_MESSAGES_ENABLED_KEY] = enabled
             }
+            _voiceMessagesEnabled.value = enabled
+            
+            val userId = stateManager.loadCurrentUserId()
+            if (userId != null && userId > 0) {
+                userRepository.getUserById(userId).onSuccess { user ->
+                    userRepository.updateProfile(
+                        displayName = user.displayName ?: "",
+                        bio = user.bio ?: "",
+                        avatarUrl = user.avatarUrl,
+                        email = user.email,
+                        password = null,
+                        voiceMessagesEnabled = enabled
+                    )
+                }
+            }
         }
     }
 

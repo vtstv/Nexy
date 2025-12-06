@@ -37,7 +37,9 @@ fun MessageInput(
     replyToMessage: Message? = null,
     onCancelReply: () -> Unit = {},
     editingMessage: Message? = null,
-    onCancelEdit: () -> Unit = {}
+    onCancelEdit: () -> Unit = {},
+    voiceMessagesEnabled: Boolean = true,
+    recipientVoiceMessagesEnabled: Boolean = true
 ) {
     var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
     var selectedFileName by remember { mutableStateOf<String?>(null) }
@@ -125,7 +127,13 @@ fun MessageInput(
                     showEmojiPicker = showEmojiPicker,
                     onToggleEmojiPicker = onToggleEmojiPicker,
                     onAttachFile = { filePickerLauncher.launch("*/*") },
-                    onStartRecording = { isRecording = true },
+                    onStartRecording = { 
+                        if (!recipientVoiceMessagesEnabled) {
+                            android.widget.Toast.makeText(context, "Recipient has disabled voice messages", android.widget.Toast.LENGTH_SHORT).show()
+                        } else {
+                            isRecording = true 
+                        }
+                    },
                     onSend = {
                         val fileUri = selectedFileUri
                         val fileName = selectedFileName
@@ -138,7 +146,8 @@ fun MessageInput(
                         }
                     },
                     sendEnabled = text.text.isNotBlank() || selectedFileUri != null,
-                    isEditing = editingMessage != null
+                    isEditing = editingMessage != null,
+                    voiceMessagesEnabled = voiceMessagesEnabled
                 )
             }
         }
@@ -171,7 +180,7 @@ private fun ReplyPreview(
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = message.content,
+                    text = message.content ?: "",
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 1,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -274,7 +283,8 @@ private fun InputRow(
     onStartRecording: () -> Unit,
     onSend: () -> Unit,
     sendEnabled: Boolean,
-    isEditing: Boolean = false
+    isEditing: Boolean = false,
+    voiceMessagesEnabled: Boolean = true
 ) {
     Row(
         modifier = Modifier
@@ -307,7 +317,7 @@ private fun InputRow(
             shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp)
         )
         
-        if (text.text.isBlank() && !isEditing) {
+        if (text.text.isBlank() && !isEditing && voiceMessagesEnabled) {
             IconButton(
                 onClick = onStartRecording,
                 modifier = Modifier.size(48.dp)
@@ -360,7 +370,7 @@ private fun EditPreview(
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = message.content,
+                    text = message.content ?: "",
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 1
                 )

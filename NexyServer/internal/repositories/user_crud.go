@@ -16,7 +16,7 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 	query := `
 		INSERT INTO users (username, email, password_hash, display_name, avatar_url, bio)
 		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, read_receipts_enabled, typing_indicators_enabled, show_online_status, created_at, updated_at`
+		RETURNING id, read_receipts_enabled, typing_indicators_enabled, voice_messages_enabled, show_online_status, created_at, updated_at`
 
 	return r.db.QueryRowContext(ctx, query,
 		user.Username,
@@ -25,7 +25,7 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 		user.DisplayName,
 		user.AvatarURL,
 		user.Bio,
-	).Scan(&user.ID, &user.ReadReceiptsEnabled, &user.TypingIndicatorsEnabled, &user.ShowOnlineStatus, &user.CreatedAt, &user.UpdatedAt)
+	).Scan(&user.ID, &user.ReadReceiptsEnabled, &user.TypingIndicatorsEnabled, &user.VoiceMessagesEnabled, &user.ShowOnlineStatus, &user.CreatedAt, &user.UpdatedAt)
 }
 
 // GetByID retrieves user by ID
@@ -33,7 +33,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id int) (*models.User, err
 	user := &models.User{}
 	query := `
 		SELECT id, username, email, password_hash, display_name, avatar_url, bio, 
-		       read_receipts_enabled, typing_indicators_enabled, show_online_status, last_seen, 
+		       read_receipts_enabled, typing_indicators_enabled, voice_messages_enabled, show_online_status, last_seen, 
 		       created_at, updated_at
 		FROM users
 		WHERE id = $1`
@@ -51,6 +51,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id int) (*models.User, err
 		&bio,
 		&user.ReadReceiptsEnabled,
 		&user.TypingIndicatorsEnabled,
+		&user.VoiceMessagesEnabled,
 		&user.ShowOnlineStatus,
 		&lastSeen,
 		&user.CreatedAt,
@@ -76,8 +77,8 @@ func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
 	query := `
 		UPDATE users
 		SET display_name = $1, avatar_url = $2, bio = $3, read_receipts_enabled = $4, 
-		    typing_indicators_enabled = $5, show_online_status = $6, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $7
+		    typing_indicators_enabled = $5, voice_messages_enabled = $6, show_online_status = $7, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $8
 		RETURNING updated_at`
 
 	return r.db.QueryRowContext(ctx, query,
@@ -86,6 +87,7 @@ func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
 		user.Bio,
 		user.ReadReceiptsEnabled,
 		user.TypingIndicatorsEnabled,
+		user.VoiceMessagesEnabled,
 		user.ShowOnlineStatus,
 		user.ID,
 	).Scan(&user.UpdatedAt)

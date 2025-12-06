@@ -115,10 +115,10 @@ class UserRepository @Inject constructor(
         }
     }
 
-    suspend fun updateProfile(displayName: String, bio: String, avatarUrl: String?, email: String?, password: String?, readReceiptsEnabled: Boolean? = null, typingIndicatorsEnabled: Boolean? = null, showOnlineStatus: Boolean? = null): Result<User> {
+    suspend fun updateProfile(displayName: String, bio: String, avatarUrl: String?, email: String?, password: String?, readReceiptsEnabled: Boolean? = null, typingIndicatorsEnabled: Boolean? = null, voiceMessagesEnabled: Boolean? = null, showOnlineStatus: Boolean? = null): Result<User> {
         return withContext(Dispatchers.IO) {
             try {
-                val request = UpdateProfileRequest(displayName, bio, avatarUrl, email, password, readReceiptsEnabled, typingIndicatorsEnabled, showOnlineStatus)
+                val request = UpdateProfileRequest(displayName, bio, avatarUrl, email, password, readReceiptsEnabled, typingIndicatorsEnabled, voiceMessagesEnabled, showOnlineStatus)
                 val response = apiService.updateProfile(request)
                 if (response.isSuccessful && response.body() != null) {
                     val updatedUser = response.body()!!
@@ -142,6 +142,7 @@ class UserRepository @Inject constructor(
         status = status?.name ?: UserStatus.OFFLINE.name,
         bio = bio,
         readReceiptsEnabled = readReceiptsEnabled,
+        voiceMessagesEnabled = voiceMessagesEnabled,
         showOnlineStatus = showOnlineStatus,
         onlineStatus = onlineStatus,
         publicKey = publicKey,
@@ -157,6 +158,7 @@ class UserRepository @Inject constructor(
         status = UserStatus.valueOf(status),
         bio = bio,
         readReceiptsEnabled = readReceiptsEnabled,
+        voiceMessagesEnabled = voiceMessagesEnabled,
         showOnlineStatus = showOnlineStatus,
         onlineStatus = onlineStatus,
         publicKey = publicKey,

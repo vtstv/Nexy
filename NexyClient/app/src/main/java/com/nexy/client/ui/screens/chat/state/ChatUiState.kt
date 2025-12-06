@@ -32,5 +32,7 @@ data class ChatUiState(
     val isConnected: Boolean = true,
     val pendingMessageCount: Int = 0,
     val invitePreviews: Map<String, InvitePreviewResponse> = emptyMap(),
-    val loadingInviteCodes: Set<String> = emptySet()
+    val loadingInviteCodes: Set<String> = emptySet(),
+    val voiceMessagesEnabled: Boolean = true,
+    val recipientVoiceMessagesEnabled: Boolean = true
 )

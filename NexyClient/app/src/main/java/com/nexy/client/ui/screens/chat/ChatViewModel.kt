@@ -21,6 +21,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -56,6 +57,7 @@ class ChatViewModel @Inject constructor(
         }
         observeTypingEvents()
         messageDelegate.observeConnectionStatus()
+        observeCurrentUser()
     }
 
     private fun initializeDelegates() {
@@ -114,7 +116,11 @@ class ChatViewModel @Inject constructor(
 
     private suspend fun loadCurrentUserAndChatInfo() {
         val userId = stateManager.loadCurrentUserId()
-        _uiState.value = _uiState.value.copy(currentUserId = userId)
+        val currentUser = stateManager.getCurrentUser()
+        _uiState.value = _uiState.value.copy(
+            currentUserId = userId,
+            voiceMessagesEnabled = currentUser?.voiceMessagesEnabled ?: true
+        )
 
         try {
             stateManager.loadChatInfo(chatId, userId)?.let { chatInfo ->
@@ -132,11 +138,23 @@ class ChatViewModel @Inject constructor(
                     isMember = chatInfo.isMember,
                     mutedUntil = chatInfo.mutedUntil,
                     otherUserOnlineStatus = chatInfo.otherUserOnlineStatus,
-                    firstUnreadMessageId = readReceiptHandler.getSavedFirstUnreadMessageId() ?: chatInfo.firstUnreadMessageId
+                    firstUnreadMessageId = readReceiptHandler.getSavedFirstUnreadMessageId() ?: chatInfo.firstUnreadMessageId,
+                    recipientVoiceMessagesEnabled = chatInfo.recipientVoiceMessagesEnabled
                 )
             }
         } catch (e: Exception) {
             android.util.Log.e("ChatViewModel", "Failed to load chat info", e)
+        }
+    }
+
+    private fun observeCurrentUser() {
+        viewModelScope.launch {
+            stateManager.getCurrentUserFlow().collect { user ->
+                android.util.Log.d("ChatViewModel", "Current user update: voiceMessagesEnabled=${user?.voiceMessagesEnabled}")
+                _uiState.value = _uiState.value.copy(
+                    voiceMessagesEnabled = user?.voiceMessagesEnabled ?: true
+                )
+            }
         }
     }
 

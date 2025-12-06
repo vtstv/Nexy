@@ -87,7 +87,7 @@ class MessageDelegate @Inject constructor(
     fun startEditing(message: Message) {
         uiState.value = uiState.value.copy(
             editingMessage = message,
-            messageText = TextFieldValue(message.content)
+            messageText = TextFieldValue(message.content ?: "")
         )
     }
 

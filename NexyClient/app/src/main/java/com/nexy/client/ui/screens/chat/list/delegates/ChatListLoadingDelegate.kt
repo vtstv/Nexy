@@ -86,8 +86,8 @@ class ChatListLoadingDelegate @Inject constructor(
                         val lastMessage = chatRepository.getLastMessageForChat(chat.id)
                         val preview = when {
                             lastMessage == null -> "No messages"
-                            lastMessage.mediaUrl != null -> "📎 ${lastMessage.content}"
-                            else -> lastMessage.content
+                            lastMessage.mediaUrl != null -> "📎 ${lastMessage.content ?: "Attachment"}"
+                            else -> lastMessage.content ?: ""
                         }
                         val timeStr = lastMessage?.timestamp?.let { formatMessageTime(it) }
 

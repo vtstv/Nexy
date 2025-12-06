@@ -39,7 +39,7 @@ fun ImageAttachment(
             .heightIn(max = 300.dp)
             .clip(RoundedCornerShape(8.dp))
             .combinedClickable(
-                onClick = { onOpenFile(message.content) },
+                onClick = { onOpenFile(message.content ?: "") },
                 onLongClick = onLongClick
             ),
         contentScale = ContentScale.Crop
@@ -64,11 +64,11 @@ fun VideoAttachment(
             .combinedClickable(
                 onClick = {
                     if (isDownloaded) {
-                        onOpenFile(message.content)
+                        onOpenFile(message.content ?: "")
                     } else {
                         val fileId = message.mediaUrl?.substringAfterLast("/") ?: ""
                         if (fileId.isNotEmpty()) {
-                            onDownloadFile(fileId, message.content)
+                            onDownloadFile(fileId, message.content ?: "")
                         }
                     }
                 },
@@ -114,11 +114,11 @@ fun GenericFileAttachment(
                 .combinedClickable(
                     onClick = {
                         if (isDownloaded) {
-                            onOpenFile(message.content)
+                            onOpenFile(message.content ?: "")
                         } else {
                             val fileId = message.mediaUrl?.substringAfterLast("/") ?: ""
                             if (fileId.isNotEmpty()) {
-                                onDownloadFile(fileId, message.content)
+                                onDownloadFile(fileId, message.content ?: "")
                             }
                         }
                     },
@@ -133,7 +133,7 @@ fun GenericFileAttachment(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = message.content,
+                text = message.content ?: "",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -154,7 +154,7 @@ fun GenericFileAttachment(
                 }
 
                 IconButton(
-                    onClick = { onSaveFile(message.content) },
+                    onClick = { onSaveFile(message.content ?: "") },
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
@@ -193,7 +193,7 @@ fun FileAttachment(
     onLongClick: () -> Unit
 ) {
     val context = LocalContext.current
-    val file = File(context.getExternalFilesDir(null), message.content)
+    val file = File(context.getExternalFilesDir(null), message.content ?: "")
     val isDownloaded = file.exists()
 
     val isImage = message.mediaType?.startsWith("image/") == true

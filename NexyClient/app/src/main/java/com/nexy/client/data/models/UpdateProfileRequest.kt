@@ -24,6 +24,9 @@ data class UpdateProfileRequest(
     @SerializedName("typing_indicators_enabled")
     val typingIndicatorsEnabled: Boolean? = null,
 
+    @SerializedName("voice_messages_enabled")
+    val voiceMessagesEnabled: Boolean? = null,
+
     @SerializedName("show_online_status")
     val showOnlineStatus: Boolean? = null
 )

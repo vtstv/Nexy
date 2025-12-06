@@ -112,6 +112,10 @@ func (r *NexyChatRepo) GetChatMembers(ctx context.Context, chatID int) ([]int, e
 	return r.repo.GetChatMembers(ctx, chatID)
 }
 
+func (r *NexyChatRepo) GetByID(ctx context.Context, id int) (*models.Chat, error) {
+	return r.repo.GetByID(ctx, id)
+}
+
 func (r *NexyChatRepo) Create(ctx context.Context, chat *models.Chat) error {
 	return r.repo.Create(ctx, chat)
 }

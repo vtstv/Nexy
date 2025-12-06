@@ -157,7 +157,7 @@ class ChatMessageHandler @Inject constructor(
         }
         
         if (settingsManager.isPushNotificationsEnabled() && !isChatMuted) {
-            notificationHelper.showNotification("New Message", message.content, message.chatId)
+            notificationHelper.showNotification("New Message", message.content ?: "New Message", message.chatId)
         }
     }
 
