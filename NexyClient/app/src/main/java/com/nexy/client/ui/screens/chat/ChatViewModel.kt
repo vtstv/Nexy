@@ -7,54 +7,64 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nexy.client.data.models.Message
+import com.nexy.client.ui.screens.chat.delegates.FileDelegate
+import com.nexy.client.ui.screens.chat.delegates.MembershipDelegate
+import com.nexy.client.ui.screens.chat.delegates.MessageDelegate
+import com.nexy.client.ui.screens.chat.delegates.SearchDelegate
 import com.nexy.client.ui.screens.chat.handlers.CallHandler
-import com.nexy.client.ui.screens.chat.handlers.ChatMembershipHandler
 import com.nexy.client.ui.screens.chat.handlers.ChatStateManager
-import com.nexy.client.ui.screens.chat.handlers.EditingHandler
-import com.nexy.client.ui.screens.chat.handlers.FileOperationsHandler
-import com.nexy.client.ui.screens.chat.handlers.MessageOperationsHandler
 import com.nexy.client.ui.screens.chat.handlers.ReadReceiptHandler
-import com.nexy.client.ui.screens.chat.handlers.SearchHandler
 import com.nexy.client.ui.screens.chat.handlers.TypingHandler
 import com.nexy.client.ui.screens.chat.state.ChatUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val stateManager: ChatStateManager,
-    private val messageOps: MessageOperationsHandler,
-    private val fileOps: FileOperationsHandler,
     private val callHandler: CallHandler,
-    private val searchHandler: SearchHandler,
     private val typingHandler: TypingHandler,
-    private val editingHandler: EditingHandler,
-    private val membershipHandler: ChatMembershipHandler,
     private val readReceiptHandler: ReadReceiptHandler,
+    private val searchDelegate: SearchDelegate,
+    private val fileDelegate: FileDelegate,
+    private val membershipDelegate: MembershipDelegate,
+    private val messageDelegate: MessageDelegate,
     private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
-    
-    private var chatId: Int = savedStateHandle.get<Int>("chatId") 
-        ?: savedStateHandle.get<String>("chatId")?.toIntOrNull() 
+
+    private var chatId: Int = savedStateHandle.get<Int>("chatId")
+        ?: savedStateHandle.get<String>("chatId")?.toIntOrNull()
         ?: 0
-    
+
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
-    
+
     init {
         android.util.Log.d("ChatViewModel", "ViewModel init: chatId=$chatId")
+        initializeDelegates()
+        
         if (chatId <= 0) {
             _uiState.value = _uiState.value.copy(error = "Invalid chat ID", isLoading = false)
         } else {
             initializeChat()
         }
         observeTypingEvents()
-        observeConnectionStatus()
+        messageDelegate.observeConnectionStatus()
     }
-    
+
+    private fun initializeDelegates() {
+        val getChatId = { chatId }
+        searchDelegate.initialize(viewModelScope, _uiState, getChatId)
+        fileDelegate.initialize(viewModelScope, _uiState, getChatId)
+        membershipDelegate.initialize(viewModelScope, _uiState, getChatId)
+        membershipDelegate.setOnChatInitialized { initializeChat() }
+        messageDelegate.initialize(viewModelScope, _uiState, getChatId)
+    }
+
     fun initializeChatId(newChatId: Int) {
         android.util.Log.d("ChatViewModel", "initializeChatId: newChatId=$newChatId, current=$chatId")
         if (chatId <= 0 && newChatId > 0) {
@@ -64,18 +74,18 @@ class ChatViewModel @Inject constructor(
             initializeChat()
         }
     }
-    
+
     fun onChatOpened() {
         android.util.Log.d("ChatViewModel", "onChatOpened: fetching fresh chat info from server")
         readReceiptHandler.reset()
         readReceiptHandler.setChatActive(true)
-        
+
         viewModelScope.launch {
             loadCurrentUserAndChatInfo()
-            loadMessages()
+            messageDelegate.loadMessages()
         }
     }
-    
+
     fun setChatId(newChatId: Int, savedStateHandle: SavedStateHandle) {
         savedStateHandle["chatId"] = newChatId
     }
@@ -83,10 +93,10 @@ class ChatViewModel @Inject constructor(
     private fun initializeChat() {
         viewModelScope.launch {
             loadCurrentUserAndChatInfo()
-            loadMessages()
+            messageDelegate.loadMessages()
         }
     }
-    
+
     fun onChatClosed() {
         android.util.Log.d("ChatViewModel", "onChatClosed: marking as read now")
         readReceiptHandler.setChatActive(false)
@@ -95,15 +105,15 @@ class ChatViewModel @Inject constructor(
             readReceiptHandler.markAsRead(chatId)
         }
     }
-    
+
     private suspend fun loadCurrentUserAndChatInfo() {
         val userId = stateManager.loadCurrentUserId()
         _uiState.value = _uiState.value.copy(currentUserId = userId)
-        
+
         try {
             stateManager.loadChatInfo(chatId, userId)?.let { chatInfo ->
                 readReceiptHandler.saveFirstUnreadMessageId(chatInfo.firstUnreadMessageId)
-                
+
                 android.util.Log.d("ChatViewModel", "Chat info loaded: unreadCount=${chatInfo.unreadCount}, firstUnreadMessageId=${chatInfo.firstUnreadMessageId}")
                 _uiState.value = _uiState.value.copy(
                     chatName = chatInfo.chatName,
@@ -131,237 +141,44 @@ class ChatViewModel @Inject constructor(
                     val typingUserName = if (isTyping && senderId != null && _uiState.value.chatType == com.nexy.client.data.models.ChatType.GROUP) {
                         stateManager.getUserName(senderId) ?: "Someone"
                     } else null
-                    
+
                     _uiState.value = _uiState.value.copy(isTyping = isTyping, typingUser = typingUserName)
                 }
             }
         }
     }
-    
-    private fun observeConnectionStatus() {
-        viewModelScope.launch {
-            messageOps.observeConnectionStatus().collect { isConnected ->
-                _uiState.value = _uiState.value.copy(isConnected = isConnected)
-            }
-        }
-        viewModelScope.launch {
-            messageOps.getPendingMessageCount().collect { count ->
-                _uiState.value = _uiState.value.copy(pendingMessageCount = count)
-            }
-        }
-    }
 
-    // region Search
-    fun toggleSearch() {
-        _uiState.value = _uiState.value.copy(
-            isSearching = !_uiState.value.isSearching,
-            searchQuery = "",
-            searchResults = emptyList()
-        )
-    }
-
-    fun updateSearchQuery(query: String) {
-        _uiState.value = _uiState.value.copy(searchQuery = query)
-        if (query.length > 2) {
-            viewModelScope.launch {
-                searchHandler.searchMessages(chatId, query)
-                    .onSuccess { results ->
-                        _uiState.value = _uiState.value.copy(searchResults = results)
-                    }
-            }
-        } else {
-            _uiState.value = _uiState.value.copy(searchResults = emptyList())
-        }
-    }
+    // region Search - delegated
+    fun toggleSearch() = searchDelegate.toggleSearch()
+    fun updateSearchQuery(query: String) = searchDelegate.updateSearchQuery(query)
     // endregion
 
-    // region Load Data
-    
-    private fun loadMessages() {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true)
-            messageOps.observeMessages(chatId).collect { messages ->
-                val newestMessage = messages.filter { it.timestamp != null }
-                    .maxByOrNull { it.timestamp!! }
-                readReceiptHandler.updateLastKnownMessageId(newestMessage?.id)
-                
-                _uiState.value = _uiState.value.copy(
-                    messages = messages,
-                    isLoading = false
-                )
-                
-                if (!readReceiptHandler.isChatActive()) {
-                    android.util.Log.d("ChatViewModel", "Chat not active, skipping markAsRead")
-                } else if (readReceiptHandler.isFirstLoading() && messages.isNotEmpty()) {
-                    readReceiptHandler.setFirstLoadingComplete()
-                    android.util.Log.d("ChatViewModel", "Messages loaded, marking as read now")
-                    readReceiptHandler.markAsRead(chatId)
-                }
-            }
-        }
-        
-        viewModelScope.launch {
-            try {
-                messageOps.loadMessages(chatId)
-            } catch (e: Exception) {
-                // Error handled in repository
-            }
-        }
-    }
+    // region Message Operations - delegated
+    fun onMessageTextChanged(text: TextFieldValue) = messageDelegate.onMessageTextChanged(text)
+    fun onMessageTextChanged(text: String) = messageDelegate.onMessageTextChanged(text)
+    fun sendMessage(replyToId: Int? = null) = messageDelegate.sendMessage(replyToId)
+    fun onUserSawNewMessages() = messageDelegate.onUserSawNewMessages()
     // endregion
 
-    // region Message Operations
-    fun onMessageTextChanged(text: TextFieldValue) {
-        _uiState.value = _uiState.value.copy(messageText = text)
-        typingHandler.handleTextChanged(viewModelScope, chatId, text.text.isNotEmpty())
-    }
-    
-    fun onMessageTextChanged(text: String) {
-        _uiState.value = _uiState.value.copy(messageText = TextFieldValue(text))
-        typingHandler.handleTextChanged(viewModelScope, chatId, text.isNotEmpty())
-    }
-    
-    fun sendMessage(replyToId: Int? = null) {
-        if (_uiState.value.editingMessage != null) {
-            saveEditedMessage()
-            return
-        }
-
-        val text = _uiState.value.messageText.text.trim()
-        if (text.isEmpty()) return
-        
-        viewModelScope.launch {
-            val userId = _uiState.value.currentUserId ?: return@launch
-            _uiState.value = _uiState.value.copy(messageText = TextFieldValue(""))
-            
-            messageOps.sendMessage(
-                chatId = chatId,
-                userId = userId,
-                text = text,
-                chatType = _uiState.value.chatType,
-                isSelfChat = _uiState.value.isSelfChat,
-                participantIds = _uiState.value.participantIds,
-                replyToId = replyToId
-            ).onFailure { error ->
-                _uiState.value = _uiState.value.copy(error = error.message ?: "Failed to send message")
-            }
-        }
-    }
-    
-    fun onUserSawNewMessages() {
-        if (!readReceiptHandler.isChatActive()) return
-        
-        val job = viewModelScope.launch {
-            delay(readReceiptHandler.getDebounceMs())
-            android.util.Log.d("ChatViewModel", "User saw new messages (debounced), marking as read")
-            readReceiptHandler.markAsRead(chatId)
-        }
-        readReceiptHandler.setDebounceJob(job)
-    }
+    // region Editing - delegated
+    fun startEditing(message: Message) = messageDelegate.startEditing(message)
+    fun cancelEditing() = messageDelegate.cancelEditing()
+    fun saveEditedMessage() = messageDelegate.saveEditedMessage()
+    fun deleteMessage(messageId: String) = messageDelegate.deleteMessage(messageId)
     // endregion
 
-    // region Editing
-    fun startEditing(message: Message) {
-        _uiState.value = _uiState.value.copy(
-            editingMessage = message,
-            messageText = TextFieldValue(message.content)
-        )
-    }
-
-    fun cancelEditing() {
-        _uiState.value = _uiState.value.copy(editingMessage = null, messageText = TextFieldValue(""))
-    }
-
-    fun saveEditedMessage() {
-        val message = _uiState.value.editingMessage ?: return
-        val newContent = _uiState.value.messageText.text.trim()
-
-        if (newContent.isEmpty() || newContent == message.content) {
-            cancelEditing()
-            return
-        }
-
-        viewModelScope.launch {
-            editingHandler.editMessage(message.id, newContent)
-                .onSuccess { cancelEditing() }
-                .onFailure { e -> _uiState.value = _uiState.value.copy(error = e.message) }
-        }
-    }
-
-    fun deleteMessage(messageId: String) {
-        viewModelScope.launch {
-            editingHandler.deleteMessage(messageId)
-                .onFailure { e -> _uiState.value = _uiState.value.copy(error = e.message) }
-        }
-    }
+    // region Chat Operations - delegated
+    fun clearChat() = membershipDelegate.clearChat()
+    fun deleteChat() = membershipDelegate.deleteChat()
     // endregion
 
-    // region Chat Operations
-    // region Chat Operations
-    fun clearChat() {
-        viewModelScope.launch {
-            membershipHandler.clearChat(chatId).onFailure { error ->
-                _uiState.value = _uiState.value.copy(error = error.message ?: "Failed to clear chat")
-            }
-        }
-    }
-    
-    fun deleteChat() {
-        viewModelScope.launch {
-            membershipHandler.deleteChat(chatId).onFailure { error ->
-                _uiState.value = _uiState.value.copy(error = error.message ?: "Failed to delete chat")
-            }
-        }
-    }
-    // endregion
-
-    // region File Operations
-    fun sendFileMessage(context: Context, fileUri: Uri, fileName: String) {
-        viewModelScope.launch {
-            val userId = _uiState.value.currentUserId ?: return@launch
-            _uiState.value = _uiState.value.copy(isLoading = true)
-            
-            fileOps.sendFileMessage(chatId, userId, context, fileUri, fileName)
-                .onSuccess {
-                    _uiState.value = _uiState.value.copy(error = null, isLoading = false)
-                }
-                .onFailure { error ->
-                    _uiState.value = _uiState.value.copy(error = error.message ?: "Failed to send file", isLoading = false)
-                }
-        }
-    }
-    
-    fun downloadFile(context: Context, fileId: String, fileName: String) {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true)
-            
-            fileOps.downloadFile(fileId, context, fileName)
-                .onSuccess {
-                    _uiState.value = _uiState.value.copy(isLoading = false, error = null, messages = _uiState.value.messages)
-                }
-                .onFailure { error ->
-                    _uiState.value = _uiState.value.copy(error = error.message ?: "Failed to download file", isLoading = false)
-                }
-        }
-    }
-    
-    fun openFile(context: Context, fileName: String) {
-        fileOps.openFile(context, fileName)?.let { error ->
-            _uiState.value = _uiState.value.copy(error = error)
-        }
-    }
-    
-    fun saveFile(context: Context, fileName: String) {
-        viewModelScope.launch {
-            fileOps.saveFileToDownloads(context, fileName)
-                .onSuccess {
-                    android.widget.Toast.makeText(context, "File saved to Downloads", android.widget.Toast.LENGTH_SHORT).show()
-                }
-                .onFailure { error ->
-                    _uiState.value = _uiState.value.copy(error = error.message ?: "Failed to save file")
-                }
-        }
-    }
+    // region File Operations - delegated
+    fun sendFileMessage(context: Context, fileUri: Uri, fileName: String) =
+        fileDelegate.sendFileMessage(context, fileUri, fileName)
+    fun downloadFile(context: Context, fileId: String, fileName: String) =
+        fileDelegate.downloadFile(context, fileId, fileName)
+    fun openFile(context: Context, fileName: String) = fileDelegate.openFile(context, fileName)
+    fun saveFile(context: Context, fileName: String) = fileDelegate.saveFile(context, fileName)
     // endregion
 
     // region Call
@@ -372,103 +189,16 @@ class ChatViewModel @Inject constructor(
     }
     // endregion
 
-    // region Membership
-    fun joinGroup() {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true)
-            membershipHandler.joinGroup(chatId)
-                .onSuccess {
-                    _uiState.value = _uiState.value.copy(isLoading = false, isMember = true)
-                    initializeChat()
-                }
-                .onFailure { error ->
-                    _uiState.value = _uiState.value.copy(isLoading = false, error = error.message ?: "Failed to join group")
-                }
-        }
-    }
-
-    fun muteChat(duration: String?, until: String?) {
-        viewModelScope.launch {
-            membershipHandler.muteChat(chatId, duration, until)
-                .onSuccess { refreshChatInfo() }
-                .onFailure { e -> _uiState.value = _uiState.value.copy(error = e.message) }
-        }
-    }
-
-    fun unmuteChat() {
-        viewModelScope.launch {
-            membershipHandler.unmuteChat(chatId)
-                .onSuccess { refreshChatInfo() }
-                .onFailure { e -> _uiState.value = _uiState.value.copy(error = e.message) }
-        }
-    }
-
-    suspend fun validateGroupInvite(code: String) = membershipHandler.validateGroupInvite(code)
-
-    suspend fun joinByInviteCode(code: String): Result<Int> {
-        return membershipHandler.joinByInviteCode(code).map { response ->
-            response.chat?.id ?: throw Exception("No chat returned")
-        }
-    }
-    
-    // Invite preview loading for cards in chat
-    fun loadInvitePreview(code: String) {
-        // Skip if already loaded or loading
-        if (_uiState.value.invitePreviews.containsKey(code) || 
-            _uiState.value.loadingInviteCodes.contains(code)) {
-            return
-        }
-        
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                loadingInviteCodes = _uiState.value.loadingInviteCodes + code
-            )
-            
-            membershipHandler.validateGroupInvite(code)
-                .onSuccess { preview ->
-                    _uiState.value = _uiState.value.copy(
-                        invitePreviews = _uiState.value.invitePreviews + (code to preview),
-                        loadingInviteCodes = _uiState.value.loadingInviteCodes - code
-                    )
-                }
-                .onFailure {
-                    _uiState.value = _uiState.value.copy(
-                        loadingInviteCodes = _uiState.value.loadingInviteCodes - code
-                    )
-                }
-        }
-    }
-    
-    fun getInvitePreview(code: String): com.nexy.client.data.models.InvitePreviewResponse? {
-        // Trigger loading if not loaded yet
-        loadInvitePreview(code)
-        return _uiState.value.invitePreviews[code]
-    }
-    
-    fun isLoadingInvitePreview(code: String): Boolean {
-        return _uiState.value.loadingInviteCodes.contains(code)
-    }
+    // region Membership - delegated
+    fun joinGroup() = membershipDelegate.joinGroup()
+    fun muteChat(duration: String?, until: String?) = membershipDelegate.muteChat(duration, until)
+    fun unmuteChat() = membershipDelegate.unmuteChat()
+    suspend fun validateGroupInvite(code: String) = membershipDelegate.validateGroupInvite(code)
+    suspend fun joinByInviteCode(code: String) = membershipDelegate.joinByInviteCode(code)
+    fun loadInvitePreview(code: String) = membershipDelegate.loadInvitePreview(code)
+    fun getInvitePreview(code: String) = membershipDelegate.getInvitePreview(code)
+    fun isLoadingInvitePreview(code: String) = membershipDelegate.isLoadingInvitePreview(code)
     // endregion
-    
-    private fun refreshChatInfo() {
-        viewModelScope.launch {
-            val currentUserId = stateManager.loadCurrentUserId()
-            stateManager.loadChatInfo(chatId, currentUserId)?.let { chatInfo ->
-                _uiState.value = _uiState.value.copy(
-                    chatName = chatInfo.chatName,
-                    chatAvatarUrl = chatInfo.chatAvatarUrl,
-                    chatType = chatInfo.chatType,
-                    groupType = chatInfo.groupType,
-                    participantIds = chatInfo.participantIds,
-                    isSelfChat = chatInfo.isSelfChat,
-                    isCreator = chatInfo.isCreator,
-                    isMember = chatInfo.isMember,
-                    mutedUntil = chatInfo.mutedUntil,
-                    otherUserOnlineStatus = chatInfo.otherUserOnlineStatus
-                )
-            }
-        }
-    }
 
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
