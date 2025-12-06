@@ -41,6 +41,7 @@ fun MessageList(
     onReplyMessage: (Message) -> Unit = {},
     onEditMessage: (Message) -> Unit = {},
     onCopyMessage: () -> Unit = {},
+    onPinMessage: (Message) -> Unit = {},
     onDownloadFile: (String, String) -> Unit,
     onOpenFile: (String) -> Unit,
     onSaveFile: (String) -> Unit,
@@ -160,12 +161,14 @@ fun MessageList(
                     val isOwnMessage = message.senderId == currentUserId
                     val canDeleteMessage = isOwnMessage || 
                         (chatType == ChatType.GROUP && (userRole == "admin" || userRole == "owner"))
+                    val canPinMessage = chatType == ChatType.GROUP && (userRole == "admin" || userRole == "owner")
 
                     MessageBubble(
                         message = message,
                         isOwnMessage = isOwnMessage,
                         isGroupChat = chatType == ChatType.GROUP,
                         canDeleteMessage = canDeleteMessage,
+                        canPinMessage = canPinMessage,
                         repliedMessage = repliedMessage,
                         fontScale = fontScale,
                         textColor = if (message.senderId == currentUserId) outgoingTextColor else incomingTextColor,
@@ -175,6 +178,7 @@ fun MessageList(
                         onReply = { onReplyMessage(message) },
                         onEdit = { onEditMessage(message) },
                         onCopy = onCopyMessage,
+                        onPin = { onPinMessage(message) },
                         onDownloadFile = onDownloadFile,
                         onOpenFile = onOpenFile,
                         onSaveFile = onSaveFile,

@@ -20,11 +20,13 @@ fun MessageContextMenu(
     messageContent: String,
     isOwnMessage: Boolean,
     canDeleteMessage: Boolean = false,
+    canPinMessage: Boolean = false,
     hasAttachment: Boolean,
     isDownloaded: Boolean,
     onReply: () -> Unit,
     onCopy: () -> Unit,
     onEdit: () -> Unit,
+    onPin: () -> Unit = {},
     onDelete: () -> Unit,
     onOpenFile: () -> Unit,
     onSaveFile: () -> Unit,
@@ -83,6 +85,17 @@ fun MessageContextMenu(
                     leadingIcon = { Icon(Icons.Default.Download, contentDescription = null) }
                 )
             }
+        }
+
+        if (canPinMessage) {
+            DropdownMenuItem(
+                text = { Text("Pin") },
+                onClick = {
+                    onPin()
+                    onDismiss()
+                },
+                leadingIcon = { Icon(Icons.Default.PushPin, contentDescription = null) }
+            )
         }
 
         if (isOwnMessage) {
