@@ -192,6 +192,9 @@ data class UserSession(
     @SerializedName("user_id")
     val userId: Int,
     
+    @SerializedName("device_id")
+    val deviceId: String,
+    
     @SerializedName("device_name")
     val deviceName: String,
     

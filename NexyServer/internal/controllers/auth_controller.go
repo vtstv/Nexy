@@ -104,13 +104,19 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 
 	// Create session for this login
 	userAgent := r.Header.Get("User-Agent")
+	deviceID := r.Header.Get("X-Device-ID") // Get unique device ID from client
 	ipAddress := r.RemoteAddr
 	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
 		ipAddress = strings.Split(forwarded, ",")[0]
 	}
 
+	// Fallback to IP if no device ID provided (backward compatibility)
+	if deviceID == "" {
+		deviceID = ipAddress
+	}
+
 	deviceName, deviceType := parseUserAgent(userAgent)
-	c.sessionRepo.CreateFromLogin(r.Context(), user.ID, deviceName, deviceType, ipAddress, userAgent)
+	c.sessionRepo.CreateFromLogin(r.Context(), user.ID, deviceID, deviceName, deviceType, ipAddress, userAgent)
 
 	response := AuthResponse{
 		AccessToken:  accessToken,

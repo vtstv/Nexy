@@ -1,6 +1,8 @@
 package com.nexy.client.data.local
 
 import android.content.Context
+import android.os.Build
+import android.provider.Settings
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -9,6 +11,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.util.UUID
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "auth_prefs")
 
@@ -22,6 +25,7 @@ class AuthTokenManager(private val context: Context) {
         private val SAVED_PASSWORD_KEY = stringPreferencesKey("saved_password")
         private val REMEMBER_ME_KEY = stringPreferencesKey("remember_me")
         private val BACKGROUND_SERVICE_ENABLED_KEY = booleanPreferencesKey("background_service_enabled")
+        private val DEVICE_ID_KEY = stringPreferencesKey("device_id")
     }
     
     suspend fun saveTokens(accessToken: String, refreshToken: String) {
@@ -113,5 +117,34 @@ class AuthTokenManager(private val context: Context) {
         return context.dataStore.data.map { prefs ->
             prefs[BACKGROUND_SERVICE_ENABLED_KEY] ?: false
         }.first()
+    }
+
+    /**
+     * Get or generate a unique device ID for this app installation.
+     * Format: "Android-{MODEL}-{ANDROID_ID}-{UUID}"
+     * Example: "Android-SM-G991B-a1b2c3d4e5f6-12345678-1234-5678-90ab-cdef12345678"
+     */
+    suspend fun getDeviceId(): String {
+        return context.dataStore.data.map { prefs ->
+            prefs[DEVICE_ID_KEY]
+        }.first() ?: run {
+            // Generate new device ID
+            val androidId = try {
+                Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+            } catch (e: Exception) {
+                "unknown"
+            }
+            
+            val model = Build.MODEL.replace(" ", "-")
+            val uniqueId = UUID.randomUUID().toString()
+            val deviceId = "Android-$model-$androidId-$uniqueId"
+            
+            // Save it
+            context.dataStore.edit { prefs ->
+                prefs[DEVICE_ID_KEY] = deviceId
+            }
+            
+            deviceId
+        }
     }
 }

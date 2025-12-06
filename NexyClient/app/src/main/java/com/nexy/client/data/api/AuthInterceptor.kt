@@ -12,23 +12,27 @@ class AuthInterceptor(
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
         
-        // Skip auth for login/register endpoints
-        val url = originalRequest.url.toString()
-        if (url.contains("/auth/login") || url.contains("/auth/register")) {
-            return chain.proceed(originalRequest)
-        }
-        
         val token = runBlocking { 
             tokenManager.getAccessToken() 
         }
         
-        val newRequest = if (token != null && token.isNotEmpty()) {
-            originalRequest.newBuilder()
-                .header("Authorization", "Bearer $token")
-                .build()
-        } else {
-            originalRequest
+        val deviceId = runBlocking {
+            tokenManager.getDeviceId()
         }
+        
+        val newRequest = originalRequest.newBuilder()
+            .apply {
+                // Always add device ID header
+                header("X-Device-ID", deviceId)
+                
+                // Add auth token if available (skip for login/register)
+                val url = originalRequest.url.toString()
+                if (token != null && token.isNotEmpty() && 
+                    !url.contains("/auth/login") && !url.contains("/auth/register")) {
+                    header("Authorization", "Bearer $token")
+                }
+            }
+            .build()
         
         return chain.proceed(newRequest)
     }

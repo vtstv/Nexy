@@ -73,6 +73,7 @@ fun SecuritySection(
     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
     // ========== THIS DEVICE SECTION ==========
+    // Server marks current device by device_id, so we can trust isCurrent flag
     val currentSession = sessions.find { it.isCurrent }
     val otherSessions = sessions.filter { !it.isCurrent }
 
@@ -210,7 +211,7 @@ private fun CurrentDeviceItem(session: UserSession) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = session.ipAddress,
+                    text = extractDeviceModel(session.deviceId),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -247,7 +248,7 @@ private fun OtherDeviceItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = "${session.ipAddress} • ${formatLastActive(session.lastActive)}",
+                    text = "${extractDeviceModel(session.deviceId)} • ${formatLastActive(session.lastActive)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -354,5 +355,36 @@ private fun formatLastActive(dateString: String): String {
         }
     } catch (e: Exception) {
         dateString
+    }
+}
+
+/**
+ * Extract device model from device_id.
+ * Device ID format: "Android-{MODEL}-{ANDROID_ID}-{UUID}"
+ * Example: "Android-SM-S901E-d19984e93f258d95-62a55c07-416f-4419-b417-1a3831c9daba"
+ * Returns: "SM-S901E"
+ */
+private fun extractDeviceModel(deviceId: String): String {
+    return try {
+        val parts = deviceId.split("-")
+        // Device ID starts with "Android-{MODEL}-..."
+        // For model "SM-S901E", after split we get: ["Android", "SM", "S901E", "d19984e93f258d95", ...]
+        // We need to join parts[1] and parts[2] if parts[2] looks like part of model (starts with letter or digit, not long hex)
+        if (parts.size >= 3 && parts[0] == "Android") {
+            val firstPart = parts[1]
+            val secondPart = parts.getOrNull(2) ?: ""
+            
+            // If second part is short (< 10 chars) and alphanumeric, it's likely part of model name
+            // Otherwise it's android_id (long hex string like "d19984e93f258d95")
+            if (secondPart.length < 10 && secondPart.isNotEmpty() && secondPart[0].isLetterOrDigit()) {
+                "$firstPart-$secondPart"
+            } else {
+                firstPart
+            }
+        } else {
+            "Unknown"
+        }
+    } catch (e: Exception) {
+        "Unknown"
     }
 }

@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -36,16 +37,25 @@ func (c *SessionController) GetSessions(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Get current device ID from request header
+	currentDeviceID := r.Header.Get("X-Device-ID")
+	ipAddress := r.RemoteAddr
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		ipAddress = strings.Split(forwarded, ",")[0]
+	}
+
+	// Fallback to IP if no device ID provided
+	if currentDeviceID == "" {
+		currentDeviceID = ipAddress
+	}
+
+	log.Printf("GetSessions: user_id=%d, currentDeviceID=%s, sessionCount=%d", userID, currentDeviceID, len(sessions))
+
 	// If no sessions exist, create one for the current device (for users who logged in before sessions were added)
 	if len(sessions) == 0 {
 		userAgent := r.Header.Get("User-Agent")
-		ipAddress := r.RemoteAddr
-		if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-			ipAddress = strings.Split(forwarded, ",")[0]
-		}
-
 		deviceName, deviceType := parseSessionUserAgent(userAgent)
-		c.sessionRepo.CreateFromLogin(r.Context(), userID, deviceName, deviceType, ipAddress, userAgent)
+		c.sessionRepo.CreateFromLogin(r.Context(), userID, currentDeviceID, deviceName, deviceType, ipAddress, userAgent)
 
 		// Fetch the newly created session
 		sessions, err = c.sessionRepo.GetByUserID(r.Context(), userID)
@@ -53,6 +63,12 @@ func (c *SessionController) GetSessions(w http.ResponseWriter, r *http.Request) 
 			http.Error(w, "Failed to get sessions", http.StatusInternalServerError)
 			return
 		}
+	}
+
+	// Mark the session matching current device ID as "is_current"
+	for i := range sessions {
+		sessions[i].IsCurrent = sessions[i].DeviceID == currentDeviceID
+		log.Printf("  Session %d: DeviceID=%s, currentDeviceID=%s, isCurrent=%v", sessions[i].ID, sessions[i].DeviceID, currentDeviceID, sessions[i].IsCurrent)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

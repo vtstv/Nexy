@@ -35,6 +35,7 @@ type UserSession struct {
 	ID             int       `json:"id"`
 	UserID         int       `json:"user_id"`
 	RefreshTokenID *int      `json:"refresh_token_id,omitempty"`
+	DeviceID       string    `json:"device_id"`
 	DeviceName     string    `json:"device_name"`
 	DeviceType     string    `json:"device_type"`
 	IPAddress      string    `json:"ip_address"`

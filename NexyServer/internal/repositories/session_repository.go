@@ -34,15 +34,16 @@ func (r *SessionRepository) Create(ctx context.Context, session *models.UserSess
 	).Scan(&session.ID, &session.LastActive, &session.CreatedAt)
 }
 
-func (r *SessionRepository) CreateFromLogin(ctx context.Context, userID int, deviceName, deviceType, ipAddress, userAgent string) error {
+func (r *SessionRepository) CreateFromLogin(ctx context.Context, userID int, deviceID, deviceName, deviceType, ipAddress, userAgent string) error {
 	query := `
-		INSERT INTO user_sessions (user_id, device_name, device_type, ip_address, user_agent, is_current, last_active)
-		VALUES ($1, $2, $3, $4, $5, TRUE, NOW())
+		INSERT INTO user_sessions (user_id, device_id, device_name, device_type, ip_address, user_agent, is_current, last_active)
+		VALUES ($1, $2, $3, $4, $5, $6, TRUE, NOW())
 		RETURNING id`
 
 	var id int
 	return r.db.QueryRowContext(ctx, query,
 		userID,
+		deviceID,
 		deviceName,
 		deviceType,
 		ipAddress,
@@ -52,7 +53,7 @@ func (r *SessionRepository) CreateFromLogin(ctx context.Context, userID int, dev
 
 func (r *SessionRepository) GetByUserID(ctx context.Context, userID int) ([]models.UserSession, error) {
 	query := `
-		SELECT id, user_id, refresh_token_id, device_name, device_type, ip_address, user_agent, last_active, created_at, is_current
+		SELECT id, user_id, refresh_token_id, device_id, device_name, device_type, ip_address, user_agent, last_active, created_at, is_current
 		FROM user_sessions
 		WHERE user_id = $1
 		ORDER BY last_active DESC`
@@ -71,6 +72,7 @@ func (r *SessionRepository) GetByUserID(ctx context.Context, userID int) ([]mode
 			&s.ID,
 			&s.UserID,
 			&refreshTokenID,
+			&s.DeviceID,
 			&s.DeviceName,
 			&s.DeviceType,
 			&s.IPAddress,
