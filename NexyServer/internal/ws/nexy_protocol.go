@@ -12,11 +12,11 @@ const (
 type MessageType string
 
 const (
-	TypeChatMessage   MessageType = "chat_message"
-	TypeChatCreated   MessageType = "chat_created"
-	TypeAddedToGroup  MessageType = "added_to_group"
-	TypeTyping        MessageType = "typing"
-	TypeDelivered     MessageType = "delivered"
+	TypeChatMessage  MessageType = "chat_message"
+	TypeChatCreated  MessageType = "chat_created"
+	TypeAddedToGroup MessageType = "added_to_group"
+	TypeTyping       MessageType = "typing"
+	TypeDelivered    MessageType = "delivered"
 	TypeRead         MessageType = "read"
 	TypeEdit         MessageType = "edit"
 	TypeDelete       MessageType = "delete"
