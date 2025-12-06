@@ -46,6 +46,7 @@ func main() {
 	sessionRepo := repositories.NewSessionRepository(db)
 	folderRepo := repositories.NewFolderRepository(db)
 	syncRepo := repositories.NewSyncRepository(db.DB)
+	reactionRepo := repositories.NewReactionRepository(db.DB)
 
 	authService := services.NewAuthService(userRepo, refreshTokenRepo, &cfg.JWT)
 	userService := services.NewUserService(userRepo, chatRepo, messageRepo)
@@ -59,6 +60,7 @@ func main() {
 	contactService := services.NewContactService(contactRepo, userRepo)
 	syncService := services.NewSyncService(syncRepo)
 	fcmService := services.NewFcmService(cfg, userRepo)
+	reactionService := services.NewReactionService(reactionRepo, messageRepo, chatRepo)
 
 	nexyChatRepo := nexy.NewNexyChatRepo(chatRepo)
 	hub := nexy.NewHub(redisClient.Client, messageRepo, nexyChatRepo, userRepo, fcmService)
@@ -90,6 +92,7 @@ func main() {
 	folderController := controllers.NewFolderController(folderRepo)
 	syncController := controllers.NewSyncController(syncService)
 	fcmController := controllers.NewFcmController(fcmService)
+	reactionController := controllers.NewReactionController(reactionService, hub)
 
 	wsHandler := nexy.NewWSHandler(hub)
 	wsController := controllers.NewWSController(wsHandler, authService)
@@ -113,6 +116,7 @@ func main() {
 		folderController,
 		syncController,
 		fcmController,
+		reactionController,
 		authMiddleware,
 		corsMiddleware,
 		rateLimiter,

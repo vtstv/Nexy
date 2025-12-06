@@ -14,7 +14,8 @@ import javax.inject.Singleton
 class ChatRepository @Inject constructor(
     private val chatOperations: ChatOperations,
     private val messageOperations: MessageOperations,
-    private val fileOperations: FileOperations
+    private val fileOperations: FileOperations,
+    private val reactionOperations: com.nexy.client.data.repository.reaction.ReactionOperations
 ) {
     
     // ===== CHAT OPERATIONS DELEGATION =====
@@ -172,6 +173,17 @@ class ChatRepository @Inject constructor(
     suspend fun retryMessage(messageId: String): Result<Boolean> = messageOperations.retryMessage(messageId)
     
     suspend fun cancelMessage(messageId: String): Result<Boolean> = messageOperations.cancelMessage(messageId)
+    
+    // ===== REACTION OPERATIONS DELEGATION =====
+    
+    suspend fun addReaction(messageId: Int, emoji: String): Result<Unit> = 
+        reactionOperations.addReaction(messageId, emoji)
+    
+    suspend fun removeReaction(messageId: Int, emoji: String): Result<Unit> = 
+        reactionOperations.removeReaction(messageId, emoji)
+    
+    suspend fun getReactions(messageId: Int): Result<List<ReactionCount>> = 
+        reactionOperations.getReactions(messageId)
 }
 
 // ChatInfo data class for UI

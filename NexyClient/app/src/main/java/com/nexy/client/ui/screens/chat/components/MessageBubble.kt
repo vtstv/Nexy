@@ -33,6 +33,7 @@ fun MessageBubble(
     fontScale: Float = 1.0f,
     textColor: Long = 0L,
     avatarSize: Float = 32f,
+    currentUserId: Int = 0,
     onDelete: () -> Unit = {},
     onReply: () -> Unit = {},
     onEdit: () -> Unit = {},
@@ -42,12 +43,14 @@ fun MessageBubble(
     onSaveFile: (String) -> Unit = {},
     onInviteLinkClick: (String) -> Unit = {},
     onUserLinkClick: (String) -> Unit = {},
+    onReactionClick: (Int, String) -> Unit = { _, _ -> },
     invitePreviewProvider: (String) -> InvitePreviewResponse? = { null },
     isLoadingInvitePreview: (String) -> Boolean = { false }
 ) {
     val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
+    var showReactionPanel by remember { mutableStateOf(false) }
 
     val hasAttachment = message.mediaUrl != null
     val file = if (hasAttachment) File(context.getExternalFilesDir(null), message.content ?: "") else null
@@ -70,25 +73,26 @@ fun MessageBubble(
             Spacer(modifier = Modifier.width(4.dp))
         }
 
-        Box {
-            Surface(
-                shape = if (isOwnMessage) {
-                    RoundedCornerShape(16.dp, 16.dp, 0.dp, 16.dp)
-                } else {
-                    RoundedCornerShape(16.dp, 16.dp, 16.dp, 0.dp)
-                },
-                color = if (isOwnMessage) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                },
-                modifier = Modifier
-                    .widthIn(max = (LocalConfiguration.current.screenWidthDp * 0.85f).dp)
-                    .combinedClickable(
-                        onClick = { showMenu = true },
-                        onLongClick = { showMenu = true }
-                    )
-            ) {
+        Column {
+            Box {
+                Surface(
+                    shape = if (isOwnMessage) {
+                        RoundedCornerShape(16.dp, 16.dp, 0.dp, 16.dp)
+                    } else {
+                        RoundedCornerShape(16.dp, 16.dp, 16.dp, 0.dp)
+                    },
+                    color = if (isOwnMessage) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    },
+                    modifier = Modifier
+                        .widthIn(max = (LocalConfiguration.current.screenWidthDp * 0.85f).dp)
+                        .combinedClickable(
+                            onClick = { showReactionPanel = true },
+                            onLongClick = { showMenu = true }
+                        )
+                ) {
                 Column(modifier = Modifier.padding(8.dp)) {
                     if (repliedMessage != null) {
                         ReplyPreview(repliedMessage = repliedMessage)
@@ -162,9 +166,21 @@ fun MessageBubble(
                             }
                         }
                     }
+                    
+                    // Show reactions inside the message bubble, below text
+                    if (message.reactions?.isNotEmpty() == true) {
+                        MessageReactions(
+                            reactions = message.reactions,
+                            currentUserId = currentUserId,
+                            onReactionClick = { emoji ->
+                                message.serverId?.let { onReactionClick(it, emoji) }
+                            },
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
                 }
             }
-
+            
             MessageContextMenu(
                 expanded = showMenu,
                 onDismiss = { showMenu = false },
@@ -186,6 +202,7 @@ fun MessageBubble(
                     }
                 }
             )
+            }
         }
     }
 
@@ -195,6 +212,16 @@ fun MessageBubble(
             onConfirm = {
                 showDeleteDialog = false
                 onDelete()
+            }
+        )
+    }
+    
+    if (showReactionPanel) {
+        ReactionFloatingPanel(
+            onDismiss = { showReactionPanel = false },
+            onReactionSelected = { emoji ->
+                message.serverId?.let { onReactionClick(it, emoji) }
+                showReactionPanel = false
             }
         )
     }

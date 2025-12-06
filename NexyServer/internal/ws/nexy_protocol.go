@@ -22,6 +22,8 @@ const (
 	TypeRead              MessageType = "read"
 	TypeEdit              MessageType = "edit"
 	TypeDelete            MessageType = "delete"
+	TypeReactionAdd       MessageType = "reaction_add"
+	TypeReactionRemove    MessageType = "reaction_remove"
 	TypeOnline            MessageType = "online"
 	TypeOffline           MessageType = "offline"
 	TypeHeartbeat         MessageType = "heartbeat"
@@ -77,6 +79,12 @@ type DeliveredBody struct {
 
 type ReadBody struct {
 	MessageID string `json:"message_id"`
+}
+
+type ReactionBody struct {
+	MessageID int    `json:"message_id"`
+	Emoji     string `json:"emoji"`
+	UserID    int    `json:"user_id"`
 }
 
 type EditMessageBody struct {

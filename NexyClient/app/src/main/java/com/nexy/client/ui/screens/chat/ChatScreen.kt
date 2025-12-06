@@ -259,6 +259,9 @@ fun ChatScreen(
                                     onNavigateToUserProfile?.invoke(id)
                                 }
                             },
+                            onReactionClick = { messageId, emoji ->
+                                viewModel.toggleReaction(messageId, emoji)
+                            },
                             invitePreviewProvider = { code -> viewModel.getInvitePreview(code) },
                             isLoadingInvitePreview = { code -> viewModel.isLoadingInvitePreview(code) }
                         )

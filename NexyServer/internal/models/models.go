@@ -144,6 +144,21 @@ type MessageStatus struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
+type MessageReaction struct {
+	ID        int       `json:"id"`
+	MessageID int       `json:"message_id"`
+	UserID    int       `json:"user_id"`
+	Emoji     string    `json:"emoji"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type ReactionCount struct {
+	Emoji     string `json:"emoji"`
+	Count     int    `json:"count"`
+	UserIDs   []int  `json:"user_ids"`
+	ReactedBy bool   `json:"reacted_by"` // true if current user reacted with this emoji
+}
+
 type File struct {
 	ID               int       `json:"id"`
 	FileID           string    `json:"file_id"`

@@ -230,6 +230,48 @@ func (h *Hub) BroadcastDelete(msg *models.Message) {
 	h.broadcastToChatMembers(msg.ChatID, nexyMsg)
 }
 
+func (h *Hub) BroadcastReactionAdd(chatID, messageID, userID int, emoji string) {
+	reactionBody := ReactionBody{
+		MessageID: messageID,
+		Emoji:     emoji,
+		UserID:    userID,
+	}
+	bodyBytes, _ := json.Marshal(reactionBody)
+
+	nexyMsg := &NexyMessage{
+		Header: NexyHeader{
+			Type:      TypeReactionAdd,
+			Timestamp: time.Now().Unix(),
+			SenderID:  userID,
+			ChatID:    &chatID,
+		},
+		Body: bodyBytes,
+	}
+
+	h.broadcastToChatMembers(chatID, nexyMsg)
+}
+
+func (h *Hub) BroadcastReactionRemove(chatID, messageID, userID int, emoji string) {
+	reactionBody := ReactionBody{
+		MessageID: messageID,
+		Emoji:     emoji,
+		UserID:    userID,
+	}
+	bodyBytes, _ := json.Marshal(reactionBody)
+
+	nexyMsg := &NexyMessage{
+		Header: NexyHeader{
+			Type:      TypeReactionRemove,
+			Timestamp: time.Now().Unix(),
+			SenderID:  userID,
+			ChatID:    &chatID,
+		},
+		Body: bodyBytes,
+	}
+
+	h.broadcastToChatMembers(chatID, nexyMsg)
+}
+
 func userOnlineKey(userID int) string {
 	return "user:online:" + string(rune(userID))
 }

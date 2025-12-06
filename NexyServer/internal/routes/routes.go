@@ -9,23 +9,24 @@ import (
 )
 
 type Router struct {
-	authController    *controllers.AuthController
-	userController    *controllers.UserController
-	groupController   *controllers.GroupController
-	inviteController  *controllers.InviteController
-	messageController *controllers.MessageController
-	fileController    *controllers.FileController
-	wsController      *controllers.WSController
-	e2eController     *controllers.E2EController
-	contactController *controllers.ContactController
-	turnController    *controllers.TURNController
-	sessionController *controllers.SessionController
-	folderController  *controllers.FolderController
-	syncController    *controllers.SyncController
-	fcmController     *controllers.FcmController
-	authMiddleware    *middleware.AuthMiddleware
-	corsMiddleware    *middleware.CORSMiddleware
-	rateLimiter       *middleware.RateLimiter
+	authController     *controllers.AuthController
+	userController     *controllers.UserController
+	groupController    *controllers.GroupController
+	inviteController   *controllers.InviteController
+	messageController  *controllers.MessageController
+	fileController     *controllers.FileController
+	wsController       *controllers.WSController
+	e2eController      *controllers.E2EController
+	contactController  *controllers.ContactController
+	turnController     *controllers.TURNController
+	sessionController  *controllers.SessionController
+	folderController   *controllers.FolderController
+	syncController     *controllers.SyncController
+	fcmController      *controllers.FcmController
+	reactionController *controllers.ReactionController
+	authMiddleware     *middleware.AuthMiddleware
+	corsMiddleware     *middleware.CORSMiddleware
+	rateLimiter        *middleware.RateLimiter
 }
 
 func NewRouter(
@@ -43,28 +44,30 @@ func NewRouter(
 	folderController *controllers.FolderController,
 	syncController *controllers.SyncController,
 	fcmController *controllers.FcmController,
+	reactionController *controllers.ReactionController,
 	authMiddleware *middleware.AuthMiddleware,
 	corsMiddleware *middleware.CORSMiddleware,
 	rateLimiter *middleware.RateLimiter,
 ) *Router {
 	return &Router{
-		authController:    authController,
-		userController:    userController,
-		groupController:   groupController,
-		inviteController:  inviteController,
-		messageController: messageController,
-		fileController:    fileController,
-		wsController:      wsController,
-		e2eController:     e2eController,
-		contactController: contactController,
-		turnController:    turnController,
-		sessionController: sessionController,
-		folderController:  folderController,
-		syncController:    syncController,
-		fcmController:     fcmController,
-		authMiddleware:    authMiddleware,
-		corsMiddleware:    corsMiddleware,
-		rateLimiter:       rateLimiter,
+		authController:     authController,
+		userController:     userController,
+		groupController:    groupController,
+		inviteController:   inviteController,
+		messageController:  messageController,
+		fileController:     fileController,
+		wsController:       wsController,
+		e2eController:      e2eController,
+		contactController:  contactController,
+		turnController:     turnController,
+		sessionController:  sessionController,
+		folderController:   folderController,
+		syncController:     syncController,
+		fcmController:      fcmController,
+		reactionController: reactionController,
+		authMiddleware:     authMiddleware,
+		corsMiddleware:     corsMiddleware,
+		rateLimiter:        rateLimiter,
 	}
 }
 
@@ -152,6 +155,9 @@ func (rt *Router) Setup() *mux.Router {
 	messages.HandleFunc("/search", rt.messageController.SearchMessages).Methods("GET")
 	messages.HandleFunc("/delete", rt.messageController.DeleteMessage).Methods("POST")
 	messages.HandleFunc("/{id}", rt.messageController.UpdateMessage).Methods("PUT")
+	messages.HandleFunc("/{messageId:[0-9]+}/reactions", rt.reactionController.GetReactions).Methods("GET")
+	messages.HandleFunc("/reactions", rt.reactionController.AddReaction).Methods("POST")
+	messages.HandleFunc("/reactions", rt.reactionController.RemoveReaction).Methods("DELETE")
 
 	files := api.PathPrefix("/files").Subrouter()
 	// Upload requires authentication

@@ -17,7 +17,9 @@ class MessageDelegate @Inject constructor(
     private val messageOps: MessageOperationsHandler,
     private val typingHandler: TypingHandler,
     private val editingHandler: EditingHandler,
-    private val readReceiptHandler: ReadReceiptHandler
+    private val readReceiptHandler: ReadReceiptHandler,
+    private val chatRepository: com.nexy.client.data.repository.ChatRepository,
+    private val webSocketMessageHandler: com.nexy.client.data.websocket.WebSocketMessageHandler
 ) : ChatViewModelDelegate {
 
     private lateinit var scope: CoroutineScope
@@ -32,6 +34,52 @@ class MessageDelegate @Inject constructor(
         this.scope = scope
         this.uiState = uiState
         this.getChatId = getChatId
+        observeReactionEvents()
+    }
+
+    private suspend fun refreshReactions(messages: List<Message>) {
+        val ids = messages.mapNotNull { it.serverId }
+        if (ids.isEmpty()) return
+
+        val reactionsMap = mutableMapOf<Int, List<com.nexy.client.data.models.ReactionCount>>()
+        for (id in ids) {
+            chatRepository.getReactions(id).onSuccess { reactions ->
+                reactionsMap[id] = reactions
+            }
+        }
+
+        uiState.value = uiState.value.copy(
+            messages = messages.map { msg ->
+                val sid = msg.serverId
+                if (sid != null && reactionsMap.containsKey(sid)) {
+                    msg.copy(reactions = reactionsMap[sid])
+                } else msg
+            }
+        )
+    }
+    
+    private fun observeReactionEvents() {
+        scope.launch {
+            webSocketMessageHandler.reactionEvents.collect { event ->
+                android.util.Log.d("MessageDelegate", "Reaction event: messageId=${event.messageId}, emoji=${event.emoji}, isAdd=${event.isAdd}")
+                
+                // Reload messages to get updated reactions
+                val currentUserId = uiState.value.currentUserId ?: return@collect
+                val result = chatRepository.getReactions(event.messageId)
+                
+                result.onSuccess { reactions ->
+                    // Update the message in the current list
+                    val updatedMessages = uiState.value.messages.map { message ->
+                        if (message.serverId == event.messageId) {
+                            message.copy(reactions = reactions)
+                        } else {
+                            message
+                        }
+                    }
+                    uiState.value = uiState.value.copy(messages = updatedMessages)
+                }
+            }
+        }
     }
 
     fun onMessageTextChanged(text: TextFieldValue) {
@@ -134,6 +182,11 @@ class MessageDelegate @Inject constructor(
                     isLoading = false
                 )
 
+                // Refresh reactions for all loaded messages so they don't disappear on reload
+                scope.launch {
+                    refreshReactions(messages)
+                }
+
                 if (!readReceiptHandler.isChatActive()) {
                     android.util.Log.d("MessageDelegate", "Chat not active, skipping markAsRead")
                 } else if (readReceiptHandler.isFirstLoading() && messages.isNotEmpty()) {
@@ -179,6 +232,35 @@ class MessageDelegate @Inject constructor(
                         isTyping = isTyping,
                         typingUser = typingUserName
                     )
+                }
+            }
+        }
+    }
+    
+    fun toggleReaction(messageId: Int, emoji: String) {
+        scope.launch {
+            // Find if current user already reacted with this emoji
+            val currentMessages = uiState.value.messages
+            val message = currentMessages.find { it.serverId == messageId }
+            val currentUserReacted = message?.reactions?.find { it.emoji == emoji }?.reactedBy == true
+            
+            val result = if (currentUserReacted) {
+                chatRepository.removeReaction(messageId, emoji)
+            } else {
+                chatRepository.addReaction(messageId, emoji)
+            }
+            
+            result.onFailure { error ->
+                uiState.value = uiState.value.copy(
+                    error = error.message ?: "Failed to update reaction"
+                )
+            }.onSuccess {
+                // Pull fresh reactions for this message to keep UI in sync
+                chatRepository.getReactions(messageId).onSuccess { reactions ->
+                    val updated = uiState.value.messages.map { msg ->
+                        if (msg.serverId == messageId) msg.copy(reactions = reactions) else msg
+                    }
+                    uiState.value = uiState.value.copy(messages = updated)
                 }
             }
         }

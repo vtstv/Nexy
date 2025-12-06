@@ -46,6 +46,7 @@ fun MessageList(
     onSaveFile: (String) -> Unit,
     onInviteLinkClick: (String) -> Unit = {},
     onUserLinkClick: (String) -> Unit = {},
+    onReactionClick: (Int, String) -> Unit = { _, _ -> },
     invitePreviewProvider: (String) -> InvitePreviewResponse? = { null },
     isLoadingInvitePreview: (String) -> Boolean = { false }
 ) {
@@ -169,6 +170,7 @@ fun MessageList(
                         fontScale = fontScale,
                         textColor = if (message.senderId == currentUserId) outgoingTextColor else incomingTextColor,
                         avatarSize = avatarSize,
+                        currentUserId = currentUserId ?: 0,
                         onDelete = { onDeleteMessage(message.id) },
                         onReply = { onReplyMessage(message) },
                         onEdit = { onEditMessage(message) },
@@ -178,6 +180,7 @@ fun MessageList(
                         onSaveFile = onSaveFile,
                         onInviteLinkClick = onInviteLinkClick,
                         onUserLinkClick = onUserLinkClick,
+                        onReactionClick = onReactionClick,
                         invitePreviewProvider = invitePreviewProvider,
                         isLoadingInvitePreview = isLoadingInvitePreview
                     )

@@ -55,7 +55,10 @@ data class Message(
     val sender: User? = null,
     
     @SerializedName("pts")  // sequence number for sync
-    val pts: Int? = null
+    val pts: Int? = null,
+    
+    @SerializedName("reactions")
+    val reactions: List<ReactionCount>? = null
 )
 
 // Server message types (from CHECK constraint: CHECK (message_type IN ('text', 'media', 'file', 'system')))

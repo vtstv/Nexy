@@ -69,6 +69,16 @@ interface NexyApiService {
         @Path("id") messageId: String,
         @Body request: UpdateMessageRequest
     ): Response<Message>
+    
+    // Reaction endpoints
+    @GET("messages/{messageId}/reactions")
+    suspend fun getReactions(@Path("messageId") messageId: Int): Response<List<ReactionCount>>
+    
+    @POST("messages/reactions")
+    suspend fun addReaction(@Body request: AddReactionRequest): Response<Unit>
+    
+    @HTTP(method = "DELETE", path = "messages/reactions", hasBody = true)
+    suspend fun removeReaction(@Body request: RemoveReactionRequest): Response<Unit>
 
     // Invite endpoints - server uses POST with body instead of path params
     @POST("invites")

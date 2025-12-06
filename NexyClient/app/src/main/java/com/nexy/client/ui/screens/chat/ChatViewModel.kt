@@ -190,6 +190,7 @@ class ChatViewModel @Inject constructor(
     fun cancelEditing() = messageDelegate.cancelEditing()
     fun saveEditedMessage() = messageDelegate.saveEditedMessage()
     fun deleteMessage(messageId: String) = messageDelegate.deleteMessage(messageId)
+    fun toggleReaction(messageId: Int, emoji: String) = messageDelegate.toggleReaction(messageId, emoji)
     // endregion
 
     // region Chat Operations - delegated
