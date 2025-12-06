@@ -200,13 +200,13 @@ func (s *GroupService) UnbanMember(ctx context.Context, groupID, requestorID, ta
 
 // GroupBanWithUser represents a ban with user info
 type GroupBanWithUser struct {
-	ID         int          `json:"id"`
-	ChatID     int          `json:"chat_id"`
-	UserID     int          `json:"user_id"`
-	BannedBy   int          `json:"banned_by"`
-	Reason     string       `json:"reason"`
-	BannedAt   string       `json:"banned_at"`
-	User       *models.User `json:"user"`
+	ID           int          `json:"id"`
+	ChatID       int          `json:"chat_id"`
+	UserID       int          `json:"user_id"`
+	BannedBy     int          `json:"banned_by"`
+	Reason       string       `json:"reason"`
+	BannedAt     string       `json:"banned_at"`
+	User         *models.User `json:"user"`
 	BannedByUser *models.User `json:"banned_by_user"`
 }
 

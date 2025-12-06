@@ -52,13 +52,13 @@ func (r *ChatRepository) GetBannedUsers(ctx context.Context, chatID int) ([]*Gro
 		FROM group_bans
 		WHERE chat_id = $1
 		ORDER BY banned_at DESC`
-	
+
 	rows, err := r.db.QueryContext(ctx, query, chatID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var bans []*GroupBan
 	for rows.Next() {
 		ban := &GroupBan{}
