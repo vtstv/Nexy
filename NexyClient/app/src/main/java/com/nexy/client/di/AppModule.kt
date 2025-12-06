@@ -13,6 +13,7 @@ import com.nexy.client.data.local.NexyDatabase
 import com.nexy.client.data.local.dao.ChatDao
 import com.nexy.client.data.local.dao.MessageDao
 import com.nexy.client.data.local.dao.PendingMessageDao
+import com.nexy.client.data.local.dao.SearchHistoryDao
 import com.nexy.client.data.local.dao.UserDao
 import com.nexy.client.data.websocket.NexyWebSocketClient
 import dagger.Module
@@ -116,7 +117,8 @@ object AppModule {
             NexyDatabase.MIGRATION_6_7,
             NexyDatabase.MIGRATION_7_8,
             NexyDatabase.MIGRATION_8_9,
-            NexyDatabase.MIGRATION_9_10
+            NexyDatabase.MIGRATION_9_10,
+            NexyDatabase.MIGRATION_10_11
         )
         .fallbackToDestructiveMigration()
         .build()
@@ -144,6 +146,12 @@ object AppModule {
     @Singleton
     fun providePendingMessageDao(database: NexyDatabase): PendingMessageDao {
         return database.pendingMessageDao()
+    }
+    
+    @Provides
+    @Singleton
+    fun provideSearchHistoryDao(database: NexyDatabase): SearchHistoryDao {
+        return database.searchHistoryDao()
     }
     
     @Provides

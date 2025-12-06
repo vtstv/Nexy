@@ -48,6 +48,8 @@ class ChatRepository @Inject constructor(
     
     suspend fun unhideChat(chatId: Int): Result<Unit> = chatOperations.unhideChat(chatId)
     
+    suspend fun searchPublicGroups(query: String): Result<List<Chat>> = chatOperations.searchPublicGroups(query)
+    
     // ===== MESSAGE OPERATIONS DELEGATION =====
     
     fun getMessagesByChatId(chatId: Int): Flow<List<Message>> = messageOperations.getMessagesByChatId(chatId)
@@ -165,8 +167,6 @@ class ChatRepository @Inject constructor(
 
     fun observeTypingEvents(): kotlinx.coroutines.flow.Flow<Triple<Int, Boolean, Int?>> = messageOperations.observeTypingEvents()
 
-    suspend fun searchPublicGroups(query: String): Result<List<Chat>> = chatOperations.searchPublicGroups(query)
-    
     fun getPendingMessageCount(): kotlinx.coroutines.flow.Flow<Int> = messageOperations.getPendingMessageCount()
     
     suspend fun retryMessage(messageId: String): Result<Boolean> = messageOperations.retryMessage(messageId)

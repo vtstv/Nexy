@@ -121,6 +121,7 @@ fun ChatListDrawer(
                 modifier = Modifier.padding(horizontal = 12.dp).height(48.dp)
             )
             
+            /* Search Groups moved to main search
             NavigationDrawerItem(
                 icon = { Icon(Icons.Default.Search, null) },
                 label = { Text("Search Groups") },
@@ -131,6 +132,7 @@ fun ChatListDrawer(
                 },
                 modifier = Modifier.padding(horizontal = 12.dp).height(48.dp)
             )
+            */
             
             NavigationDrawerItem(
                 icon = { Icon(Icons.Default.People, null) },

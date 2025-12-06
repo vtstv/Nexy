@@ -39,7 +39,6 @@ fun ChatListContent(
     onMoveFolderLocally: (fromIndex: Int, toIndex: Int) -> Unit = { _, _ -> },
     onSaveFolderOrder: () -> Unit = {}
 ) {
-    var searchQuery by remember { mutableStateOf("") }
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
     val folderTabs = remember(folders) {
@@ -49,19 +48,23 @@ fun ChatListContent(
     val selectedTab = folderTabs.getOrNull(selectedTabIndex) ?: FolderTab.All
 
     Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-        SearchOrSelectionBar(
-            isSelectionMode = selectionState.isSelectionMode,
-            searchQuery = searchQuery,
-            onSearchQueryChange = { searchQuery = it },
-            selectionState = selectionState,
-            chats = chats,
-            onClearSelection = onClearSelection,
-            onPinSelected = onPinSelected,
-            onUnpinSelected = onUnpinSelected,
-            onMuteSelected = onMuteSelected,
-            onAddToFolderSelected = onAddToFolderSelected,
-            onDeleteSelected = onDeleteSelected
-        )
+        if (selectionState.isSelectionMode) {
+            val allSelectedArePinned = selectionState.selectedChatIds.isNotEmpty() &&
+                selectionState.selectedChatIds.all { chatId ->
+                    chats.find { it.chat.id == chatId }?.chat?.isPinned == true
+                }
+            
+            SelectionActionBar(
+                selectedCount = selectionState.selectedCount,
+                allSelectedArePinned = allSelectedArePinned,
+                onClose = onClearSelection,
+                onPin = onPinSelected,
+                onUnpin = onUnpinSelected,
+                onMute = onMuteSelected,
+                onAddToFolder = onAddToFolderSelected,
+                onDelete = onDeleteSelected
+            )
+        }
 
         FolderTabRow(
             folderTabs = folderTabs,
@@ -75,7 +78,7 @@ fun ChatListContent(
 
         ChatListBody(
             chats = chats,
-            searchQuery = searchQuery,
+            searchQuery = "",
             selectedTab = selectedTab,
             isLoading = isLoading,
             selectionState = selectionState,
@@ -101,35 +104,6 @@ private fun SearchOrSelectionBar(
     onAddToFolderSelected: () -> Unit,
     onDeleteSelected: () -> Unit
 ) {
-    AnimatedContent(
-        targetState = isSelectionMode,
-        transitionSpec = {
-            fadeIn() + slideInVertically() togetherWith fadeOut() + slideOutVertically()
-        },
-        label = "searchToSelection"
-    ) { showSelection ->
-        if (showSelection) {
-            val allSelectedArePinned = selectionState.selectedChatIds.isNotEmpty() &&
-                selectionState.selectedChatIds.all { chatId ->
-                    chats.find { it.chat.id == chatId }?.chat?.isPinned == true
-                }
-            
-            SelectionActionBar(
-                selectedCount = selectionState.selectedCount,
-                allSelectedArePinned = allSelectedArePinned,
-                onClose = onClearSelection,
-                onPin = onPinSelected,
-                onUnpin = onUnpinSelected,
-                onMute = onMuteSelected,
-                onAddToFolder = onAddToFolderSelected,
-                onDelete = onDeleteSelected
-            )
-        } else {
-            ChatSearchField(
-                searchQuery = searchQuery,
-                onSearchQueryChange = onSearchQueryChange
-            )
-        }
-    }
+    // Deprecated: Logic moved to main content
 }
 

@@ -3,10 +3,16 @@ package com.nexy.client.ui.screens.search
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nexy.client.data.local.dao.SearchHistoryDao
+import com.nexy.client.data.local.entity.SearchHistoryEntity
+import com.nexy.client.data.models.Chat
 import com.nexy.client.data.models.User
+import com.nexy.client.data.repository.ChatRepository
 import com.nexy.client.data.repository.ContactRepository
 import com.nexy.client.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,6 +22,8 @@ import javax.inject.Inject
 data class SearchUiState(
     val query: String = "",
     val users: List<User> = emptyList(),
+    val groups: List<Chat> = emptyList(),
+    val recentSearches: List<String> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
     val successMessage: String? = null
@@ -24,45 +32,92 @@ data class SearchUiState(
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val userRepository: UserRepository,
-    private val contactRepository: ContactRepository
+    private val contactRepository: ContactRepository,
+    private val chatRepository: ChatRepository,
+    private val searchHistoryDao: SearchHistoryDao
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(SearchUiState())
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
+    
+    init {
+        loadRecentSearches()
+    }
+    
+    private fun loadRecentSearches() {
+        viewModelScope.launch {
+            searchHistoryDao.getRecentSearches().collect { history ->
+                _uiState.value = _uiState.value.copy(
+                    recentSearches = history.map { it.query }
+                )
+            }
+        }
+    }
     
     fun onQueryChange(query: String) {
         Log.d("SearchViewModel", "Query changed: '$query'")
         _uiState.value = _uiState.value.copy(query = query, error = null, successMessage = null)
         if (query.length >= 2) {
             Log.d("SearchViewModel", "Query length >= 2, starting search")
-            searchUsers(query)
+            search(query)
         } else {
             Log.d("SearchViewModel", "Query too short, clearing results")
-            _uiState.value = _uiState.value.copy(users = emptyList())
+            _uiState.value = _uiState.value.copy(users = emptyList(), groups = emptyList())
         }
     }
     
-    private fun searchUsers(query: String) {
+    private fun search(query: String) {
         viewModelScope.launch {
-            Log.d("SearchViewModel", "Searching for users with query: '$query'")
+            Log.d("SearchViewModel", "Searching for users and groups with query: '$query'")
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             
-            userRepository.searchUsers(query).fold(
-                onSuccess = { users ->
-                    Log.d("SearchViewModel", "Search successful, found ${users.size} users")
+            try {
+                coroutineScope {
+                    val usersDeferred = async { userRepository.searchUsers(query) }
+                    val groupsDeferred = async { chatRepository.searchPublicGroups(query) }
+                    
+                    val usersResult = usersDeferred.await()
+                    val groupsResult = groupsDeferred.await()
+                    
+                    val users = usersResult.getOrNull() ?: emptyList()
+                    val groups = groupsResult.getOrNull() ?: emptyList()
+                    
+                    Log.d("SearchViewModel", "Search complete. Users: ${users.size}, Groups: ${groups.size}")
+                    
                     _uiState.value = _uiState.value.copy(
                         users = users,
+                        groups = groups,
                         isLoading = false
                     )
-                },
-                onFailure = { error ->
-                    Log.e("SearchViewModel", "Search failed: ${error.message}", error)
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = error.message
-                    )
                 }
-            )
+            } catch (e: Exception) {
+                Log.e("SearchViewModel", "Search failed", e)
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = e.message
+                )
+            }
+        }
+    }
+    
+    fun saveCurrentQuery() {
+        val query = _uiState.value.query
+        if (query.isNotBlank()) {
+            viewModelScope.launch {
+                searchHistoryDao.insertSearch(SearchHistoryEntity(query))
+            }
+        }
+    }
+    
+    fun clearHistory() {
+        viewModelScope.launch {
+            searchHistoryDao.clearHistory()
+        }
+    }
+    
+    fun deleteHistoryItem(query: String) {
+        viewModelScope.launch {
+            searchHistoryDao.deleteSearch(query)
         }
     }
     

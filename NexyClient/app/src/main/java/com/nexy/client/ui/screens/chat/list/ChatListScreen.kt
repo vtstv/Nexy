@@ -95,8 +95,7 @@ fun ChatListScreen(
                 // Always show the normal top bar - selection is in the search area
                 ChatListTopBar(
                     onOpenDrawer = { scope.launch { drawerState.open() } },
-                    onNavigateToContacts = onNavigateToContacts,
-                    onNavigateToProfile = onNavigateToProfile
+                    onSearchClick = onNavigateToSearch
                 )
             }
         ) { padding ->

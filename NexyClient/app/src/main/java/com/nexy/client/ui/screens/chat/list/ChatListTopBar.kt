@@ -5,8 +5,7 @@ package com.nexy.client.ui.screens.chat.list
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Brush
@@ -21,8 +20,7 @@ import com.nexy.client.R
 @Composable
 fun ChatListTopBar(
     onOpenDrawer: () -> Unit,
-    onNavigateToContacts: () -> Unit,
-    onNavigateToProfile: () -> Unit
+    onSearchClick: () -> Unit
 ) {
     TopAppBar(
         title = {
@@ -48,11 +46,8 @@ fun ChatListTopBar(
             }
         },
         actions = {
-            IconButton(onClick = onNavigateToContacts) {
-                Icon(Icons.Default.People, stringResource(R.string.contacts))
-            }
-            IconButton(onClick = onNavigateToProfile) {
-                Icon(Icons.Default.Person, stringResource(R.string.my_profile))
+            IconButton(onClick = onSearchClick) {
+                Icon(Icons.Default.Search, stringResource(R.string.search))
             }
         }
     )

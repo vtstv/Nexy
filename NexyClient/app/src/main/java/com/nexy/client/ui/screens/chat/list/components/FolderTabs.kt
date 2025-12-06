@@ -80,22 +80,21 @@ fun FolderTabRow(
 
     ScrollableTabRow(
         selectedTabIndex = selectedTabIndex,
-        edgePadding = 8.dp,
+        edgePadding = 0.dp,
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.primary,
         indicator = { tabPositions ->
             if (selectedTabIndex < tabPositions.size) {
-                val selectedTab = folderTabs.getOrNull(selectedTabIndex)
-                val indicatorColor = when (selectedTab) {
-                    is FolderTab.All -> MaterialTheme.colorScheme.primary
-                    is FolderTab.Custom -> getFolderColor(selectedTab.folder, selectedTabIndex - 1)
-                    null -> MaterialTheme.colorScheme.primary
-                }
                 TabRowDefaults.SecondaryIndicator(
                     Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
-                    color = indicatorColor
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
         },
-        divider = {}
+        divider = {
+            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        },
+        modifier = Modifier.fillMaxWidth()
     ) {
         folderTabs.forEachIndexed { index, tab ->
             FolderTabItem(
@@ -173,28 +172,18 @@ private fun FolderTabItem(
     onDragCancel: () -> Unit
 ) {
     val backgroundColor by animateColorAsState(
-        targetValue = if (isDragging) 
-            MaterialTheme.colorScheme.surfaceContainerHigh 
-        else 
-            Color.Transparent,
+        targetValue = if (isDragging) MaterialTheme.colorScheme.surfaceContainerHigh else Color.Transparent,
         label = "tabBg"
     )
     
-    val folderColor = when (tab) {
-        is FolderTab.All -> MaterialTheme.colorScheme.primary
-        is FolderTab.Custom -> getFolderColor(tab.folder, index - 1)
-    }
-    
-    val contentColor = if (isSelected) folderColor else MaterialTheme.colorScheme.onSurfaceVariant
-    val badgeColor = if (isSelected) folderColor else MaterialTheme.colorScheme.onSurfaceVariant
+    val contentColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    val badgeColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
 
-    Box(
+    Tab(
+        selected = isSelected,
+        onClick = onClick,
         modifier = Modifier
             .background(backgroundColor)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null
-            ) { onClick() }
             .then(
                 if (tab is FolderTab.Custom) {
                     Modifier.pointerInput(index) {
@@ -210,24 +199,17 @@ private fun FolderTabItem(
                     }
                 } else Modifier
             )
-            .padding(horizontal = 12.dp, vertical = 12.dp),
-        contentAlignment = Alignment.Center
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(vertical = 12.dp, horizontal = 8.dp)
         ) {
             when (tab) {
                 is FolderTab.All -> {
-                    Icon(
-                        imageVector = Icons.Default.ChatBubble,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                        tint = contentColor
-                    )
                     Text(
-                        text = stringResource(R.string.folder_all),
-                        style = MaterialTheme.typography.labelLarge,
+                        text = stringResource(R.string.folder_all).uppercase(),
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                         color = contentColor
                     )
                     FolderCountBadge(count = chats.size, color = badgeColor)
@@ -236,17 +218,11 @@ private fun FolderTabItem(
                     val iconText = tab.folder.icon
                     if (iconText.isNotBlank() && !iconText.matches(Regex("^[a-zA-Z_]+$"))) {
                         Text(text = iconText, style = MaterialTheme.typography.labelLarge)
-                    } else {
-                        Icon(
-                            imageVector = getFolderIcon(tab.folder),
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            tint = contentColor
-                        )
                     }
+                    
                     Text(
-                        text = tab.folder.name,
-                        style = MaterialTheme.typography.labelLarge,
+                        text = tab.folder.name.uppercase(),
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                         color = contentColor
                     )
                     val folderChatCount = countChatsInFolder(chats, tab.folder)
