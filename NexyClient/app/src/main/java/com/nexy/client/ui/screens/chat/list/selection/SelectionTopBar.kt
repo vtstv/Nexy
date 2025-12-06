@@ -20,7 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 /**
- * Telegram-style selection action bar that replaces the search field
+ * Selection action bar that replaces the search field
  * when in selection mode
  */
 @Composable

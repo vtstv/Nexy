@@ -82,7 +82,6 @@ func (r *SyncRepository) GetCurrentPts(ctx context.Context) (int, error) {
 }
 
 // GetDifference returns updates since the given pts
-// Similar to Telegram's updates.getDifference
 func (r *SyncRepository) GetDifference(ctx context.Context, userID int, fromPts int, limit int) (*models.UpdatesDifference, error) {
 	if limit <= 0 {
 		limit = 100

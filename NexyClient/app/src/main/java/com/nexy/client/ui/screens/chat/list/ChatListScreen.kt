@@ -108,7 +108,7 @@ fun ChatListScreen(
                 selectionState = selectionState,
                 onChatClick = onChatClick,
                 onChatLongClick = { chatWithInfo ->
-                    // Long press enters selection mode (Telegram style)
+                    // Long press enters selection mode
                     viewModel.enterSelectionMode(chatWithInfo.chat.id)
                 },
                 onToggleSelection = { chatId ->

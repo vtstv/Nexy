@@ -42,7 +42,6 @@ func (c *SyncController) GetState(w http.ResponseWriter, r *http.Request) {
 
 // GetDifference returns updates since the given pts
 // GET /api/sync/difference?pts=123&limit=100
-// Similar to Telegram's updates.getDifference
 func (c *SyncController) GetDifference(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.GetUserID(r)
 	if !ok {

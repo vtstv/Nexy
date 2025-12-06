@@ -38,7 +38,7 @@ class SyncManager @Inject constructor(
         private const val KEY_DATE = "date"
         private const val KEY_LAST_SYNC = "last_sync"
         
-        // Sync if no updates for 15 minutes (like Telegram)
+        // Sync if no updates for 15 minutes
         private const val SYNC_INTERVAL_MS = 15 * 60 * 1000L
     }
     
@@ -112,7 +112,7 @@ class SyncManager @Inject constructor(
     }
     
     /**
-     * Fetch updates from server since local pts (Telegram's getDifference).
+     * Fetch updates from server since local pts
      * Called on app startup and when gaps are detected.
      */
     suspend fun syncDifference(): Result<Int> = withContext(Dispatchers.IO) {

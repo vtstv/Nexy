@@ -70,7 +70,7 @@ fun ChatScreen(
         hasScrolledToBottom.value = false // Reset scroll flag when changing chat
     }
     
-    // Use LifecycleEventObserver for reliable pause/resume detection (like Telegram's paused flag)
+    // Use LifecycleEventObserver for reliable pause/resume detection
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -102,7 +102,7 @@ fun ChatScreen(
         }
     }
     
-    // Track when user is at bottom of list (seeing newest messages) - Telegram style read receipts
+    // Track when user is at bottom of list (seeing newest messages) 
     // With reverseLayout=true, firstVisibleItemIndex=0 means user is at the bottom (newest messages)
     val isAtBottom = remember { derivedStateOf { listState.firstVisibleItemIndex <= 2 } }
     

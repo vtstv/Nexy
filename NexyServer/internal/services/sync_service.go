@@ -24,7 +24,6 @@ func (s *SyncService) GetState(ctx context.Context, userID int) (*models.SyncSta
 }
 
 // GetDifference returns all updates since the given pts
-// This is similar to Telegram's updates.getDifference
 func (s *SyncService) GetDifference(ctx context.Context, userID int, pts int, limit int) (*models.UpdatesDifference, error) {
 	diff, err := s.syncRepo.GetDifference(ctx, userID, pts, limit)
 	if err != nil {
