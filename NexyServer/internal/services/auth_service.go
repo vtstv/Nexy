@@ -51,27 +51,27 @@ func (s *AuthService) Register(ctx context.Context, username, email, password, d
 	return user, nil
 }
 
-func (s *AuthService) Login(ctx context.Context, email, password string) (string, string, *models.User, error) {
+func (s *AuthService) Login(ctx context.Context, email, password string) (string, string, int, *models.User, error) {
 	user, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {
-		return "", "", nil, fmt.Errorf("invalid credentials")
+		return "", "", 0, nil, fmt.Errorf("invalid credentials")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		return "", "", nil, fmt.Errorf("invalid credentials")
+		return "", "", 0, nil, fmt.Errorf("invalid credentials")
 	}
 
 	accessToken, err := s.GenerateAccessToken(user.ID)
 	if err != nil {
-		return "", "", nil, err
+		return "", "", 0, nil, err
 	}
 
-	refreshToken, err := s.GenerateRefreshToken(ctx, user.ID)
+	refreshToken, refreshTokenID, err := s.GenerateRefreshToken(ctx, user.ID)
 	if err != nil {
-		return "", "", nil, err
+		return "", "", 0, nil, err
 	}
 
-	return accessToken, refreshToken, user, nil
+	return accessToken, refreshToken, refreshTokenID, user, nil
 }
 
 func (s *AuthService) GenerateAccessToken(userID int) (string, error) {
@@ -85,7 +85,7 @@ func (s *AuthService) GenerateAccessToken(userID int) (string, error) {
 	return token.SignedString([]byte(s.jwtConfig.Secret))
 }
 
-func (s *AuthService) GenerateRefreshToken(ctx context.Context, userID int) (string, error) {
+func (s *AuthService) GenerateRefreshToken(ctx context.Context, userID int) (string, int, error) {
 	tokenString := uuid.New().String()
 
 	refreshToken := &models.RefreshToken{
@@ -95,10 +95,10 @@ func (s *AuthService) GenerateRefreshToken(ctx context.Context, userID int) (str
 	}
 
 	if err := s.refreshTokenRepo.Create(ctx, refreshToken); err != nil {
-		return "", fmt.Errorf("failed to create refresh token: %w", err)
+		return "", 0, fmt.Errorf("failed to create refresh token: %w", err)
 	}
 
-	return tokenString, nil
+	return tokenString, refreshToken.ID, nil
 }
 
 func (s *AuthService) RefreshAccessToken(ctx context.Context, refreshTokenString string) (string, error) {

@@ -73,11 +73,26 @@ func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 	// Create default folders for new user
 	c.createDefaultFolders(r.Context(), user.ID)
 
-	accessToken, refreshToken, _, err := c.authService.Login(r.Context(), req.Email, req.Password)
+	accessToken, refreshToken, refreshTokenID, _, err := c.authService.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// Create session for this registration/login
+	userAgent := r.Header.Get("User-Agent")
+	deviceID := r.Header.Get("X-Device-ID")
+	ipAddress := r.RemoteAddr
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		ipAddress = strings.Split(forwarded, ",")[0]
+	}
+
+	if deviceID == "" {
+		deviceID = ipAddress
+	}
+
+	deviceName, deviceType := parseUserAgent(userAgent)
+	c.sessionRepo.CreateFromLogin(r.Context(), user.ID, deviceID, deviceName, deviceType, ipAddress, userAgent, refreshTokenID)
 
 	response := AuthResponse{
 		AccessToken:  accessToken,
@@ -96,7 +111,7 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessToken, refreshToken, user, err := c.authService.Login(r.Context(), req.Email, req.Password)
+	accessToken, refreshToken, refreshTokenID, user, err := c.authService.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -116,7 +131,7 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	deviceName, deviceType := parseUserAgent(userAgent)
-	c.sessionRepo.CreateFromLogin(r.Context(), user.ID, deviceID, deviceName, deviceType, ipAddress, userAgent)
+	c.sessionRepo.CreateFromLogin(r.Context(), user.ID, deviceID, deviceName, deviceType, ipAddress, userAgent, refreshTokenID)
 
 	response := AuthResponse{
 		AccessToken:  accessToken,

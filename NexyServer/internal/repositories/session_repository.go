@@ -34,10 +34,10 @@ func (r *SessionRepository) Create(ctx context.Context, session *models.UserSess
 	).Scan(&session.ID, &session.LastActive, &session.CreatedAt)
 }
 
-func (r *SessionRepository) CreateFromLogin(ctx context.Context, userID int, deviceID, deviceName, deviceType, ipAddress, userAgent string) error {
+func (r *SessionRepository) CreateFromLogin(ctx context.Context, userID int, deviceID, deviceName, deviceType, ipAddress, userAgent string, refreshTokenID int) error {
 	query := `
-		INSERT INTO user_sessions (user_id, device_id, device_name, device_type, ip_address, user_agent, is_current, last_active)
-		VALUES ($1, $2, $3, $4, $5, $6, TRUE, NOW())
+		INSERT INTO user_sessions (user_id, device_id, device_name, device_type, ip_address, user_agent, refresh_token_id, is_current, last_active)
+		VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, 0), TRUE, NOW())
 		RETURNING id`
 
 	var id int
@@ -48,6 +48,7 @@ func (r *SessionRepository) CreateFromLogin(ctx context.Context, userID int, dev
 		deviceType,
 		ipAddress,
 		userAgent,
+		refreshTokenID,
 	).Scan(&id)
 }
 

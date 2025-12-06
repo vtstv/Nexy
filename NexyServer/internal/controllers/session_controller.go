@@ -51,13 +51,22 @@ func (c *SessionController) GetSessions(w http.ResponseWriter, r *http.Request) 
 
 	log.Printf("GetSessions: user_id=%d, currentDeviceID=%s, sessionCount=%d", userID, currentDeviceID, len(sessions))
 
-	// If no sessions exist, create one for the current device (for users who logged in before sessions were added)
-	if len(sessions) == 0 {
+	// Check if session exists for the current device
+	currentDeviceSessionExists := false
+	for _, session := range sessions {
+		if session.DeviceID == currentDeviceID {
+			currentDeviceSessionExists = true
+			break
+		}
+	}
+
+	// If no session exists for current device, create one (for authenticated users without session)
+	if !currentDeviceSessionExists {
 		userAgent := r.Header.Get("User-Agent")
 		deviceName, deviceType := parseSessionUserAgent(userAgent)
-		c.sessionRepo.CreateFromLogin(r.Context(), userID, currentDeviceID, deviceName, deviceType, ipAddress, userAgent)
+		c.sessionRepo.CreateFromLogin(r.Context(), userID, currentDeviceID, deviceName, deviceType, ipAddress, userAgent, 0)
 
-		// Fetch the newly created session
+		// Fetch the updated sessions
 		sessions, err = c.sessionRepo.GetByUserID(r.Context(), userID)
 		if err != nil {
 			http.Error(w, "Failed to get sessions", http.StatusInternalServerError)
