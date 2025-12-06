@@ -12,6 +12,8 @@ import com.nexy.client.data.repository.UserRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -26,6 +28,12 @@ class ChatSyncOperations @Inject constructor(
 ) {
     companion object {
         private const val TAG = "ChatSyncOperations"
+    }
+
+    fun getAllChats(): Flow<List<Chat>> {
+        return chatDao.getAllChats().map { entities ->
+            entities.map { chatMappers.entityToModel(it) }
+        }
     }
 
     suspend fun refreshChats(): Result<List<Chat>> {
