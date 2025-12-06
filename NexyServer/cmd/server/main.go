@@ -58,10 +58,10 @@ func main() {
 	onlineStatusService := services.NewOnlineStatusService(userRepo)
 	contactService := services.NewContactService(contactRepo, userRepo)
 	syncService := services.NewSyncService(syncRepo)
-	fcmService := services.NewFcmService(userRepo)
+	fcmService := services.NewFcmService(cfg, userRepo)
 
 	nexyChatRepo := nexy.NewNexyChatRepo(chatRepo)
-	hub := nexy.NewHub(redisClient.Client, messageRepo, nexyChatRepo, userRepo)
+	hub := nexy.NewHub(redisClient.Client, messageRepo, nexyChatRepo, userRepo, fcmService)
 	go hub.Run()
 
 	// Wire up online status service and hub to contact service

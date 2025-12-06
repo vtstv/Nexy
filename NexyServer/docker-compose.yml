@@ -54,8 +54,11 @@ services:
       - TURN_PASSWORD=nexy_turn_password
       - RATE_LIMIT_REQUESTS=1000
       - RATE_LIMIT_WINDOW=60
+      - FCM_ENABLED=true
+      - FCM_SERVICE_ACCOUNT_KEY=/app/firebase-service-account.json
     volumes:
       - ./uploads:/app/uploads
+      - ./firebase-service-account.json:/app/firebase-service-account.json:ro
     depends_on:
       - postgres
       - redis

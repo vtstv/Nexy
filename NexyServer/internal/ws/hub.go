@@ -30,6 +30,7 @@ type Hub struct {
 	messageRepo  MessageRepository
 	chatRepo     ChatRepository
 	userRepo     UserRepository
+	fcmService   FcmService
 }
 
 type MessageRepository interface {
@@ -53,6 +54,10 @@ type UserRepository interface {
 	UpdateLastSeen(ctx context.Context, userID int) error
 }
 
+type FcmService interface {
+	SendNotification(ctx context.Context, userID int, title, body string, data map[string]string) error
+}
+
 type Chat struct {
 	ID             int    `json:"id"`
 	Type           string `json:"type"`
@@ -60,7 +65,7 @@ type Chat struct {
 	ParticipantIds []int  `json:"participant_ids"`
 }
 
-func NewHub(redisClient *redis.Client, messageRepo MessageRepository, chatRepo ChatRepository, userRepo UserRepository) *Hub {
+func NewHub(redisClient *redis.Client, messageRepo MessageRepository, chatRepo ChatRepository, userRepo UserRepository, fcmService FcmService) *Hub {
 	return &Hub{
 		clients:      make(map[int]*Client),
 		register:     make(chan *Client),
@@ -71,6 +76,7 @@ func NewHub(redisClient *redis.Client, messageRepo MessageRepository, chatRepo C
 		messageRepo:  messageRepo,
 		chatRepo:     chatRepo,
 		userRepo:     userRepo,
+		fcmService:   fcmService,
 	}
 }
 

@@ -3,19 +3,25 @@
  */
 package com.nexy.client.ui.screens.settings.components
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.RingtoneManager
 import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.result.ActivityResult
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.padding
+import androidx.core.content.ContextCompat
 
 @Composable
 fun NotificationsSection(
@@ -32,12 +38,59 @@ fun NotificationsSection(
 ) {
     val context = LocalContext.current
     
+    // Check notification permission status (Android 13+)
+    val notificationPermissionGranted = remember {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true
+        }
+    }
+    
     Text(
         text = "Notifications",
         style = MaterialTheme.typography.titleMedium,
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(16.dp)
     )
+    
+    // Show permission warning if not granted (Android 13+)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !notificationPermissionGranted) {
+        Card(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer
+            )
+        ) {
+            ListItem(
+                leadingContent = {
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                },
+                headlineContent = { Text("Notification Permission Required") },
+                supportingContent = { 
+                    Text("Nexy cannot send you notifications while the app is closed. Please grant notification permission in Android settings.") 
+                },
+                trailingContent = {
+                    Button(onClick = {
+                        // Open app settings
+                        val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = Uri.fromParts("package", context.packageName, null)
+                        }
+                        context.startActivity(intent)
+                    }) {
+                        Text("Settings")
+                    }
+                }
+            )
+        }
+    }
 
     ListItem(
         headlineContent = { Text("Push Notifications") },

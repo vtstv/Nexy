@@ -4,8 +4,12 @@
 package com.nexy.client.utils.permissions
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -21,6 +25,68 @@ class PermissionsManager @Inject constructor(
         const val REQUEST_CODE_NOTIFICATIONS_AND_AUDIO = 101
         const val REQUEST_CODE_AUDIO_ONLY = 102
     }
+    
+    /**
+     * Check if notification permission is granted (Android 13+)
+     */
+    fun isNotificationPermissionGranted(activity: AppCompatActivity): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(
+                activity,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true // Not required for older versions
+        }
+    }
+    
+    /**
+     * Request notification permission with explanation dialog
+     */
+    fun requestNotificationPermission(activity: AppCompatActivity, showRationale: Boolean = false) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return // Not required for older versions
+        }
+        
+        if (isNotificationPermissionGranted(activity)) {
+            return // Already granted
+        }
+        
+        if (showRationale && ActivityCompat.shouldShowRequestPermissionRationale(
+                activity,
+                Manifest.permission.POST_NOTIFICATIONS
+            )) {
+            // Show explanation dialog
+            AlertDialog.Builder(activity)
+                .setTitle("Enable Notifications")
+                .setMessage("Nexy needs notification permission to alert you about new messages when the app is in the background.\n\nWithout this permission, you won't receive message notifications.")
+                .setPositiveButton("Allow") { _, _ ->
+                    ActivityCompat.requestPermissions(
+                        activity,
+                        arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                        REQUEST_CODE_NOTIFICATIONS_AND_AUDIO
+                    )
+                }
+                .setNegativeButton("Not Now", null)
+                .show()
+        } else {
+            ActivityCompat.requestPermissions(
+                activity,
+                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                REQUEST_CODE_NOTIFICATIONS_AND_AUDIO
+            )
+        }
+    }
+    
+    /**
+     * Open app settings for manual permission grant
+     */
+    fun openAppSettings(activity: AppCompatActivity) {
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = Uri.fromParts("package", activity.packageName, null)
+        }
+        activity.startActivity(intent)
+    }
 
     fun requestRequiredPermissions(activity: AppCompatActivity) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -33,6 +99,7 @@ class PermissionsManager @Inject constructor(
     private fun requestPermissionsForAndroid13Plus(activity: AppCompatActivity) {
         val permissions = mutableListOf<String>()
         
+        // Check notification permission
         if (ContextCompat.checkSelfPermission(
                 activity,
                 Manifest.permission.POST_NOTIFICATIONS
@@ -41,6 +108,7 @@ class PermissionsManager @Inject constructor(
             permissions.add(Manifest.permission.POST_NOTIFICATIONS)
         }
         
+        // Check audio permission
         if (ContextCompat.checkSelfPermission(
                 activity,
                 Manifest.permission.RECORD_AUDIO
@@ -50,11 +118,37 @@ class PermissionsManager @Inject constructor(
         }
         
         if (permissions.isNotEmpty()) {
-            ActivityCompat.requestPermissions(
-                activity,
-                permissions.toTypedArray(),
-                REQUEST_CODE_NOTIFICATIONS_AND_AUDIO
-            )
+            // Show rationale if needed
+            val shouldShowRationale = permissions.any { permission ->
+                ActivityCompat.shouldShowRequestPermissionRationale(activity, permission)
+            }
+            
+            if (shouldShowRationale && permissions.contains(Manifest.permission.POST_NOTIFICATIONS)) {
+                // Show explanation dialog for notifications
+                AlertDialog.Builder(activity)
+                    .setTitle("Permissions Required")
+                    .setMessage("Nexy needs these permissions:\n\n" +
+                            "• Notifications: To alert you about new messages\n" +
+                            "• Microphone: For voice and video calls\n\n" +
+                            "Without these permissions, some features won't work.")
+                    .setPositiveButton("Allow") { _, _ ->
+                        ActivityCompat.requestPermissions(
+                            activity,
+                            permissions.toTypedArray(),
+                            REQUEST_CODE_NOTIFICATIONS_AND_AUDIO
+                        )
+                    }
+                    .setNegativeButton("Not Now") { _, _ ->
+                        webRTCClient.initialize() // Initialize anyway
+                    }
+                    .show()
+            } else {
+                ActivityCompat.requestPermissions(
+                    activity,
+                    permissions.toTypedArray(),
+                    REQUEST_CODE_NOTIFICATIONS_AND_AUDIO
+                )
+            }
         } else {
             webRTCClient.initialize()
         }

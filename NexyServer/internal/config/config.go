@@ -20,6 +20,7 @@ type Config struct {
 	CORS      CORSConfig
 	RateLimit RateLimitConfig
 	TURN      TURNConfig
+	FCM       FCMConfig
 }
 
 type ServerConfig struct {
@@ -77,6 +78,11 @@ type TURNConfig struct {
 	Username      string
 	Password      string
 	STUNServerURL string
+}
+
+type FCMConfig struct {
+	Enabled               bool
+	ServiceAccountKeyPath string
 }
 
 func Load() (*Config, error) {
@@ -165,6 +171,10 @@ func Load() (*Config, error) {
 			Username:      getEnv("TURN_USERNAME", "nexy"),
 			Password:      getEnv("TURN_PASSWORD", "nexy_turn_password"),
 			STUNServerURL: getEnv("STUN_SERVER_URL", "stun:localhost:3478"),
+		},
+		FCM: FCMConfig{
+			Enabled:               getEnv("FCM_ENABLED", "false") == "true",
+			ServiceAccountKeyPath: getEnv("FCM_SERVICE_ACCOUNT_KEY", "./firebase-service-account.json"),
 		},
 	}, nil
 }
