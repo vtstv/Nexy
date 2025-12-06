@@ -11,7 +11,7 @@ import (
 func (r *MessageRepository) SearchMessages(ctx context.Context, chatID int, queryStr string) ([]*models.Message, error) {
 	query := `
 		SELECT m.id, m.message_id, m.chat_id, m.sender_id, m.message_type, m.content, m.media_url, m.media_type,
-			   m.file_size, m.reply_to_id, m.is_edited, m.is_deleted, m.created_at, m.updated_at,
+			   m.file_size, m.duration, m.reply_to_id, m.is_edited, m.is_deleted, m.created_at, m.updated_at,
 			   COALESCE(
 				   (SELECT status FROM message_status ms WHERE ms.message_id = m.id AND ms.user_id != m.sender_id ORDER BY CASE status WHEN 'read' THEN 3 WHEN 'delivered' THEN 2 ELSE 1 END DESC LIMIT 1),
 				   'sent'
@@ -32,6 +32,7 @@ func (r *MessageRepository) SearchMessages(ctx context.Context, chatID int, quer
 		msg := &models.Message{}
 		var replyToID sql.NullInt64
 		var fileSize sql.NullInt64
+		var duration sql.NullInt64
 		var mediaURL sql.NullString
 		var mediaType sql.NullString
 		var status string
@@ -45,6 +46,7 @@ func (r *MessageRepository) SearchMessages(ctx context.Context, chatID int, quer
 			&mediaURL,
 			&mediaType,
 			&fileSize,
+			&duration,
 			&replyToID,
 			&msg.IsEdited,
 			&msg.IsDeleted,
@@ -64,6 +66,10 @@ func (r *MessageRepository) SearchMessages(ctx context.Context, chatID int, quer
 		}
 		if fileSize.Valid {
 			msg.FileSize = &fileSize.Int64
+		}
+		if duration.Valid {
+			d := int(duration.Int64)
+			msg.Duration = &d
 		}
 		if replyToID.Valid {
 			id := int(replyToID.Int64)

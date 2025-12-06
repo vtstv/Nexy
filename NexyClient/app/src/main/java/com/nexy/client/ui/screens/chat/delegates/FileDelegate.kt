@@ -89,4 +89,22 @@ class FileDelegate @Inject constructor(
                 }
         }
     }
+    
+    fun sendVoiceMessage(audioFile: java.io.File, durationMs: Long) {
+        scope.launch {
+            val userId = uiState.value.currentUserId ?: return@launch
+            uiState.value = uiState.value.copy(isLoading = true)
+
+            fileOps.sendVoiceMessage(getChatId(), userId, audioFile, durationMs)
+                .onSuccess {
+                    uiState.value = uiState.value.copy(error = null, isLoading = false)
+                }
+                .onFailure { error ->
+                    uiState.value = uiState.value.copy(
+                        error = error.message ?: "Failed to send voice message",
+                        isLoading = false
+                    )
+                }
+        }
+    }
 }

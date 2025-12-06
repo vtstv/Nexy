@@ -181,6 +181,8 @@ class ChatViewModel @Inject constructor(
     // region File Operations - delegated
     fun sendFileMessage(context: Context, fileUri: Uri, fileName: String) =
         fileDelegate.sendFileMessage(context, fileUri, fileName)
+    fun sendVoiceMessage(audioFile: java.io.File, durationMs: Long) =
+        fileDelegate.sendVoiceMessage(audioFile, durationMs)
     fun downloadFile(context: Context, fileId: String, fileName: String) =
         fileDelegate.downloadFile(context, fileId, fileName)
     fun openFile(context: Context, fileName: String) = fileDelegate.openFile(context, fileName)

@@ -25,6 +25,7 @@ class MessageMappers @Inject constructor() {
         status = message.status?.name ?: MessageStatus.SENT.name,
         mediaUrl = message.mediaUrl,
         mediaThumbnail = message.mediaType,
+        duration = message.duration,
         replyToId = message.replyToId?.toString(),
         isEdited = message.isEdited,
         isSyncedToServer = true
@@ -42,6 +43,7 @@ class MessageMappers @Inject constructor() {
         status = MessageStatus.valueOf(entity.status.uppercase()),
         mediaUrl = entity.mediaUrl,
         mediaType = entity.mediaThumbnail,
+        duration = entity.duration,
         replyToId = entity.replyToId?.toIntOrNull(),
         isEdited = entity.isEdited,
         encrypted = false,

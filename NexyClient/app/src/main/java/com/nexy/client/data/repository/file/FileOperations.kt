@@ -338,4 +338,69 @@ class FileOperations @Inject constructor(
         }
         return type ?: "application/octet-stream"
     }
+    
+    suspend fun sendVoiceMessage(
+        chatId: Int,
+        senderId: Int,
+        audioFile: File,
+        duration: Int
+    ): Result<Message> {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Sending voice message: chatId=$chatId, duration=$duration")
+                
+                val mimeType = "audio/mp4"
+                
+                val requestBody = audioFile.asRequestBody(mimeType.toMediaTypeOrNull())
+                val multipartBody = MultipartBody.Part.createFormData("file", audioFile.name, requestBody)
+                val typeBody = "audio".toRequestBody("text/plain".toMediaTypeOrNull())
+                
+                Log.d(TAG, "Uploading voice message to server...")
+                val uploadResponse = apiService.uploadFile(multipartBody, typeBody)
+                
+                if (!uploadResponse.isSuccessful) {
+                    val errorBody = uploadResponse.errorBody()?.string() ?: "Unknown error"
+                    Log.e(TAG, "Voice upload failed: ${uploadResponse.code()} - $errorBody")
+                    return@withContext Result.failure(Exception("Upload failed: $errorBody"))
+                }
+                
+                if (uploadResponse.body() == null) {
+                    return@withContext Result.failure(Exception("Upload failed: empty response"))
+                }
+                
+                val fileUrl = uploadResponse.body()!!.url
+                Log.d(TAG, "Voice uploaded successfully: $fileUrl")
+                
+                val messageId = generateMessageId()
+                val message = Message(
+                    id = messageId,
+                    chatId = chatId,
+                    senderId = senderId,
+                    content = "Voice message",
+                    type = MessageType.VOICE,
+                    status = MessageStatus.SENDING,
+                    mediaUrl = fileUrl,
+                    mediaType = mimeType,
+                    duration = duration
+                )
+                
+                messageDao.insertMessage(messageMappers.modelToEntity(message))
+                
+                webSocketClient.sendVoiceMessage(
+                    chatId = chatId,
+                    senderId = senderId,
+                    mediaUrl = fileUrl,
+                    durationMs = duration.toLong(),
+                    messageId = messageId
+                )
+                
+                audioFile.delete()
+                
+                Result.success(message)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send voice message", e)
+                Result.failure(e)
+            }
+        }
+    }
 }

@@ -12,8 +12,8 @@ import (
 // Create creates a new message
 func (r *MessageRepository) Create(ctx context.Context, msg *models.Message) error {
 	query := `
-		INSERT INTO messages (message_id, chat_id, sender_id, message_type, content, media_url, media_type, file_size, reply_to_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO messages (message_id, chat_id, sender_id, message_type, content, media_url, media_type, file_size, duration, reply_to_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		RETURNING id, COALESCE(pts, id), created_at, updated_at`
 
 	return r.db.QueryRowContext(ctx, query,
@@ -25,6 +25,7 @@ func (r *MessageRepository) Create(ctx context.Context, msg *models.Message) err
 		msg.MediaURL,
 		msg.MediaType,
 		msg.FileSize,
+		msg.Duration,
 		msg.ReplyToID,
 	).Scan(&msg.ID, &msg.Pts, &msg.CreatedAt, &msg.UpdatedAt)
 }
@@ -34,12 +35,13 @@ func (r *MessageRepository) GetByID(ctx context.Context, id int) (*models.Messag
 	msg := &models.Message{}
 	query := `
 		SELECT id, message_id, chat_id, sender_id, message_type, content, media_url, media_type, 
-			   file_size, reply_to_id, is_edited, is_deleted, created_at, updated_at
+			   file_size, duration, reply_to_id, is_edited, is_deleted, created_at, updated_at
 		FROM messages
 		WHERE id = $1`
 
 	var replyToID sql.NullInt64
 	var fileSize sql.NullInt64
+	var duration sql.NullInt64
 	var mediaURL sql.NullString
 	var mediaType sql.NullString
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
@@ -52,6 +54,7 @@ func (r *MessageRepository) GetByID(ctx context.Context, id int) (*models.Messag
 		&mediaURL,
 		&mediaType,
 		&fileSize,
+		&duration,
 		&replyToID,
 		&msg.IsEdited,
 		&msg.IsDeleted,
@@ -67,6 +70,10 @@ func (r *MessageRepository) GetByID(ctx context.Context, id int) (*models.Messag
 	if fileSize.Valid {
 		msg.FileSize = &fileSize.Int64
 	}
+	if duration.Valid {
+		d := int(duration.Int64)
+		msg.Duration = &d
+	}
 	if replyToID.Valid {
 		id := int(replyToID.Int64)
 		msg.ReplyToID = &id
@@ -79,12 +86,13 @@ func (r *MessageRepository) GetByUUID(ctx context.Context, uuid string) (*models
 	msg := &models.Message{}
 	query := `
 		SELECT id, message_id, chat_id, sender_id, message_type, content, media_url, media_type, 
-			   file_size, reply_to_id, is_edited, is_deleted, created_at, updated_at
+			   file_size, duration, reply_to_id, is_edited, is_deleted, created_at, updated_at
 		FROM messages
 		WHERE message_id = $1`
 
 	var replyToID sql.NullInt64
 	var fileSize sql.NullInt64
+	var duration sql.NullInt64
 	var mediaURL sql.NullString
 	var mediaType sql.NullString
 	err := r.db.QueryRowContext(ctx, query, uuid).Scan(
@@ -97,6 +105,7 @@ func (r *MessageRepository) GetByUUID(ctx context.Context, uuid string) (*models
 		&mediaURL,
 		&mediaType,
 		&fileSize,
+		&duration,
 		&replyToID,
 		&msg.IsEdited,
 		&msg.IsDeleted,
@@ -115,6 +124,10 @@ func (r *MessageRepository) GetByUUID(ctx context.Context, uuid string) (*models
 	if fileSize.Valid {
 		msg.FileSize = &fileSize.Int64
 	}
+	if duration.Valid {
+		d := int(duration.Int64)
+		msg.Duration = &d
+	}
 	if replyToID.Valid {
 		id := int(replyToID.Int64)
 		msg.ReplyToID = &id
@@ -126,7 +139,7 @@ func (r *MessageRepository) GetByUUID(ctx context.Context, uuid string) (*models
 func (r *MessageRepository) GetByChatID(ctx context.Context, chatID int, limit, offset int) ([]*models.Message, error) {
 	query := `
 		SELECT m.id, m.message_id, m.chat_id, m.sender_id, m.message_type, m.content, m.media_url, m.media_type,
-			   m.file_size, m.reply_to_id, m.is_edited, m.is_deleted, m.created_at, m.updated_at,
+			   m.file_size, m.duration, m.reply_to_id, m.is_edited, m.is_deleted, m.created_at, m.updated_at,
 			   COALESCE(
 				   (SELECT status FROM message_status ms WHERE ms.message_id = m.id AND ms.user_id != m.sender_id ORDER BY CASE status WHEN 'read' THEN 3 WHEN 'delivered' THEN 2 ELSE 1 END DESC LIMIT 1),
 				   'sent'
@@ -147,6 +160,7 @@ func (r *MessageRepository) GetByChatID(ctx context.Context, chatID int, limit, 
 		msg := &models.Message{}
 		var replyToID sql.NullInt64
 		var fileSize sql.NullInt64
+		var duration sql.NullInt64
 		var mediaURL sql.NullString
 		var mediaType sql.NullString
 		var status string
@@ -160,6 +174,7 @@ func (r *MessageRepository) GetByChatID(ctx context.Context, chatID int, limit, 
 			&mediaURL,
 			&mediaType,
 			&fileSize,
+			&duration,
 			&replyToID,
 			&msg.IsEdited,
 			&msg.IsDeleted,
@@ -177,6 +192,7 @@ func (r *MessageRepository) GetByChatID(ctx context.Context, chatID int, limit, 
 			msg.MediaURL = ""
 			msg.MediaType = ""
 			msg.FileSize = nil
+			msg.Duration = nil
 		}
 
 		msg.Status = status
@@ -188,6 +204,10 @@ func (r *MessageRepository) GetByChatID(ctx context.Context, chatID int, limit, 
 		}
 		if fileSize.Valid && !msg.IsDeleted {
 			msg.FileSize = &fileSize.Int64
+		}
+		if duration.Valid && !msg.IsDeleted {
+			d := int(duration.Int64)
+			msg.Duration = &d
 		}
 		if replyToID.Valid {
 			id := int(replyToID.Int64)
@@ -247,6 +267,7 @@ func (r *MessageRepository) CreateMessageFromWebSocket(ctx context.Context, mess
 		MediaURL    string `json:"media_url"`
 		MediaType   string `json:"media_type"`
 		FileSize    *int64 `json:"file_size"`
+		Duration    *int   `json:"duration"`
 		ReplyToID   *int   `json:"reply_to_id"`
 	}
 
@@ -264,6 +285,7 @@ func (r *MessageRepository) CreateMessageFromWebSocket(ctx context.Context, mess
 		MediaURL:    body.MediaURL,
 		MediaType:   body.MediaType,
 		FileSize:    body.FileSize,
+		Duration:    body.Duration,
 		ReplyToID:   body.ReplyToID,
 	}
 

@@ -167,6 +167,9 @@ dependencies {
     // Coil for image loading
     implementation(libs.coil.compose)
 
+    // Accompanist for permissions
+    implementation(libs.accompanist.permissions)
+
     // E2E Encryption (without libsignal - using Java Crypto API)
     // implementation(libs.libsignal.android)
     implementation(libs.androidx.security.crypto)

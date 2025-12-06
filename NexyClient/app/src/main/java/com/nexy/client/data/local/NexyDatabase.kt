@@ -20,7 +20,7 @@ import com.nexy.client.data.local.entity.UserEntity
         ChatEntity::class,
         PendingMessageEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class NexyDatabase : RoomDatabase() {
@@ -76,6 +76,12 @@ abstract class NexyDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE chats ADD COLUMN isPinned INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("ALTER TABLE chats ADD COLUMN pinnedAt INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("ALTER TABLE chats ADD COLUMN isHidden INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+        
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE messages ADD COLUMN duration INTEGER")
             }
         }
     }

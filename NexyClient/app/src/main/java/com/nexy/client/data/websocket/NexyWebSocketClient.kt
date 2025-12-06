@@ -160,6 +160,29 @@ class NexyWebSocketClient(
         sendMessage(message)
     }
     
+    fun sendVoiceMessage(chatId: Int, senderId: Int, mediaUrl: String, durationMs: Long, messageId: String? = null) {
+        val msgId = messageId ?: generateMessageId()
+        val body = mutableMapOf<String, Any>(
+            "message_type" to "voice",
+            "media_url" to mediaUrl,
+            "content" to "",
+            "media_type" to "audio/3gpp",
+            "duration" to durationMs
+        )
+        
+        val message = NexyMessage(
+            header = NexyHeader(
+                type = "chat_message",
+                messageId = msgId,
+                timestamp = System.currentTimeMillis() / 1000,
+                senderId = senderId,
+                chatId = chatId
+            ),
+            body = body
+        )
+        sendMessage(message)
+    }
+    
     fun sendTypingIndicator(recipientId: Int, senderId: Int, isTyping: Boolean, chatId: Int = 0) {
         val body = mutableMapOf<String, Any>("is_typing" to isTyping)
         if (chatId != 0) {

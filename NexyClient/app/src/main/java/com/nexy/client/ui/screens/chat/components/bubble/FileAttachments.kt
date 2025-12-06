@@ -19,6 +19,8 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.nexy.client.ServerConfig
 import com.nexy.client.data.models.Message
+import com.nexy.client.data.models.MessageType
+import com.nexy.client.ui.screens.chat.components.voice.VoiceMessagePlayer
 import java.io.File
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -184,6 +186,7 @@ fun GenericFileAttachment(
 @Composable
 fun FileAttachment(
     message: Message,
+    isOwnMessage: Boolean = false,
     onDownloadFile: (String, String) -> Unit,
     onOpenFile: (String) -> Unit,
     onSaveFile: (String) -> Unit,
@@ -195,8 +198,14 @@ fun FileAttachment(
 
     val isImage = message.mediaType?.startsWith("image/") == true
     val isVideo = message.mediaType?.startsWith("video/") == true
+    val isVoice = message.type == MessageType.VOICE
 
     when {
+        isVoice -> VoiceMessagePlayer(
+            audioUrl = message.mediaUrl,
+            duration = message.duration,
+            isOwnMessage = isOwnMessage
+        )
         isImage -> ImageAttachment(message, onOpenFile, onLongClick)
         isVideo -> VideoAttachment(message, isDownloaded, onOpenFile, onDownloadFile, onLongClick)
         else -> GenericFileAttachment(message, isDownloaded, onOpenFile, onDownloadFile, onSaveFile, onLongClick)

@@ -5,6 +5,7 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"strings"
 
@@ -111,6 +112,9 @@ func (s *MessageService) DeleteMessage(ctx context.Context, messageID string, us
 	// Get message to check for attachments
 	msg, err := s.messageRepo.GetByUUID(ctx, messageID)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("message not found")
+		}
 		return nil, err
 	}
 	if msg == nil {

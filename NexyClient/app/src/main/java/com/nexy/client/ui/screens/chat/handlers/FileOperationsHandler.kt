@@ -22,6 +22,15 @@ class FileOperationsHandler @Inject constructor(
     ): Result<Message> {
         return chatRepository.sendFileMessage(chatId, userId, context, fileUri, fileName)
     }
+    
+    suspend fun sendVoiceMessage(
+        chatId: Int,
+        userId: Int,
+        audioFile: File,
+        durationMs: Long
+    ): Result<Message> {
+        return chatRepository.sendVoiceMessage(chatId, userId, audioFile, durationMs)
+    }
 
     suspend fun downloadFile(
         fileId: String,

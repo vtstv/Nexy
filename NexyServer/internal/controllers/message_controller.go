@@ -98,6 +98,14 @@ func (c *MessageController) DeleteMessage(w http.ResponseWriter, r *http.Request
 
 	msg, err := c.messageService.DeleteMessage(r.Context(), req.MessageID, userID)
 	if err != nil {
+		if err.Error() == "message not found" {
+			http.Error(w, "Message not found", http.StatusNotFound)
+			return
+		}
+		if err.Error() == "unauthorized" {
+			http.Error(w, "Unauthorized", http.StatusForbidden)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

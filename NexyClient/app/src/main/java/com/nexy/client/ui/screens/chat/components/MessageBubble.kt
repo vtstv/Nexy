@@ -107,6 +107,7 @@ fun MessageBubble(
                         if (message.mediaUrl != null) {
                             FileAttachment(
                                 message = message,
+                                isOwnMessage = isOwnMessage,
                                 onDownloadFile = onDownloadFile,
                                 onOpenFile = onOpenFile,
                                 onSaveFile = onSaveFile,

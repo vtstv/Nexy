@@ -44,8 +44,11 @@ class ChatMessageHandler @Inject constructor(
             "media" -> MessageType.MEDIA
             "file" -> MessageType.FILE
             "system" -> MessageType.SYSTEM
+            "voice" -> MessageType.VOICE
             else -> MessageType.TEXT
         }
+        
+        val duration = (body["duration"] as? Number)?.toInt()
         
         val message = Message(
             id = header.messageId,
@@ -56,7 +59,8 @@ class ChatMessageHandler @Inject constructor(
             status = MessageStatus.DELIVERED,
             timestamp = convertTimestamp(header.timestamp),
             mediaUrl = body["media_url"] as? String,
-            mediaType = body["media_type"] as? String
+            mediaType = body["media_type"] as? String,
+            duration = duration
         )
         
         Log.d(TAG, "Saving incoming message to DB: chatId=${message.chatId}, messageId=${message.id}, content=${message.content}")

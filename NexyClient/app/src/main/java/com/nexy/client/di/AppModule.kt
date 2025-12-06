@@ -114,7 +114,8 @@ object AppModule {
             NexyDatabase.MIGRATION_4_5,
             NexyDatabase.MIGRATION_5_6,
             NexyDatabase.MIGRATION_6_7,
-            NexyDatabase.MIGRATION_7_8
+            NexyDatabase.MIGRATION_7_8,
+            NexyDatabase.MIGRATION_8_9
         )
         .fallbackToDestructiveMigration()
         .build()

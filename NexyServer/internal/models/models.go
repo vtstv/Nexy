@@ -121,6 +121,7 @@ type Message struct {
 	MediaURL    string    `json:"media_url,omitempty"`
 	MediaType   string    `json:"media_type,omitempty"`
 	FileSize    *int64    `json:"file_size,omitempty"`
+	Duration    *int      `json:"duration,omitempty"` // Duration in seconds for voice messages
 	ReplyToID   *int      `json:"reply_to_id,omitempty"`
 	IsEdited    bool      `json:"is_edited"`
 	IsDeleted   bool      `json:"is_deleted"`

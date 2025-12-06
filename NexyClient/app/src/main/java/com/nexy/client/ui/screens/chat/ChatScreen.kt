@@ -280,6 +280,9 @@ fun ChatScreen(
                             onSendFile = { fileUri, fileName ->
                                 viewModel.sendFileMessage(context, fileUri, fileName)
                             },
+                            onSendVoice = { audioFile, durationMs ->
+                                viewModel.sendVoiceMessage(audioFile, durationMs.toLong())
+                            },
                             showEmojiPicker = showEmojiPicker,
                             onToggleEmojiPicker = { showEmojiPicker = !showEmojiPicker },
                             replyToMessage = replyToMessage,

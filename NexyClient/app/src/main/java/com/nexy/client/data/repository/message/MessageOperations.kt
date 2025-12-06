@@ -305,7 +305,8 @@ class MessageOperations @Inject constructor(
         return withContext(Dispatchers.IO) {
             try {
                 val response = apiService.deleteMessage(DeleteMessageRequest(messageId))
-                if (response.isSuccessful) {
+                // If successful or if message not found (already deleted/never existed), delete locally
+                if (response.isSuccessful || response.code() == 404) {
                     messageDao.deleteMessage(messageId)
                     Result.success(Unit)
                 } else {

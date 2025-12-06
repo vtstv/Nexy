@@ -29,6 +29,7 @@ data class MessageEntity(
     val status: String,
     val mediaUrl: String?,
     val mediaThumbnail: String?,
+    val duration: Int? = null,  // Duration in seconds for voice messages
     val replyToId: String?,
     val isEdited: Boolean = false,
     val isSyncedToServer: Boolean = false

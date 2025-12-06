@@ -33,6 +33,9 @@ data class Message(
     @SerializedName("media_type")  // Server has media_type field
     val mediaType: String? = null,
     
+    @SerializedName("duration")  // Duration in seconds for voice messages
+    val duration: Int? = null,
+    
     @SerializedName("reply_to_id")  // Changed to snake_case
     val replyToId: Int? = null,  // Changed from String to Int
     
@@ -67,7 +70,10 @@ enum class MessageType {
     FILE,
     
     @SerializedName("system")
-    SYSTEM
+    SYSTEM,
+    
+    @SerializedName("voice")
+    VOICE
 }
 
 enum class MessageStatus {

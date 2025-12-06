@@ -22,6 +22,8 @@ import com.nexy.client.data.models.Message
 import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextRange
+import com.nexy.client.ui.screens.chat.components.voice.VoiceRecorder
+import java.io.File
 
 @Composable
 fun MessageInput(
@@ -29,6 +31,7 @@ fun MessageInput(
     onTextChange: (TextFieldValue) -> Unit,
     onSend: () -> Unit,
     onSendFile: (Uri, String) -> Unit,
+    onSendVoice: (File, Int) -> Unit,
     showEmojiPicker: Boolean,
     onToggleEmojiPicker: () -> Unit,
     replyToMessage: Message? = null,
@@ -38,6 +41,8 @@ fun MessageInput(
 ) {
     var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
     var selectedFileName by remember { mutableStateOf<String?>(null) }
+    var isRecording by remember { mutableStateOf(false) }
+    var recordingFile by remember { mutableStateOf<File?>(null) }
     val context = LocalContext.current
     
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -98,26 +103,44 @@ fun MessageInput(
                 )
             }
             
-            InputRow(
-                text = text,
-                onTextChange = onTextChange,
-                showEmojiPicker = showEmojiPicker,
-                onToggleEmojiPicker = onToggleEmojiPicker,
-                onAttachFile = { filePickerLauncher.launch("*/*") },
-                onSend = {
-                    val fileUri = selectedFileUri
-                    val fileName = selectedFileName
-                    if (fileUri != null && fileName != null) {
-                        onSendFile(fileUri, fileName)
-                        selectedFileUri = null
-                        selectedFileName = null
-                    } else {
-                        onSend()
+            if (isRecording) {
+                VoiceRecorder(
+                    onStartRecording = { file ->
+                        recordingFile = file
+                    },
+                    onStopRecording = { file, duration ->
+                        isRecording = false
+                        recordingFile = null
+                        onSendVoice(file, duration)
+                    },
+                    onCancelRecording = {
+                        isRecording = false
+                        recordingFile = null
                     }
-                },
-                sendEnabled = text.text.isNotBlank() || selectedFileUri != null,
-                isEditing = editingMessage != null
-            )
+                )
+            } else {
+                InputRow(
+                    text = text,
+                    onTextChange = onTextChange,
+                    showEmojiPicker = showEmojiPicker,
+                    onToggleEmojiPicker = onToggleEmojiPicker,
+                    onAttachFile = { filePickerLauncher.launch("*/*") },
+                    onStartRecording = { isRecording = true },
+                    onSend = {
+                        val fileUri = selectedFileUri
+                        val fileName = selectedFileName
+                        if (fileUri != null && fileName != null) {
+                            onSendFile(fileUri, fileName)
+                            selectedFileUri = null
+                            selectedFileName = null
+                        } else {
+                            onSend()
+                        }
+                    },
+                    sendEnabled = text.text.isNotBlank() || selectedFileUri != null,
+                    isEditing = editingMessage != null
+                )
+            }
         }
     }
 }
@@ -248,6 +271,7 @@ private fun InputRow(
     showEmojiPicker: Boolean,
     onToggleEmojiPicker: () -> Unit,
     onAttachFile: () -> Unit,
+    onStartRecording: () -> Unit,
     onSend: () -> Unit,
     sendEnabled: Boolean,
     isEditing: Boolean = false
@@ -283,16 +307,29 @@ private fun InputRow(
             shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp)
         )
         
-        IconButton(
-            onClick = onSend,
-            enabled = sendEnabled,
-            modifier = Modifier.size(48.dp)
-        ) {
-            Icon(
-                if (isEditing) Icons.Default.Check else Icons.AutoMirrored.Filled.Send, 
-                if (isEditing) "Save" else stringResource(R.string.send),
-                tint = if (sendEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-            )
+        if (text.text.isBlank() && !isEditing) {
+            IconButton(
+                onClick = onStartRecording,
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    Icons.Default.Mic,
+                    contentDescription = "Record voice message",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        } else {
+            IconButton(
+                onClick = onSend,
+                enabled = sendEnabled,
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    if (isEditing) Icons.Default.Check else Icons.AutoMirrored.Filled.Send, 
+                    if (isEditing) "Save" else stringResource(R.string.send),
+                    tint = if (sendEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                )
+            }
         }
     }
 }

@@ -84,6 +84,13 @@ class ChatRepository @Inject constructor(
         fileName: String
     ): Result<Message> = fileOperations.sendFileMessage(chatId, senderId, context, fileUri, fileName)
     
+    suspend fun sendVoiceMessage(
+        chatId: Int,
+        senderId: Int,
+        audioFile: java.io.File,
+        durationMs: Long
+    ): Result<Message> = fileOperations.sendVoiceMessage(chatId, senderId, audioFile, durationMs.toInt())
+    
     suspend fun downloadFile(fileId: String, context: Context, fileName: String): Result<Uri> =
         fileOperations.downloadFile(fileId, context, fileName)
     
