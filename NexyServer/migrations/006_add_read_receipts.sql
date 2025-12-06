@@ -1,1 +1,0 @@
-ALTER TABLE users ADD COLUMN read_receipts_enabled BOOLEAN DEFAULT TRUE;
