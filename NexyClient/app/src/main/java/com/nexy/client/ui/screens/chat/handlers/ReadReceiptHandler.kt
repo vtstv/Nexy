@@ -5,7 +5,9 @@ import com.nexy.client.data.repository.ChatRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import javax.inject.Inject
+import javax.inject.Singleton
 
+@Singleton
 class ReadReceiptHandler @Inject constructor(
     private val chatRepository: ChatRepository
 ) {
@@ -24,7 +26,7 @@ class ReadReceiptHandler @Inject constructor(
         firstLoading = true
         savedFirstUnreadMessageId = null
         lastKnownMessageId = null
-        isChatActive = false
+        // Don't reset isChatActive here - it should be set explicitly by setChatActive()
         debounceJob?.cancel()
         debounceJob = null
     }

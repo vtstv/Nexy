@@ -20,6 +20,9 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -151,5 +154,11 @@ object AppModule {
     @Singleton
     fun provideE2EApiClient(okHttpClient: OkHttpClient, gson: Gson): com.nexy.client.e2e.E2EApiClient {
         return com.nexy.client.e2e.E2EApiClient(BASE_URL, okHttpClient, gson)
+    }
+
+    @Provides
+    @Singleton
+    fun provideApplicationScope(): CoroutineScope {
+        return CoroutineScope(SupervisorJob() + Dispatchers.IO)
     }
 }

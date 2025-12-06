@@ -124,7 +124,7 @@ func (r *ChatRepository) GetUserChats(ctx context.Context, userID int) ([]*model
 	}
 	defer rows.Close()
 
-	var chats []*models.Chat
+	chats := []*models.Chat{}
 	for rows.Next() {
 		chat := &models.Chat{}
 		var createdBy sql.NullInt64

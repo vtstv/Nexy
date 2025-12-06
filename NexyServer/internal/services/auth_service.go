@@ -136,6 +136,13 @@ func (s *AuthService) ValidateToken(tokenString string) (int, error) {
 		return 0, fmt.Errorf("invalid user_id in token")
 	}
 
+	// Verify user exists in database
+	ctx := context.Background()
+	_, err = s.userRepo.GetByID(ctx, int(userID))
+	if err != nil {
+		return 0, fmt.Errorf("user not found")
+	}
+
 	return int(userID), nil
 }
 

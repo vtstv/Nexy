@@ -289,9 +289,18 @@ CREATE TABLE IF NOT EXISTS chat_folder_excluded (
     UNIQUE(folder_id, chat_id)
 );
 
+-- Alias table for backward compatibility with code using chat_folder_items
+CREATE TABLE IF NOT EXISTS chat_folder_items (
+    id SERIAL PRIMARY KEY,
+    folder_id INTEGER NOT NULL REFERENCES chat_folders(id) ON DELETE CASCADE,
+    chat_id INTEGER NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+    UNIQUE(folder_id, chat_id)
+);
+
 CREATE INDEX idx_chat_folders_user_id ON chat_folders(user_id);
 CREATE INDEX idx_chat_folder_included_folder_id ON chat_folder_included(folder_id);
 CREATE INDEX idx_chat_folder_excluded_folder_id ON chat_folder_excluded(folder_id);
+CREATE INDEX idx_chat_folder_items_folder_id ON chat_folder_items(folder_id);
 
 -- ============================================
 -- SYNCHRONIZATION (PTS)

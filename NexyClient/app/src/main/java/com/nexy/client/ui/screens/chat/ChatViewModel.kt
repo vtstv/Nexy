@@ -17,6 +17,7 @@ import com.nexy.client.ui.screens.chat.handlers.ReadReceiptHandler
 import com.nexy.client.ui.screens.chat.handlers.TypingHandler
 import com.nexy.client.ui.screens.chat.state.ChatUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,7 +34,8 @@ class ChatViewModel @Inject constructor(
     private val fileDelegate: FileDelegate,
     private val membershipDelegate: MembershipDelegate,
     private val messageDelegate: MessageDelegate,
-    private val savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle,
+    private val applicationScope: CoroutineScope
 ) : ViewModel() {
 
     private var chatId: Int = savedStateHandle.get<Int>("chatId")
@@ -77,8 +79,8 @@ class ChatViewModel @Inject constructor(
 
     fun onChatOpened() {
         android.util.Log.d("ChatViewModel", "onChatOpened: fetching fresh chat info from server")
-        readReceiptHandler.reset()
         readReceiptHandler.setChatActive(true)
+        readReceiptHandler.reset()
 
         viewModelScope.launch {
             loadCurrentUserAndChatInfo()
@@ -101,8 +103,12 @@ class ChatViewModel @Inject constructor(
         android.util.Log.d("ChatViewModel", "onChatClosed: marking as read now")
         readReceiptHandler.setChatActive(false)
         readReceiptHandler.cancelPendingReceipt()
-        viewModelScope.launch {
-            readReceiptHandler.markAsRead(chatId)
+        applicationScope.launch {
+            try {
+                readReceiptHandler.markAsRead(chatId)
+            } catch (e: Exception) {
+                android.util.Log.e("ChatViewModel", "Failed to mark as read in onChatClosed", e)
+            }
         }
     }
 
