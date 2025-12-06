@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/vtstv/nexy/internal/middleware"
+	nexy "github.com/vtstv/nexy/internal/ws"
 )
 
 type UpdateMemberRoleRequest struct {
@@ -75,6 +76,20 @@ func (c *GroupController) AddMember(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	// Get group info for notification
+	group, err := c.groupService.GetGroup(r.Context(), groupID, userID)
+	if err == nil && group != nil && c.hub != nil {
+		// Send notification to added user
+		addedMsg, _ := nexy.NewNexyMessage(nexy.TypeAddedToGroup, userID, &groupID, nexy.AddedToGroupBody{
+			ChatID:    groupID,
+			ChatName:  group.Name,
+			ChatType:  string(group.Type),
+			GroupType: string(group.GroupType),
+			AddedBy:   userID,
+		})
+		c.hub.SendToUser(req.UserID, addedMsg)
 	}
 
 	w.WriteHeader(http.StatusOK)

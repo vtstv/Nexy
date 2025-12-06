@@ -77,7 +77,7 @@ func main() {
 
 	authController := controllers.NewAuthController(authService, sessionRepo, folderRepo)
 	userController := controllers.NewUserController(userService, qrService)
-	groupController := controllers.NewGroupController(groupService)
+	groupController := controllers.NewGroupController(groupService, hub)
 	inviteController := controllers.NewInviteController(inviteService)
 	messageController := controllers.NewMessageController(messageService, hub)
 	fileController := controllers.NewFileController(fileService)

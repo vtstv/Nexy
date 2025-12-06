@@ -58,6 +58,13 @@ func (h *Hub) broadcastToAll(message *NexyMessage, unregisterFunc func(*Client))
 	}
 }
 
+// SendToUser sends a message to a specific user (public method for external use)
+func (h *Hub) SendToUser(userID int, message *NexyMessage) {
+	h.sendToUser(userID, message, func(c *Client) {
+		h.unregister <- c
+	})
+}
+
 func (h *Hub) broadcastToChatMembers(chatID int, message *NexyMessage) {
 	ctx := context.Background()
 	memberIDs, err := h.chatRepo.GetChatMembers(ctx, chatID)

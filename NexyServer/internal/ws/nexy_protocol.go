@@ -12,10 +12,11 @@ const (
 type MessageType string
 
 const (
-	TypeChatMessage  MessageType = "chat_message"
-	TypeChatCreated  MessageType = "chat_created"
-	TypeTyping       MessageType = "typing"
-	TypeDelivered    MessageType = "delivered"
+	TypeChatMessage   MessageType = "chat_message"
+	TypeChatCreated   MessageType = "chat_created"
+	TypeAddedToGroup  MessageType = "added_to_group"
+	TypeTyping        MessageType = "typing"
+	TypeDelivered     MessageType = "delivered"
 	TypeRead         MessageType = "read"
 	TypeEdit         MessageType = "edit"
 	TypeDelete       MessageType = "delete"
@@ -89,6 +90,14 @@ type ChatCreatedBody struct {
 	ChatType       string `json:"chat_type"`
 	ParticipantIDs []int  `json:"participant_ids"`
 	CreatedBy      int    `json:"created_by"`
+}
+
+type AddedToGroupBody struct {
+	ChatID    int    `json:"chat_id"`
+	ChatName  string `json:"chat_name"`
+	ChatType  string `json:"chat_type"`
+	GroupType string `json:"group_type,omitempty"`
+	AddedBy   int    `json:"added_by"`
 }
 
 type AckBody struct {

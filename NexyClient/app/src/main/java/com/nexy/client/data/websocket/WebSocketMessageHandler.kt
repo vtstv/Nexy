@@ -52,6 +52,7 @@ class WebSocketMessageHandler @Inject constructor(
                 when (nexyMessage.header.type) {
                     "chat_message" -> handleChatMessage(nexyMessage)
                     "chat_created" -> handleChatCreated(nexyMessage)
+                    "added_to_group" -> handleAddedToGroup(nexyMessage)
                     "ack" -> handleAck(nexyMessage)
                     "read" -> handleReadReceipt(nexyMessage)
                     "edit" -> handleEditMessage(nexyMessage)
@@ -226,6 +227,43 @@ class WebSocketMessageHandler @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching chat details for $chatId", e)
+        }
+    }
+    
+    private suspend fun handleAddedToGroup(nexyMessage: NexyMessage) {
+        val body = nexyMessage.body ?: return
+        
+        val chatId = (body["chat_id"] as? Double)?.toInt() ?: return
+        val chatName = body["chat_name"] as? String ?: "Group"
+        
+        Log.d(TAG, "Received added_to_group: chatId=$chatId, chatName=$chatName")
+        
+        // Fetch full chat details from API
+        try {
+            val response = apiService.getChatById(chatId)
+            if (response.isSuccessful && response.body() != null) {
+                val chat = response.body()!!
+                chatDao.insertChat(chatMappers.modelToEntity(chat))
+                
+                // Also fetch participants for avatars
+                chat.participantIds?.forEach { userId ->
+                    try {
+                        userRepository.getUserById(userId)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to fetch participant $userId", e)
+                    }
+                }
+                
+                Log.d(TAG, "Added to group fetched and inserted: $chatId")
+                
+                if (settingsManager.isPushNotificationsEnabled()) {
+                    notificationHelper.showNotification("Added to Group", "You were added to $chatName", chatId)
+                }
+            } else {
+                Log.e(TAG, "Failed to fetch group details for $chatId")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching group details for $chatId", e)
         }
     }
     
