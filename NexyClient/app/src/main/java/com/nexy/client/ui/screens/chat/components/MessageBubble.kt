@@ -19,6 +19,7 @@ import com.nexy.client.data.models.Message
 import com.nexy.client.ui.components.LinkParser
 import com.nexy.client.ui.components.LinkedText
 import com.nexy.client.ui.screens.chat.components.bubble.*
+import com.nexy.client.ui.screens.chat.components.invite.InviteLinkCard
 import java.io.File
 
 @OptIn(ExperimentalFoundationApi::class)
