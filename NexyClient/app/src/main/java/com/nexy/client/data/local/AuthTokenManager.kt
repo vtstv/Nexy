@@ -106,12 +106,12 @@ class AuthTokenManager(private val context: Context) {
     }
 
     fun getBackgroundServiceEnabledFlow() = context.dataStore.data.map { prefs ->
-        prefs[BACKGROUND_SERVICE_ENABLED_KEY] ?: true // Default to true
+        prefs[BACKGROUND_SERVICE_ENABLED_KEY] ?: false // Default to false
     }
     
     suspend fun getBackgroundServiceEnabled(): Boolean {
         return context.dataStore.data.map { prefs ->
-            prefs[BACKGROUND_SERVICE_ENABLED_KEY] ?: true
+            prefs[BACKGROUND_SERVICE_ENABLED_KEY] ?: false
         }.first()
     }
 }

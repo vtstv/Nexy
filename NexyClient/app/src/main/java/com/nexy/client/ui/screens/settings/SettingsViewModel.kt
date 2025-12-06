@@ -76,7 +76,7 @@ class SettingsViewModel @Inject constructor(
     private val _voiceMessagesEnabled = MutableStateFlow(true)
     val voiceMessagesEnabled: StateFlow<Boolean> = _voiceMessagesEnabled.asStateFlow()
 
-    private val _isBackgroundServiceEnabled = MutableStateFlow(true)
+    private val _isBackgroundServiceEnabled = MutableStateFlow(false)
     val isBackgroundServiceEnabled: StateFlow<Boolean> = _isBackgroundServiceEnabled.asStateFlow()
 
     private val _readReceiptsEnabled = MutableStateFlow(true)
