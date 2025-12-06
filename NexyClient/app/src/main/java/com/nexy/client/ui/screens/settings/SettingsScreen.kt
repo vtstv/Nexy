@@ -78,6 +78,7 @@ fun SettingsScreen(
     val readReceiptsEnabled by viewModel.readReceiptsEnabled.collectAsState()
     val typingIndicatorsEnabled by viewModel.typingIndicatorsEnabled.collectAsState()
     val showOnlineStatus by viewModel.showOnlineStatus.collectAsState()
+    val showNotepad by viewModel.showNotepad.collectAsState()
     val sessions by viewModel.sessions.collectAsState()
     val isLoadingSessions by viewModel.isLoadingSessions.collectAsState()
     
@@ -188,10 +189,12 @@ fun SettingsScreen(
                         themeStyle = themeStyle,
                         incomingTextColor = incomingTextColor,
                         outgoingTextColor = outgoingTextColor,
+                        showNotepad = showNotepad,
                         onFontScaleChange = { themeViewModel.setFontScale(it) },
                         onThemeStyleChange = { themeViewModel.setThemeStyle(it) },
                         onIncomingColorClick = { showIncomingColorPicker = true },
-                        onOutgoingColorClick = { showOutgoingColorPicker = true }
+                        onOutgoingColorClick = { showOutgoingColorPicker = true },
+                        onShowNotepadChange = { viewModel.setShowNotepad(it) }
                     )
                     HorizontalDivider()
                     VoiceMediaSection(

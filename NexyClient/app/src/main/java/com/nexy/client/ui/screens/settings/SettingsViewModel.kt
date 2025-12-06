@@ -13,8 +13,10 @@ import com.nexy.client.data.api.NexyApiService
 import com.nexy.client.data.local.AuthTokenManager
 import com.nexy.client.data.local.settingsDataStore
 import com.nexy.client.data.models.UserSession
+import com.nexy.client.data.repository.ChatRepository
 import com.nexy.client.data.repository.UserRepository
 import com.nexy.client.ui.screens.chat.handlers.ChatStateManager
+import com.nexy.client.data.models.ChatType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +33,7 @@ class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val tokenManager: AuthTokenManager,
     private val userRepository: UserRepository,
+    private val chatRepository: ChatRepository,
     private val stateManager: ChatStateManager,
     private val apiService: NexyApiService
 ) : ViewModel() {
@@ -88,6 +91,11 @@ class SettingsViewModel @Inject constructor(
     private val _showOnlineStatus = MutableStateFlow(true)
     val showOnlineStatus: StateFlow<Boolean> = _showOnlineStatus.asStateFlow()
 
+    private val _showNotepad = MutableStateFlow(false)
+    val showNotepad: StateFlow<Boolean> = _showNotepad.asStateFlow()
+    
+    private var notepadChatId: Int? = null
+
     private val _sessions = MutableStateFlow<List<UserSession>>(emptyList())
     val sessions: StateFlow<List<UserSession>> = _sessions.asStateFlow()
 
@@ -98,10 +106,25 @@ class SettingsViewModel @Inject constructor(
         loadSettings()
         calculateCacheSize()
         loadUserProfile()
+        checkNotepadStatus()
         
         viewModelScope.launch {
             tokenManager.getBackgroundServiceEnabledFlow().collect { enabled ->
                 _isBackgroundServiceEnabled.value = enabled
+            }
+        }
+    }
+
+    private fun checkNotepadStatus() {
+        viewModelScope.launch {
+            chatRepository.getAllChats().collect { chats ->
+                val userId = tokenManager.getUserId()
+                val notepadChat = chats.find { chat ->
+                    chat.type == ChatType.PRIVATE && 
+                    (chat.participantIds?.size == 1 && chat.participantIds.contains(userId))
+                }
+                _showNotepad.value = notepadChat != null
+                notepadChatId = notepadChat?.id
             }
         }
     }
@@ -408,6 +431,18 @@ class SettingsViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 android.util.Log.e("SettingsViewModel", "Failed to update session settings", e)
+            }
+        }
+    }
+
+    fun setShowNotepad(enabled: Boolean) {
+        viewModelScope.launch {
+            if (enabled) {
+                chatRepository.getOrCreateSavedMessages()
+            } else {
+                notepadChatId?.let { id ->
+                    chatRepository.hideChat(id)
+                }
             }
         }
     }

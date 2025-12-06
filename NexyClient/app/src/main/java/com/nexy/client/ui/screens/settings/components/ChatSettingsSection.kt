@@ -26,10 +26,12 @@ fun ChatSettingsSection(
     themeStyle: ThemeStyle,
     incomingTextColor: Long,
     outgoingTextColor: Long,
+    showNotepad: Boolean,
     onFontScaleChange: (Float) -> Unit,
     onThemeStyleChange: (ThemeStyle) -> Unit,
     onIncomingColorClick: () -> Unit,
-    onOutgoingColorClick: () -> Unit
+    onOutgoingColorClick: () -> Unit,
+    onShowNotepadChange: (Boolean) -> Unit
 ) {
     Text(
         text = "Chat Settings",
@@ -120,6 +122,19 @@ fun ChatSettingsSection(
                     .background(if (outgoingTextColor != 0L) Color(outgoingTextColor) else MaterialTheme.colorScheme.onPrimaryContainer)
                     .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
                     .clickable { onOutgoingColorClick() }
+            )
+        }
+    )
+
+    HorizontalDivider()
+
+    ListItem(
+        headlineContent = { Text("Show Notepad") },
+        supportingContent = { Text("Show Notepad in chat list") },
+        trailingContent = {
+            Switch(
+                checked = showNotepad,
+                onCheckedChange = onShowNotepadChange
             )
         }
     )

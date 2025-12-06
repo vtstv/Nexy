@@ -114,16 +114,19 @@ class ChatCrudOperations @Inject constructor(
 
                     val existingChat = chatDao.getChatById(chat.id)
                     val newEntity = chatMappers.modelToEntity(chat)
-                    val finalEntity = if (existingChat != null) {
-                        newEntity.copy(
+                    
+                    if (existingChat != null) {
+                        val finalEntity = newEntity.copy(
                             lastMessageId = existingChat.lastMessageId,
-                            unreadCount = existingChat.unreadCount
+                            unreadCount = existingChat.unreadCount,
+                            isHidden = false
                         )
+                        chatDao.updateChat(finalEntity)
                     } else {
-                        newEntity
+                        val finalEntity = newEntity.copy(isHidden = false)
+                        chatDao.insertChat(finalEntity)
                     }
 
-                    chatDao.insertChat(finalEntity)
                     Result.success(chat)
                 } else {
                     Result.failure(Exception("Failed to create Notepad chat"))
@@ -147,8 +150,20 @@ class ChatCrudOperations @Inject constructor(
 
                 if (response.isSuccessful && response.body() != null) {
                     val chat = response.body()!!
-                    val entity = chatMappers.modelToEntity(chat)
-                    chatDao.insertChat(entity)
+                    val existingChat = chatDao.getChatById(chat.id)
+                    val newEntity = chatMappers.modelToEntity(chat)
+                    
+                    if (existingChat != null) {
+                        val finalEntity = newEntity.copy(
+                            lastMessageId = existingChat.lastMessageId,
+                            unreadCount = existingChat.unreadCount,
+                            isHidden = false
+                        )
+                        chatDao.updateChat(finalEntity)
+                    } else {
+                        val finalEntity = newEntity.copy(isHidden = false)
+                        chatDao.insertChat(finalEntity)
+                    }
                     Result.success(chat)
                 } else {
                     Result.failure(Exception("Failed to create private chat"))
