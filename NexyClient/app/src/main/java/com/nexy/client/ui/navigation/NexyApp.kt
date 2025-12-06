@@ -149,6 +149,7 @@ fun NexyApp() {
                     navController.safePopBackStack()
                 },
                 onUserClick = { userId ->
+                    navController.navigate("user_profile/$userId")
                 },
                 onNavigateToQRScanner = {
                     navController.navigate(Screen.QRScanner.route)
