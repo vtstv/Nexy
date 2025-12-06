@@ -170,7 +170,14 @@ class ChatInviteOperations @Inject constructor(
                     chatDao.insertChat(chatMappers.modelToEntity(chat))
                     Result.success(chat)
                 } else {
-                    Result.failure(Exception("Failed to join group"))
+                    // Try to get error message from response body
+                    val errorBody = response.errorBody()?.string()
+                    val errorMessage = when {
+                        errorBody?.contains("banned", ignoreCase = true) == true -> "You are banned from this group"
+                        errorBody?.contains("already a member", ignoreCase = true) == true -> "You are already a member"
+                        else -> errorBody ?: "Failed to join group"
+                    }
+                    Result.failure(Exception(errorMessage))
                 }
             } catch (e: Exception) {
                 Result.failure(e)

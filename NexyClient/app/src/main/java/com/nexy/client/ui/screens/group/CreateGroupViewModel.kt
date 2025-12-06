@@ -145,9 +145,15 @@ class CreateGroupViewModel @Inject constructor(
                     val chat = response.body()!!
                     onSuccess(chat.id)
                 } else {
-                    _uiState.value = CreateGroupUiState.Error(
-                        response.errorBody()?.string() ?: "Failed to create group"
-                    )
+                    val errorBody = response.errorBody()?.string()
+                    val errorMessage = when {
+                        errorBody?.contains("username is already taken", ignoreCase = true) == true -> 
+                            "This username is already taken. Please choose another one."
+                        errorBody?.contains("username is required", ignoreCase = true) == true -> 
+                            "Username is required for public groups"
+                        else -> errorBody ?: "Failed to create group"
+                    }
+                    _uiState.value = CreateGroupUiState.Error(errorMessage)
                 }
             } catch (e: Exception) {
                 _uiState.value = CreateGroupUiState.Error(e.message ?: "Unknown error")

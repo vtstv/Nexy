@@ -84,8 +84,54 @@ fun GroupInfoScreen(
             }
         )
     }
+    
+    // Leave group confirmation dialog
+    var showLeaveDialog by remember { mutableStateOf(false) }
+    if (showLeaveDialog) {
+        AlertDialog(
+            onDismissRequest = { showLeaveDialog = false },
+            title = { Text("Leave Group") },
+            text = { Text("Are you sure you want to leave this group?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showLeaveDialog = false
+                        viewModel.leaveGroup()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Leave")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLeaveDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+    
+    // TopBar menu state
+    var showTopBarMenu by remember { mutableStateOf(false) }
+    
+    // Snackbar for errors
+    val snackbarHostState = remember { SnackbarHostState() }
+    
+    // Show error in snackbar
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let { error ->
+            snackbarHostState.showSnackbar(
+                message = error,
+                duration = SnackbarDuration.Long
+            )
+            viewModel.clearError()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { 
@@ -118,6 +164,34 @@ fun GroupInfoScreen(
                     if (!uiState.isSearching) {
                         IconButton(onClick = viewModel::toggleSearch) {
                             Icon(Icons.Default.Search, contentDescription = "Search")
+                        }
+                        
+                        // Menu with Leave Group option
+                        if (uiState.isMember) {
+                            Box {
+                                IconButton(onClick = { showTopBarMenu = true }) {
+                                    Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                                }
+                                DropdownMenu(
+                                    expanded = showTopBarMenu,
+                                    onDismissRequest = { showTopBarMenu = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("Leave Group", color = MaterialTheme.colorScheme.error) },
+                                        onClick = {
+                                            showTopBarMenu = false
+                                            showLeaveDialog = true
+                                        },
+                                        leadingIcon = { 
+                                            Icon(
+                                                Icons.Default.ExitToApp, 
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.error
+                                            ) 
+                                        }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -232,13 +306,6 @@ fun GroupInfoScreen(
                                     )
                                     HorizontalDivider()
                                 }
-                                
-                                ListItem(
-                                    headlineContent = { Text("Leave Group", color = MaterialTheme.colorScheme.error) },
-                                    leadingContent = { Icon(Icons.Default.ExitToApp, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-                                    modifier = Modifier.clickable { viewModel.leaveGroup() }
-                                )
-                                HorizontalDivider()
                             } else if (uiState.chat?.groupType == GroupType.PUBLIC_GROUP) {
                                 ListItem(
                                     headlineContent = { Text("Join Group", color = MaterialTheme.colorScheme.primary) },

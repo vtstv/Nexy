@@ -16,6 +16,14 @@ func (s *GroupService) CreateGroup(ctx context.Context, name, description, group
 		return nil, errors.New("invalid group type: must be 'private_group' or 'public_group'")
 	}
 
+	// Check if username is already taken for public groups
+	if groupType == "public_group" && username != "" {
+		existing, _ := s.chatRepo.GetByUsername(ctx, username)
+		if existing != nil {
+			return nil, errors.New("username is already taken")
+		}
+	}
+
 	chat := &models.Chat{
 		Type:        "group",
 		GroupType:   groupType,

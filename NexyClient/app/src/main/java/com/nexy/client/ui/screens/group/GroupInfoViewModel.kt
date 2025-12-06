@@ -31,8 +31,6 @@ class GroupInfoViewModel @Inject constructor(
                 if (chatResult.isSuccess) {
                     val chat = chatResult.getOrNull()!!
                     val currentUserId = getCurrentUserId()
-                    val participantIds = chat.participantIds ?: emptyList()
-                    val isMember = currentUserId != null && participantIds.contains(currentUserId)
                     
                     // Load members with roles and online status via API
                     val membersResult = chatRepository.getGroupMembers(chatId)
@@ -41,6 +39,9 @@ class GroupInfoViewModel @Inject constructor(
                     } else {
                         emptyList()
                     }
+                    
+                    // Check if current user is a member by looking at members list
+                    val isMember = currentUserId != null && members.any { it.userId == currentUserId }
                     
                     _uiState.value = _uiState.value.copy(
                         chat = chat,
@@ -99,8 +100,9 @@ class GroupInfoViewModel @Inject constructor(
                 if (result.isSuccess) {
                     loadGroupInfo(chat.id)
                 } else {
+                    val errorMessage = result.exceptionOrNull()?.message ?: "Failed to join group"
                     _uiState.value = _uiState.value.copy(
-                        error = "Failed to join group",
+                        error = errorMessage,
                         isLoading = false
                     )
                 }
@@ -201,6 +203,10 @@ class GroupInfoViewModel @Inject constructor(
 
     fun clearLeftGroupState() {
         _uiState.value = _uiState.value.copy(isLeftGroup = false)
+    }
+    
+    fun clearError() {
+        _uiState.value = _uiState.value.copy(error = null)
     }
 
     fun updateSearchQuery(query: String) {
