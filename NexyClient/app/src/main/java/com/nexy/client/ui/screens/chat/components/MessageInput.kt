@@ -41,8 +41,6 @@ fun MessageInput(
     voiceMessagesEnabled: Boolean = true,
     recipientVoiceMessagesEnabled: Boolean = true
 ) {
-    var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
-    var selectedFileName by remember { mutableStateOf<String?>(null) }
     var isRecording by remember { mutableStateOf(false) }
     var recordingFile by remember { mutableStateOf<File?>(null) }
     val context = LocalContext.current
@@ -51,17 +49,20 @@ fun MessageInput(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            selectedFileUri = uri
             val cursor = context.contentResolver.query(uri, null, null, null, null)
+            var fileName: String? = null
             cursor?.use {
                 if (it.moveToFirst()) {
                     val nameIndex = it.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
                     if (nameIndex != -1) {
-                        selectedFileName = it.getString(nameIndex)
+                        fileName = it.getString(nameIndex)
                     }
                 }
             }
-            android.util.Log.d("MessageInput", "File selected: $selectedFileName, URI: $uri")
+            android.util.Log.d("MessageInput", "File selected: $fileName, URI: $uri")
+            if (fileName != null) {
+                onSendFile(uri, fileName!!)
+            }
         }
     }
     
@@ -71,16 +72,6 @@ fun MessageInput(
                 EditPreview(message = editingMessage, onCancel = onCancelEdit)
             } else if (replyToMessage != null) {
                 ReplyPreview(message = replyToMessage, onCancel = onCancelReply)
-            }
-            
-            if (selectedFileUri != null) {
-                FilePreview(
-                    fileName = selectedFileName ?: "File",
-                    onRemove = {
-                        selectedFileUri = null
-                        selectedFileName = null
-                    }
-                )
             }
             
             if (showEmojiPicker) {
@@ -134,18 +125,8 @@ fun MessageInput(
                             isRecording = true 
                         }
                     },
-                    onSend = {
-                        val fileUri = selectedFileUri
-                        val fileName = selectedFileName
-                        if (fileUri != null && fileName != null) {
-                            onSendFile(fileUri, fileName)
-                            selectedFileUri = null
-                            selectedFileName = null
-                        } else {
-                            onSend()
-                        }
-                    },
-                    sendEnabled = text.text.isNotBlank() || selectedFileUri != null,
+                    onSend = onSend,
+                    sendEnabled = text.text.isNotBlank(),
                     isEditing = editingMessage != null,
                     voiceMessagesEnabled = voiceMessagesEnabled
                 )
@@ -188,45 +169,6 @@ private fun ReplyPreview(
             }
             IconButton(onClick = onCancel) {
                 Icon(Icons.Default.Close, "Cancel reply")
-            }
-        }
-    }
-}
-
-@Composable
-private fun FilePreview(
-    fileName: String,
-    onRemove: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        tonalElevation = 1.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(
-                    Icons.Default.AttachFile,
-                    contentDescription = "File",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = fileName,
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1
-                )
-            }
-            IconButton(onClick = onRemove) {
-                Icon(Icons.Default.Close, "Remove file")
             }
         }
     }
