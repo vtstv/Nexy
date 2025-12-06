@@ -3,6 +3,7 @@ package com.nexy.client.ui.screens.chat.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -15,7 +16,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.platform.LocalClipboardManager
 import com.nexy.client.data.models.ChatType
 import com.nexy.client.data.models.InvitePreviewResponse
 import com.nexy.client.data.models.Message
@@ -51,6 +57,42 @@ fun MessageList(
     invitePreviewProvider: (String) -> InvitePreviewResponse? = { null },
     isLoadingInvitePreview: (String) -> Boolean = { false }
 ) {
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+    var selectionMode by remember { mutableStateOf(false) }
+    val selectedIds = remember { mutableStateListOf<String>() }
+
+    fun exitSelection() {
+        selectionMode = false
+        selectedIds.clear()
+    }
+
+    fun toggleSelection(message: Message) {
+        if (selectedIds.contains(message.id)) {
+            selectedIds.remove(message.id)
+        } else {
+            selectedIds.add(message.id)
+        }
+        selectionMode = selectedIds.isNotEmpty()
+    }
+
+    fun forwardSelected() {
+        val shareText = messages
+            .filter { selectedIds.contains(it.id) }
+            .joinToString(separator = "\n\n") { msg ->
+                val content = msg.content.orEmpty()
+                if (content.isNotBlank()) content else "https://nexy.app/chat/${msg.chatId}/message/${msg.serverId ?: msg.id}"
+            }
+        if (shareText.isNotBlank()) {
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, shareText)
+            }
+            context.startActivity(Intent.createChooser(intent, "Forward message"))
+        }
+        exitSelection()
+    }
+
     val reversedMessages = remember(messages) { messages.reversed() }
     var isDateVisible by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -163,12 +205,18 @@ fun MessageList(
                         (chatType == ChatType.GROUP && (userRole == "admin" || userRole == "owner"))
                     val canPinMessage = chatType == ChatType.GROUP && (userRole == "admin" || userRole == "owner")
 
+                    val isSelected = selectedIds.contains(message.id)
+
                     MessageBubble(
                         message = message,
                         isOwnMessage = isOwnMessage,
                         isGroupChat = chatType == ChatType.GROUP,
                         canDeleteMessage = canDeleteMessage,
                         canPinMessage = canPinMessage,
+                        selectionMode = selectionMode,
+                        isSelected = isSelected,
+                        onToggleSelection = { toggleSelection(message) },
+                        onStartSelection = { selectionMode = true },
                         repliedMessage = repliedMessage,
                         fontScale = fontScale,
                         textColor = if (message.senderId == currentUserId) outgoingTextColor else incomingTextColor,
@@ -204,6 +252,45 @@ fun MessageList(
                 timestamp = topVisibleMessageDate,
                 onClick = { showDatePicker = true }
             )
+        }
+
+        if (selectionMode) {
+            Surface(
+                tonalElevation = 4.dp,
+                shadowElevation = 4.dp,
+                modifier = Modifier.align(Alignment.TopCenter)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        IconButton(onClick = { exitSelection() }) {
+                            Icon(imageVector = Icons.Default.Close, contentDescription = "Close selection")
+                        }
+                        Text(text = "${selectedIds.size} selected")
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        TextButton(onClick = {
+                            val firstSelected = messages.firstOrNull { selectedIds.contains(it.id) }
+                            if (firstSelected != null) {
+                                clipboardManager.setText(AnnotatedString(firstSelected.content.orEmpty()))
+                                exitSelection()
+                            }
+                        }) {
+                            Text("Copy")
+                        }
+
+                        TextButton(onClick = { forwardSelected() }) {
+                            Text("Forward")
+                        }
+                    }
+                }
+            }
         }
     }
 }

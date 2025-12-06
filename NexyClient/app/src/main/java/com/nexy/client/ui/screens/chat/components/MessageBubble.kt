@@ -39,8 +39,11 @@ fun MessageBubble(
     onReply: () -> Unit = {},
     onEdit: () -> Unit = {},
     onCopy: () -> Unit = {},
-    onReport: () -> Unit = {},
     onPin: () -> Unit = {},
+    selectionMode: Boolean = false,
+    isSelected: Boolean = false,
+    onToggleSelection: () -> Unit = {},
+    onStartSelection: () -> Unit = {},
     onDownloadFile: (String, String) -> Unit = { _, _ -> },
     onOpenFile: (String) -> Unit = {},
     onSaveFile: (String) -> Unit = {},
@@ -84,16 +87,30 @@ fun MessageBubble(
                     } else {
                         RoundedCornerShape(16.dp, 16.dp, 16.dp, 0.dp)
                     },
-                    color = if (isOwnMessage) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant
+                    color = when {
+                        isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                        isOwnMessage -> MaterialTheme.colorScheme.primaryContainer
+                        else -> MaterialTheme.colorScheme.surfaceVariant
                     },
                     modifier = Modifier
                         .widthIn(max = (LocalConfiguration.current.screenWidthDp * 0.85f).dp)
                         .combinedClickable(
-                            onClick = { showReactionPanel = true },
-                            onLongClick = { showMenu = true }
+                            onClick = {
+                                if (selectionMode) {
+                                    onToggleSelection()
+                                } else {
+                                    showReactionPanel = true
+                                    showMenu = true
+                                }
+                            },
+                            onLongClick = {
+                                if (selectionMode) {
+                                    onToggleSelection()
+                                } else {
+                                    onStartSelection()
+                                    onToggleSelection()
+                                }
+                            }
                         )
                 ) {
                 Column(modifier = Modifier.padding(8.dp)) {
@@ -188,6 +205,9 @@ fun MessageBubble(
                 expanded = showMenu,
                 onDismiss = { showMenu = false },
                 messageContent = message.content ?: "",
+                messageId = message.id,
+                chatId = message.chatId,
+                serverMessageId = message.serverId,
                 isOwnMessage = isOwnMessage,
                 canDeleteMessage = canDeleteMessage,
                 canPinMessage = canPinMessage,
@@ -195,13 +215,9 @@ fun MessageBubble(
                 isDownloaded = isDownloaded,
                 onReply = onReply,
                 onCopy = onCopy,
-                onReport = onReport,
                 onEdit = onEdit,
                 onPin = onPin,
                 onDelete = { showDeleteDialog = true },
-                messageId = message.id,
-                chatId = message.chatId,
-                serverMessageId = message.serverId,
                 onOpenFile = { onOpenFile(message.content ?: "") },
                 onSaveFile = { onSaveFile(message.content ?: "") },
                 onDownloadFile = {

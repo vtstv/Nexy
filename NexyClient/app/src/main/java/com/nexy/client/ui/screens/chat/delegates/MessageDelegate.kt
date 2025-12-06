@@ -68,15 +68,17 @@ class MessageDelegate @Inject constructor(
                 val result = chatRepository.getReactions(event.messageId)
                 
                 result.onSuccess { reactions ->
-                    // Update the message in the current list
+                    // Update the message in the current list only if reactions changed to prevent flicker
                     val updatedMessages = uiState.value.messages.map { message ->
                         if (message.serverId == event.messageId) {
-                            message.copy(reactions = reactions)
+                            if (message.reactions == reactions) message else message.copy(reactions = reactions)
                         } else {
                             message
                         }
                     }
-                    uiState.value = uiState.value.copy(messages = updatedMessages)
+                    if (updatedMessages !== uiState.value.messages) {
+                        uiState.value = uiState.value.copy(messages = updatedMessages)
+                    }
                 }
             }
         }
@@ -177,14 +179,29 @@ class MessageDelegate @Inject constructor(
                     .maxByOrNull { it.timestamp!! }
                 readReceiptHandler.updateLastKnownMessageId(newestMessage?.id)
 
+                val previousMessages = uiState.value.messages
+                val mergedMessages = messages.map { msg ->
+                    val previous = previousMessages.find {
+                        (it.serverId != null && it.serverId == msg.serverId) || it.id == msg.id
+                    }
+                    when {
+                        msg.reactions != null -> msg // server provided reactions
+                        previous?.reactions != null -> msg.copy(reactions = previous.reactions) // preserve existing reactions when absent in new payload
+                        else -> msg
+                    }
+                }
+
                 uiState.value = uiState.value.copy(
-                    messages = messages,
+                    messages = mergedMessages,
                     isLoading = false
                 )
 
-                // Refresh reactions for all loaded messages so they don't disappear on reload
-                scope.launch {
-                    refreshReactions(messages)
+                // Refresh reactions only if some merged messages are missing them to avoid unnecessary recomposition flicker
+                val needsRefresh = mergedMessages.any { it.serverId != null && it.reactions == null }
+                if (needsRefresh) {
+                    scope.launch {
+                        refreshReactions(mergedMessages)
+                    }
                 }
 
                 if (!readReceiptHandler.isChatActive()) {

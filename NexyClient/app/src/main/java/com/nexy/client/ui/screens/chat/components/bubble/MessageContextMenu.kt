@@ -4,16 +4,27 @@ import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Reply
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Forward
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 @Composable
 fun MessageContextMenu(
@@ -32,7 +43,6 @@ fun MessageContextMenu(
     onCopy: () -> Unit,
     onEdit: () -> Unit,
     onPin: () -> Unit = {},
-    onReport: () -> Unit = {},
     onDelete: () -> Unit,
     onOpenFile: () -> Unit,
     onSaveFile: () -> Unit,
@@ -44,7 +54,8 @@ fun MessageContextMenu(
 
     DropdownMenu(
         expanded = expanded,
-        onDismissRequest = onDismiss
+        onDismissRequest = onDismiss,
+        offset = DpOffset(0.dp, 72.dp)
     ) {
         DropdownMenuItem(
             text = { Text("Reply") },
@@ -62,7 +73,7 @@ fun MessageContextMenu(
                 onCopy()
                 onDismiss()
             },
-            leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) }
+            leadingIcon = { Icon(Icons.Filled.ContentCopy, contentDescription = null) }
         )
 
         DropdownMenuItem(
@@ -71,7 +82,7 @@ fun MessageContextMenu(
                 clipboardManager.setText(AnnotatedString(messageLink))
                 onDismiss()
             },
-            leadingIcon = { Icon(Icons.Default.Link, contentDescription = null) }
+            leadingIcon = { Icon(Icons.Filled.Link, contentDescription = null) }
         )
 
         DropdownMenuItem(
@@ -88,7 +99,7 @@ fun MessageContextMenu(
                 }
                 onDismiss()
             },
-            leadingIcon = { Icon(Icons.Default.Forward, contentDescription = null) }
+            leadingIcon = { Icon(Icons.Filled.Forward, contentDescription = null) }
         )
 
         if (hasAttachment) {
@@ -107,7 +118,7 @@ fun MessageContextMenu(
                         onSaveFile()
                         onDismiss()
                     },
-                    leadingIcon = { Icon(Icons.Default.Save, contentDescription = null) }
+                    leadingIcon = { Icon(Icons.Filled.Save, contentDescription = null) }
                 )
             } else {
                 DropdownMenuItem(
@@ -116,7 +127,7 @@ fun MessageContextMenu(
                         onDownloadFile()
                         onDismiss()
                     },
-                    leadingIcon = { Icon(Icons.Default.Download, contentDescription = null) }
+                    leadingIcon = { Icon(Icons.Filled.Download, contentDescription = null) }
                 )
             }
         }
@@ -128,18 +139,9 @@ fun MessageContextMenu(
                     onPin()
                     onDismiss()
                 },
-                leadingIcon = { Icon(Icons.Default.PushPin, contentDescription = null) }
+                leadingIcon = { Icon(Icons.Filled.PushPin, contentDescription = null) }
             )
         }
-
-        DropdownMenuItem(
-            text = { Text("Report") },
-            onClick = {
-                onReport()
-                onDismiss()
-            },
-            leadingIcon = { Icon(Icons.Default.Report, contentDescription = null) }
-        )
 
         if (isOwnMessage) {
             DropdownMenuItem(
@@ -148,7 +150,7 @@ fun MessageContextMenu(
                     onEdit()
                     onDismiss()
                 },
-                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) }
             )
         }
         
@@ -159,7 +161,7 @@ fun MessageContextMenu(
                     onDelete()
                     onDismiss()
                 },
-                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) }
+                leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) }
             )
         }
     }
