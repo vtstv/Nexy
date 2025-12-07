@@ -57,18 +57,18 @@ func (c *ReactionController) AddReaction(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// If there was an old reaction (different emoji), broadcast its removal first
-	if result.OldEmoji != "" && result.OldEmoji != req.Emoji {
-		c.hub.BroadcastReactionRemove(result.ChatID, req.MessageID, userID, result.OldEmoji)
+	// If user's old "own" reaction was removed (replaced with new one), broadcast its removal
+	if result.RemovedOldEmoji != "" {
+		c.hub.BroadcastReactionRemove(result.ChatID, req.MessageID, userID, result.RemovedOldEmoji)
 	}
 
-	// If a new reaction was added (not just toggled off), broadcast it
+	// If a new reaction was added, broadcast it
 	if result.IsNewReaction {
 		c.hub.BroadcastReactionAdd(result.ChatID, req.MessageID, userID, req.Emoji)
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{"message": "reaction added"})
 	} else {
-		// Reaction was toggled off (same emoji clicked)
+		// Reaction was toggled off (same emoji clicked again)
 		c.hub.BroadcastReactionRemove(result.ChatID, req.MessageID, userID, req.Emoji)
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{"message": "reaction removed"})

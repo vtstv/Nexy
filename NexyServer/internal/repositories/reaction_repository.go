@@ -27,25 +27,55 @@ func (r *ReactionRepository) AddReaction(ctx context.Context, reaction *models.M
 		Scan(&reaction.ID, &reaction.CreatedAt)
 }
 
-// RemoveAllUserReactions removes all reactions by a user on a specific message
-// Used to ensure only one reaction per user per message
-func (r *ReactionRepository) RemoveAllUserReactions(ctx context.Context, messageID, userID int) (string, error) {
-	// First get the existing emoji to return it
-	var oldEmoji string
-	selectQuery := `SELECT emoji FROM message_reactions WHERE message_id = $1 AND user_id = $2 LIMIT 1`
-	err := r.db.QueryRowContext(ctx, selectQuery, messageID, userID).Scan(&oldEmoji)
-	if err != nil && err != sql.ErrNoRows {
-		return "", err
-	}
+// HasUserReaction checks if a user already has a specific reaction on a message
+func (r *ReactionRepository) HasUserReaction(ctx context.Context, messageID, userID int, emoji string) (bool, error) {
+	query := `SELECT EXISTS(SELECT 1 FROM message_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3)`
+	var exists bool
+	err := r.db.QueryRowContext(ctx, query, messageID, userID, emoji).Scan(&exists)
+	return exists, err
+}
 
-	// Delete all reactions by this user on this message
-	deleteQuery := `DELETE FROM message_reactions WHERE message_id = $1 AND user_id = $2`
-	_, err = r.db.ExecContext(ctx, deleteQuery, messageID, userID)
+// EmojiExistsOnMessage checks if any user has reacted with this emoji on this message
+func (r *ReactionRepository) EmojiExistsOnMessage(ctx context.Context, messageID int, emoji string) (bool, error) {
+	query := `SELECT EXISTS(SELECT 1 FROM message_reactions WHERE message_id = $1 AND emoji = $2)`
+	var exists bool
+	err := r.db.QueryRowContext(ctx, query, messageID, emoji).Scan(&exists)
+	return exists, err
+}
+
+// GetUserOwnReactionEmoji returns the emoji of user's "own" reaction (first one they created that others haven't joined)
+// If user has multiple reactions, returns the first one that is NOT shared with others, or empty string if all are shared
+func (r *ReactionRepository) GetUserOwnReactionEmoji(ctx context.Context, messageID, userID int) (string, error) {
+	// Get all emojis this user has reacted with
+	query := `SELECT emoji FROM message_reactions WHERE message_id = $1 AND user_id = $2 ORDER BY created_at ASC`
+	rows, err := r.db.QueryContext(ctx, query, messageID, userID)
 	if err != nil {
 		return "", err
 	}
+	defer rows.Close()
+	
+	var userEmojis []string
+	for rows.Next() {
+		var emoji string
+		if err := rows.Scan(&emoji); err != nil {
+			return "", err
+		}
+		userEmojis = append(userEmojis, emoji)
+	}
+	
+	if len(userEmojis) == 0 {
+		return "", nil
+	}
+	
+	// Return the first emoji (oldest) - this is considered the user's "own" reaction
+	return userEmojis[0], nil
+}
 
-	return oldEmoji, nil
+// RemoveUserOwnReaction removes user's "own" reaction (the first/oldest one they created)
+func (r *ReactionRepository) RemoveUserOwnReaction(ctx context.Context, messageID, userID int, emoji string) error {
+	query := `DELETE FROM message_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3`
+	_, err := r.db.ExecContext(ctx, query, messageID, userID, emoji)
+	return err
 }
 
 func (r *ReactionRepository) RemoveReaction(ctx context.Context, messageID, userID int, emoji string) error {

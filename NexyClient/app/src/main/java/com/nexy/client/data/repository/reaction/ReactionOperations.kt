@@ -46,45 +46,35 @@ class ReactionOperations @Inject constructor(
         
         val currentReactions = message.reactions?.toMutableList() ?: mutableListOf()
         
-        // Single reaction per user logic:
-        // First, find if user already has a reaction on this message
-        val userOldReactionIndex = currentReactions.indexOfFirst { reaction ->
-            reaction.userIds.contains(currentUserId)
-        }
+        // Check if user already has THIS EXACT reaction (same emoji)
+        val existingEmojiIndex = currentReactions.indexOfFirst { it.emoji == emoji }
         
-        // If user had a previous reaction, remove it
-        if (userOldReactionIndex != -1) {
-            val oldReaction = currentReactions[userOldReactionIndex]
-            val newUserIds = oldReaction.userIds - currentUserId
-            if (newUserIds.isEmpty()) {
-                currentReactions.removeAt(userOldReactionIndex)
-            } else {
-                currentReactions[userOldReactionIndex] = oldReaction.copy(
-                    count = oldReaction.count - 1,
-                    userIds = newUserIds,
-                    reactedBy = false
-                )
-            }
-            
-            // If clicking same emoji, just remove (toggle off)
-            if (oldReaction.emoji == emoji) {
+        if (existingEmojiIndex != -1) {
+            val existing = currentReactions[existingEmojiIndex]
+            if (existing.userIds.contains(currentUserId)) {
+                // User already has this reaction - toggle off (remove it)
+                val newUserIds = existing.userIds - currentUserId
+                if (newUserIds.isEmpty()) {
+                    currentReactions.removeAt(existingEmojiIndex)
+                } else {
+                    currentReactions[existingEmojiIndex] = existing.copy(
+                        count = existing.count - 1,
+                        userIds = newUserIds,
+                        reactedBy = false
+                    )
+                }
+                
                 messageDao.updateReactionsByClientId(clientMessageId, currentReactions)
                 Log.d(TAG, "Optimistic reaction toggled off for message $clientMessageId")
                 
                 val serverId = message.serverId
                 if (serverId != null && serverId > 0) {
-                    // Server handles toggle: addReaction with same emoji will remove it
                     return addReaction(serverId, emoji)
                 }
                 return Result.success(Unit)
-            }
-        }
-        
-        // Add new reaction
-        val existingEmojiIndex = currentReactions.indexOfFirst { it.emoji == emoji }
-        if (existingEmojiIndex != -1) {
-            val existing = currentReactions[existingEmojiIndex]
-            if (!existing.userIds.contains(currentUserId)) {
+            } else {
+                // Emoji exists from other users - user is JOINING this reaction (not creating new)
+                // Just add user to this reaction counter
                 currentReactions[existingEmojiIndex] = existing.copy(
                     count = existing.count + 1,
                     userIds = existing.userIds + currentUserId,
@@ -92,6 +82,27 @@ class ReactionOperations @Inject constructor(
                 )
             }
         } else {
+            // NEW emoji that doesn't exist yet - this is user's OWN reaction
+            // First, remove user's previous "own" reaction (first one they created)
+            val userOwnReactionIndex = currentReactions.indexOfFirst { reaction ->
+                reaction.userIds.contains(currentUserId)
+            }
+            
+            if (userOwnReactionIndex != -1) {
+                val oldReaction = currentReactions[userOwnReactionIndex]
+                val newUserIds = oldReaction.userIds - currentUserId
+                if (newUserIds.isEmpty()) {
+                    currentReactions.removeAt(userOwnReactionIndex)
+                } else {
+                    currentReactions[userOwnReactionIndex] = oldReaction.copy(
+                        count = oldReaction.count - 1,
+                        userIds = newUserIds,
+                        reactedBy = false
+                    )
+                }
+            }
+            
+            // Add new own reaction
             currentReactions.add(
                 ReactionCount(
                     emoji = emoji,
