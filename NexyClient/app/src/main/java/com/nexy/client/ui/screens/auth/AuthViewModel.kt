@@ -80,10 +80,9 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             val rememberMe = authRepository.isRememberMeEnabled()
             if (rememberMe) {
-                val (email, password) = authRepository.getSavedCredentials()
+                val email = authRepository.getSavedCredentials()
                 _uiState.value = _uiState.value.copy(
                     email = email ?: "",
-                    password = password ?: "",
                     rememberMe = true
                 )
             }

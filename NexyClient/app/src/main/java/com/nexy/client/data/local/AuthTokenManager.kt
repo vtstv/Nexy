@@ -1,6 +1,7 @@
 package com.nexy.client.data.local
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.os.Build
 import android.provider.Settings
 import androidx.datastore.core.DataStore
@@ -9,6 +10,8 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.util.UUID
@@ -18,33 +21,44 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 class AuthTokenManager(private val context: Context) {
     
     companion object {
-        private val ACCESS_TOKEN_KEY = stringPreferencesKey("access_token")
-        private val REFRESH_TOKEN_KEY = stringPreferencesKey("refresh_token")
         private val USER_ID_KEY = stringPreferencesKey("user_id")
         private val SAVED_EMAIL_KEY = stringPreferencesKey("saved_email")
-        private val SAVED_PASSWORD_KEY = stringPreferencesKey("saved_password")
         private val REMEMBER_ME_KEY = stringPreferencesKey("remember_me")
         private val BACKGROUND_SERVICE_ENABLED_KEY = booleanPreferencesKey("background_service_enabled")
         private val DEVICE_ID_KEY = stringPreferencesKey("device_id")
+        
+        private const val ENCRYPTED_PREFS_NAME = "secure_auth_prefs"
+        private const val KEY_ACCESS_TOKEN = "access_token"
+        private const val KEY_REFRESH_TOKEN = "refresh_token"
+    }
+    
+    private val encryptedPrefs: SharedPreferences by lazy {
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        
+        EncryptedSharedPreferences.create(
+            context,
+            ENCRYPTED_PREFS_NAME,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
     }
     
     suspend fun saveTokens(accessToken: String, refreshToken: String) {
-        context.dataStore.edit { prefs ->
-            prefs[ACCESS_TOKEN_KEY] = accessToken
-            prefs[REFRESH_TOKEN_KEY] = refreshToken
-        }
+        encryptedPrefs.edit()
+            .putString(KEY_ACCESS_TOKEN, accessToken)
+            .putString(KEY_REFRESH_TOKEN, refreshToken)
+            .apply()
     }
     
     suspend fun getAccessToken(): String? {
-        return context.dataStore.data.map { prefs ->
-            prefs[ACCESS_TOKEN_KEY]
-        }.first()
+        return encryptedPrefs.getString(KEY_ACCESS_TOKEN, null)
     }
     
     suspend fun getRefreshToken(): String? {
-        return context.dataStore.data.map { prefs ->
-            prefs[REFRESH_TOKEN_KEY]
-        }.first()
+        return encryptedPrefs.getString(KEY_REFRESH_TOKEN, null)
     }
     
     suspend fun saveUserId(userId: Int) {
@@ -60,6 +74,10 @@ class AuthTokenManager(private val context: Context) {
     }
     
     suspend fun clearTokens() {
+        encryptedPrefs.edit()
+            .remove(KEY_ACCESS_TOKEN)
+            .remove(KEY_REFRESH_TOKEN)
+            .apply()
         context.dataStore.edit { prefs ->
             prefs.clear()
         }
@@ -69,10 +87,9 @@ class AuthTokenManager(private val context: Context) {
         return getAccessToken() != null
     }
     
-    suspend fun saveCredentials(email: String, password: String) {
+    suspend fun saveCredentials(email: String) {
         context.dataStore.edit { prefs ->
             prefs[SAVED_EMAIL_KEY] = email
-            prefs[SAVED_PASSWORD_KEY] = password
             prefs[REMEMBER_ME_KEY] = "true"
         }
     }
@@ -80,12 +97,6 @@ class AuthTokenManager(private val context: Context) {
     suspend fun getSavedEmail(): String? {
         return context.dataStore.data.map { prefs ->
             prefs[SAVED_EMAIL_KEY]
-        }.first()
-    }
-    
-    suspend fun getSavedPassword(): String? {
-        return context.dataStore.data.map { prefs ->
-            prefs[SAVED_PASSWORD_KEY]
         }.first()
     }
     
@@ -98,7 +109,6 @@ class AuthTokenManager(private val context: Context) {
     suspend fun clearCredentials() {
         context.dataStore.edit { prefs ->
             prefs.remove(SAVED_EMAIL_KEY)
-            prefs.remove(SAVED_PASSWORD_KEY)
             prefs.remove(REMEMBER_ME_KEY)
         }
     }
@@ -110,7 +120,7 @@ class AuthTokenManager(private val context: Context) {
     }
 
     fun getBackgroundServiceEnabledFlow() = context.dataStore.data.map { prefs ->
-        prefs[BACKGROUND_SERVICE_ENABLED_KEY] ?: false // Default to false
+        prefs[BACKGROUND_SERVICE_ENABLED_KEY] ?: false
     }
     
     suspend fun getBackgroundServiceEnabled(): Boolean {
@@ -119,16 +129,10 @@ class AuthTokenManager(private val context: Context) {
         }.first()
     }
 
-    /**
-     * Get or generate a unique device ID for this app installation.
-     * Format: "Android-{MODEL}-{ANDROID_ID}-{UUID}"
-     * Example: "Android-SM-G991B-a1b2c3d4e5f6-12345678-1234-5678-90ab-cdef12345678"
-     */
     suspend fun getDeviceId(): String {
         return context.dataStore.data.map { prefs ->
             prefs[DEVICE_ID_KEY]
         }.first() ?: run {
-            // Generate new device ID
             val androidId = try {
                 Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
             } catch (e: Exception) {
@@ -139,7 +143,6 @@ class AuthTokenManager(private val context: Context) {
             val uniqueId = UUID.randomUUID().toString()
             val deviceId = "Android-$model-$androidId-$uniqueId"
             
-            // Save it
             context.dataStore.edit { prefs ->
                 prefs[DEVICE_ID_KEY] = deviceId
             }

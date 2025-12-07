@@ -11,6 +11,7 @@ type UserService struct {
 	userRepo            *repositories.UserRepository
 	chatRepo            *repositories.ChatRepository
 	messageRepo         *repositories.MessageRepository
+	tokenRepo           *repositories.RefreshTokenRepository
 	onlineStatusService *OnlineStatusService
 	onlineChecker       OnlineChecker
 }
@@ -21,6 +22,10 @@ func NewUserService(userRepo *repositories.UserRepository, chatRepo *repositorie
 		chatRepo:    chatRepo,
 		messageRepo: messageRepo,
 	}
+}
+
+func (s *UserService) SetTokenRepository(repo *repositories.RefreshTokenRepository) {
+	s.tokenRepo = repo
 }
 
 func (s *UserService) SetOnlineStatusService(service *OnlineStatusService) {

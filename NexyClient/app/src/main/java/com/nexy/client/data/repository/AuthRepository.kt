@@ -50,7 +50,7 @@ class AuthRepository @Inject constructor(
                     tokenManager.saveUserId(authResponse.user.id)
                     
                     if (rememberMe) {
-                        tokenManager.saveCredentials(email, password)
+                        tokenManager.saveCredentials(email)
                     } else {
                         tokenManager.clearCredentials()
                     }
@@ -121,8 +121,8 @@ class AuthRepository @Inject constructor(
         }
     }
     
-    suspend fun getSavedCredentials(): Pair<String?, String?> {
-        return Pair(tokenManager.getSavedEmail(), tokenManager.getSavedPassword())
+    suspend fun getSavedCredentials(): String? {
+        return tokenManager.getSavedEmail()
     }
     
     suspend fun isRememberMeEnabled(): Boolean {

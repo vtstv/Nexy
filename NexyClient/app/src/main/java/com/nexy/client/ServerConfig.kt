@@ -76,17 +76,6 @@ object ServerConfig {
     // For Android Emulator (use 10.0.2.2 instead of localhost)
     // const val SERVER_IP = "10.0.2.2"
     
-    // Test Credentials
-    object TestUsers {
-        const val USER1_EMAIL = "test@example.com"
-        const val USER1_PASSWORD = "password123"
-        const val USER1_USERNAME = "testuser"
-        
-        const val USER2_EMAIL = "test2@example.com"
-        const val USER2_PASSWORD = "password123"
-        const val USER2_USERNAME = "testuser2"
-    }
-    
     // WebSocket Configuration
     const val HEARTBEAT_INTERVAL_MS = 20_000L // 20 seconds
     const val RECONNECT_DELAY_MS = 5_000L // 5 seconds

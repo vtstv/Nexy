@@ -5,18 +5,40 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/websocket"
 	"github.com/vtstv/nexy/internal/models"
 	"github.com/vtstv/nexy/internal/repositories"
 )
 
+var allowedOrigins []string
+
+func SetAllowedOrigins(origins []string) {
+	allowedOrigins = origins
+}
+
+func checkOrigin(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return true
+	}
+	for _, allowed := range allowedOrigins {
+		trimmed := strings.TrimSpace(allowed)
+		if trimmed == "*" {
+			return true
+		}
+		if trimmed == origin {
+			return true
+		}
+	}
+	return false
+}
+
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
+	CheckOrigin:     checkOrigin,
 }
 
 type WSHandler struct {

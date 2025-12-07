@@ -50,6 +50,7 @@ func main() {
 
 	authService := services.NewAuthService(userRepo, refreshTokenRepo, &cfg.JWT)
 	userService := services.NewUserService(userRepo, chatRepo, messageRepo)
+	userService.SetTokenRepository(refreshTokenRepo)
 	groupService := services.NewGroupService(chatRepo, userRepo)
 	inviteService := services.NewInviteService(inviteRepo)
 	fileService := services.NewFileService(fileRepo, &cfg.Upload)
@@ -63,6 +64,7 @@ func main() {
 	reactionService := services.NewReactionService(reactionRepo, messageRepo, chatRepo)
 
 	nexyChatRepo := nexy.NewNexyChatRepo(chatRepo)
+	nexy.SetAllowedOrigins(cfg.CORS.AllowedOrigins)
 	hub := nexy.NewHub(redisClient.Client, messageRepo, nexyChatRepo, userRepo, fcmService)
 	go hub.Run()
 

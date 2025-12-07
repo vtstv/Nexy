@@ -59,12 +59,14 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID int, displayName
 	if email != "" {
 		user.Email = email
 	}
+	passwordChanged := false
 	if password != "" {
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 		if err != nil {
 			return nil, fmt.Errorf("failed to hash password: %w", err)
 		}
 		user.PasswordHash = string(hashedPassword)
+		passwordChanged = true
 	}
 	if readReceiptsEnabled != nil {
 		user.ReadReceiptsEnabled = *readReceiptsEnabled
@@ -81,6 +83,10 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID int, displayName
 
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		return nil, err
+	}
+
+	if passwordChanged && s.tokenRepo != nil {
+		_ = s.tokenRepo.DeleteByUserID(ctx, userID)
 	}
 
 	return user, nil
