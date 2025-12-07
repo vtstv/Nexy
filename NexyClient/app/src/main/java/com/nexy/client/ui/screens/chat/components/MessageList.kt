@@ -20,6 +20,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Forward
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.platform.LocalClipboardManager
 import com.nexy.client.data.models.ChatType
@@ -276,19 +279,29 @@ fun MessageList(
                         Text(text = "${selectedIds.size} selected")
                     }
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        TextButton(onClick = {
-                            val firstSelected = messages.firstOrNull { selectedIds.contains(it.id) }
-                            if (firstSelected != null) {
-                                clipboardManager.setText(AnnotatedString(firstSelected.content.orEmpty()))
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        IconButton(onClick = {
+                            val selectedMessages = messages.filter { selectedIds.contains(it.id) }
+                            val copyText = selectedMessages.joinToString("\n") { it.content.orEmpty() }
+                            if (copyText.isNotEmpty()) {
+                                clipboardManager.setText(AnnotatedString(copyText))
                                 exitSelection()
                             }
                         }) {
-                            Text("Copy")
+                            Icon(Icons.Filled.ContentCopy, contentDescription = "Copy")
                         }
 
-                        TextButton(onClick = { forwardSelected() }) {
-                            Text("Forward")
+                        IconButton(onClick = { forwardSelected() }) {
+                            Icon(Icons.Filled.Forward, contentDescription = "Forward")
+                        }
+
+                        if (userRole == "owner" || userRole == "admin") {
+                            IconButton(onClick = {
+                                selectedIds.toList().forEach { id -> onDeleteMessage(id) }
+                                exitSelection()
+                            }) {
+                                Icon(Icons.Filled.Delete, contentDescription = "Delete")
+                            }
                         }
                     }
                 }
