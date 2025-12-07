@@ -53,7 +53,7 @@ func (r *ReactionRepository) GetUserOwnReactionEmoji(ctx context.Context, messag
 		return "", err
 	}
 	defer rows.Close()
-	
+
 	var userEmojis []string
 	for rows.Next() {
 		var emoji string
@@ -62,11 +62,11 @@ func (r *ReactionRepository) GetUserOwnReactionEmoji(ctx context.Context, messag
 		}
 		userEmojis = append(userEmojis, emoji)
 	}
-	
+
 	if len(userEmojis) == 0 {
 		return "", nil
 	}
-	
+
 	// Return the first emoji (oldest) - this is considered the user's "own" reaction
 	return userEmojis[0], nil
 }

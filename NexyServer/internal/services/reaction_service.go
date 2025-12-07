@@ -24,9 +24,9 @@ func NewReactionService(reactionRepo *repositories.ReactionRepository, messageRe
 
 // AddReactionResult contains the result of adding a reaction
 type AddReactionResult struct {
-	ChatID           int
-	IsNewReaction    bool   // True if a new reaction was added, false if toggled off (removed)
-	RemovedOldEmoji  string // If user's own reaction was replaced, this contains the old emoji
+	ChatID          int
+	IsNewReaction   bool   // True if a new reaction was added, false if toggled off (removed)
+	RemovedOldEmoji string // If user's own reaction was replaced, this contains the old emoji
 }
 
 func (s *ReactionService) AddReaction(ctx context.Context, messageID, userID int, emoji string) (*AddReactionResult, error) {
