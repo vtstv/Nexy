@@ -19,7 +19,8 @@ class MessageDelegate @Inject constructor(
     private val editingHandler: EditingHandler,
     private val readReceiptHandler: ReadReceiptHandler,
     private val chatRepository: com.nexy.client.data.repository.ChatRepository,
-    private val webSocketMessageHandler: com.nexy.client.data.websocket.WebSocketMessageHandler
+    private val webSocketMessageHandler: com.nexy.client.data.websocket.WebSocketMessageHandler,
+    private val userRepository: com.nexy.client.data.repository.UserRepository
 ) : ChatViewModelDelegate {
 
     private lateinit var scope: CoroutineScope
@@ -131,6 +132,8 @@ class MessageDelegate @Inject constructor(
                     .maxByOrNull { it.timestamp!! }
                 readReceiptHandler.updateLastKnownMessageId(newestMessage?.id)
 
+                updateParticipantsWithReactors(messages)
+
                 uiState.value = uiState.value.copy(
                     messages = messages,
                     isLoading = false
@@ -205,6 +208,27 @@ class MessageDelegate @Inject constructor(
                 )
             }
             // No need to fetch reactions here, we rely on WebSocket events
+        }
+    }
+
+    private suspend fun updateParticipantsWithReactors(messages: List<Message>) {
+        val reactionUserIds = messages.asSequence()
+            .flatMap { it.reactions ?: emptyList() }
+            .flatMap { it.userIds }
+            .distinct()
+            .toList()
+            
+        if (reactionUserIds.isEmpty()) return
+
+        val currentParticipants = uiState.value.participants.toMutableMap()
+        val missingIds = reactionUserIds.filter { !currentParticipants.containsKey(it) }
+        
+        if (missingIds.isNotEmpty()) {
+            val newUsers = userRepository.getUsersByIds(missingIds)
+            newUsers.forEach { user ->
+                currentParticipants[user.id] = user
+            }
+            uiState.value = uiState.value.copy(participants = currentParticipants)
         }
     }
 }

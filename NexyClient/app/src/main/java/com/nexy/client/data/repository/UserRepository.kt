@@ -139,6 +139,12 @@ class UserRepository @Inject constructor(
         }
     }
     
+    suspend fun getUsersByIds(userIds: List<Int>): List<User> {
+        return withContext(Dispatchers.IO) {
+            userDao.getUsersByIds(userIds).map { it.toModel() }
+        }
+    }
+    
     private fun User.toEntity() = UserEntity(
         id = id,
         username = username,

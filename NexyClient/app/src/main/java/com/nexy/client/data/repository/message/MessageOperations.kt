@@ -134,6 +134,9 @@ class MessageOperations @Inject constructor(
                             messageDao.insertMessage(entity)
                         }
                     }
+
+                    // Cache users from reactions
+                    cacheReactionUsers(decryptedMessages)
                     
                     Result.success(decryptedMessages)
                 } else {
@@ -389,4 +392,44 @@ class MessageOperations @Inject constructor(
     }
 
     fun observeTypingEvents(): kotlinx.coroutines.flow.SharedFlow<Triple<Int, Boolean, Int?>> = webSocketMessageHandler.typingEvents
+
+    private suspend fun cacheReactionUsers(messages: List<Message>) {
+        val userIds = messages.asSequence()
+            .flatMap { it.reactions ?: emptyList() }
+            .flatMap { it.userIds }
+            .distinct()
+            .toList()
+
+        if (userIds.isEmpty()) return
+
+        // Check which users are missing
+        val existingUserIds = userDao.getUsersByIds(userIds).map { it.id }.toSet()
+        val missingUserIds = userIds.filter { !existingUserIds.contains(it) }
+
+        if (missingUserIds.isEmpty()) return
+
+        Log.d(TAG, "Fetching ${missingUserIds.size} missing users for reactions")
+        
+        missingUserIds.forEach { userId ->
+             try {
+                 val response = apiService.getUserById(userId)
+                 if (response.isSuccessful && response.body() != null) {
+                     val user = response.body()!!
+                     userDao.insertUser(UserEntity(
+                         id = user.id,
+                         username = user.username,
+                         email = user.email,
+                         displayName = user.displayName,
+                         avatarUrl = user.avatarUrl,
+                         status = user.status?.name ?: UserStatus.OFFLINE.name,
+                         bio = user.bio,
+                         publicKey = user.publicKey,
+                         createdAt = user.createdAt
+                     ))
+                 }
+             } catch (e: Exception) {
+                 Log.e(TAG, "Failed to fetch user $userId for reaction", e)
+             }
+        }
+    }
 }

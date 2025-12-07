@@ -20,7 +20,9 @@ data class ReactionEvent(
 @Singleton
 class ReactionHandler @Inject constructor(
     private val messageDao: MessageDao,
-    private val tokenManager: AuthTokenManager
+    private val tokenManager: AuthTokenManager,
+    private val apiService: com.nexy.client.data.api.NexyApiService,
+    private val userDao: com.nexy.client.data.local.dao.UserDao
 ) {
     companion object {
         private const val TAG = "ReactionHandler"
@@ -38,6 +40,7 @@ class ReactionHandler @Inject constructor(
             
             Log.d(TAG, "Reaction added: messageId=$messageId, emoji=$emoji, userId=$userId")
             
+            ensureUserCached(userId)
             updateReactionsInDb(messageId, emoji, userId, true)
             
             _reactionEvents.emit(
@@ -126,5 +129,29 @@ class ReactionHandler @Inject constructor(
         }
 
         messageDao.updateReactions(messageId, finalReactions)
+    }
+
+    private suspend fun ensureUserCached(userId: Int) {
+        if (userDao.getUserById(userId) == null) {
+             try {
+                 val response = apiService.getUserById(userId)
+                 if (response.isSuccessful && response.body() != null) {
+                     val user = response.body()!!
+                     userDao.insertUser(com.nexy.client.data.local.entity.UserEntity(
+                         id = user.id,
+                         username = user.username,
+                         email = user.email,
+                         displayName = user.displayName,
+                         avatarUrl = user.avatarUrl,
+                         status = user.status?.name ?: com.nexy.client.data.models.UserStatus.OFFLINE.name,
+                         bio = user.bio,
+                         publicKey = user.publicKey,
+                         createdAt = user.createdAt
+                     ))
+                 }
+             } catch (e: Exception) {
+                 Log.e(TAG, "Failed to fetch user $userId for reaction", e)
+             }
+        }
     }
 }
