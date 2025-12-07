@@ -129,8 +129,8 @@ fun ChatScreen(
                     "ChatScreen",
                     "Found target message: $targetId, originalIndex=$targetIndexInOriginal, reversedIndex=$reversedIndex, total=${uiState.messages.size}"
                 )
-                // Animate to make the movement obvious
-                listState.animateScrollToItem(reversedIndex)
+                // Jump directly to the target item to avoid long scrolls on large histories
+                listState.scrollToItem(reversedIndex)
 
                 // Keep target highlighted briefly
                 kotlinx.coroutines.delay(1200)
