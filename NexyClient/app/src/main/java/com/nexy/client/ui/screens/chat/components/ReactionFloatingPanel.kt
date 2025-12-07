@@ -1,6 +1,6 @@
 package com.nexy.client.ui.screens.chat.components
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -34,7 +34,8 @@ import androidx.compose.ui.window.PopupProperties
 fun ReactionFloatingPanel(
     onDismiss: () -> Unit,
     onReactionSelected: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    contextMenuContent: @Composable () -> Unit = {}
 ) {
     val quickReactions = listOf("❤️", "👍", "😂", "😮", "😢", "🙏", "👏")
     val moreReactions = listOf(
@@ -74,55 +75,85 @@ fun ReactionFloatingPanel(
                 .clickable(onClick = onDismiss),
             contentAlignment = Alignment.Center
         ) {
-            Surface(
-                modifier = modifier
-                    .fillMaxWidth(0.8f)
-                    .scale(scale)
-                    .clickable(enabled = false) { }, // Prevent dismiss when clicking on panel
-                shape = RoundedCornerShape(28.dp),
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 8.dp,
-                shadowElevation = 8.dp
+            var expanded by remember { mutableStateOf(false) }
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxWidth(0.8f)
             ) {
-                var expanded by remember { mutableStateOf(false) }
-
-                Column(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                Surface(
+                    modifier = modifier
+                        .fillMaxWidth()
+                        .scale(scale)
+                        .clickable(enabled = false) { }, // Prevent dismiss when clicking on panel
+                    shape = RoundedCornerShape(28.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 8.dp,
+                    shadowElevation = 8.dp
                 ) {
-                    // Top row with arrow
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        quickReactions.forEach { emoji ->
-                            ReactionCircle(emoji = emoji) {
-                                onReactionSelected(emoji)
-                                onDismiss()
-                            }
-                        }
-
-                        IconButton(onClick = { expanded = !expanded }) {
-                            Icon(
-                                imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                                contentDescription = "More reactions",
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-
-                    // Expandable scrollable row
-                    AnimatedVisibility(visible = expanded) {
-                        LazyRow(
+                        // Top row with arrow
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            items(moreReactions) { emoji ->
-                                ReactionCircle(emoji = emoji, size = 44.dp, fontSize = 24.sp) {
+                            quickReactions.forEach { emoji ->
+                                ReactionCircle(emoji = emoji) {
                                     onReactionSelected(emoji)
                                     onDismiss()
                                 }
+                            }
+
+                            IconButton(onClick = { expanded = !expanded }) {
+                                Icon(
+                                    imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                                    contentDescription = "More reactions",
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+
+                        // Expandable scrollable row
+                        AnimatedVisibility(visible = expanded) {
+                            LazyRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                items(moreReactions) { emoji ->
+                                    ReactionCircle(emoji = emoji, size = 44.dp, fontSize = 24.sp) {
+                                        onReactionSelected(emoji)
+                                        onDismiss()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = !expanded,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
+                ) {
+                    Column {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth(0.7f) // Make context menu slightly narrower like in screenshot
+                                .scale(scale)
+                                .clickable(enabled = false) { },
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 8.dp,
+                            shadowElevation = 8.dp
+                        ) {
+                            Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                                contextMenuContent()
                             }
                         }
                     }

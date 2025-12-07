@@ -101,7 +101,6 @@ fun MessageBubble(
                                     onToggleSelection()
                                 } else {
                                     showReactionPanel = true
-                                    showMenu = true
                                 }
                             },
                             onLongClick = {
@@ -249,6 +248,33 @@ fun MessageBubble(
             onReactionSelected = { emoji ->
                 message.serverId?.let { onReactionClick(it, emoji) }
                 showReactionPanel = false
+            },
+            contextMenuContent = {
+                MessageMenuItems(
+                    onDismiss = { showReactionPanel = false },
+                    messageContent = message.content ?: "",
+                    messageId = message.id,
+                    chatId = message.chatId,
+                    serverMessageId = message.serverId,
+                    isOwnMessage = isOwnMessage,
+                    canDeleteMessage = canDeleteMessage,
+                    canPinMessage = canPinMessage,
+                    hasAttachment = hasAttachment,
+                    isDownloaded = isDownloaded,
+                    onReply = onReply,
+                    onCopy = onCopy,
+                    onEdit = onEdit,
+                    onPin = onPin,
+                    onDelete = { showDeleteDialog = true },
+                    onOpenFile = { onOpenFile(message.content ?: "") },
+                    onSaveFile = { onSaveFile(message.content ?: "") },
+                    onDownloadFile = {
+                        val fileId = message.mediaUrl?.substringAfterLast("/") ?: ""
+                        if (fileId.isNotEmpty()) {
+                            onDownloadFile(fileId, message.content ?: "")
+                        }
+                    }
+                )
             }
         )
     }
