@@ -70,6 +70,9 @@ interface NexyApiService {
         @Body request: UpdateMessageRequest
     ): Response<Message>
     
+    @GET("messages/{messageId}/info")
+    suspend fun getMessageById(@Path("messageId") messageId: String): Response<Message>
+    
     // Reaction endpoints
     @GET("messages/{messageId}/reactions")
     suspend fun getReactions(@Path("messageId") messageId: Int): Response<List<ReactionCount>>

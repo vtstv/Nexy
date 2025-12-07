@@ -192,3 +192,45 @@ func (c *MessageController) SearchMessages(w http.ResponseWriter, r *http.Reques
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(messages)
 }
+
+func (c *MessageController) GetMessageByID(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	messageID := vars["messageId"]
+	if messageID == "" {
+		http.Error(w, "Message ID is required", http.StatusBadRequest)
+		return
+	}
+
+	var message *models.Message
+	var err error
+
+	// Try to parse as server ID (integer)
+	if serverID, parseErr := strconv.Atoi(messageID); parseErr == nil {
+		message, err = c.messageService.GetMessageByServerID(r.Context(), serverID, userID)
+	} else {
+		// Fall back to UUID lookup
+		message, err = c.messageService.GetMessageByID(r.Context(), messageID, userID)
+	}
+
+	if err != nil {
+		if err.Error() == "message not found" {
+			http.Error(w, "Message not found", http.StatusNotFound)
+			return
+		}
+		if err.Error() == "unauthorized" {
+			http.Error(w, "Unauthorized", http.StatusForbidden)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(message)
+}

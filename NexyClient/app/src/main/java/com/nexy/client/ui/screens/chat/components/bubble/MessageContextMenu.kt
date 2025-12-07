@@ -99,7 +99,7 @@ fun MessageMenuItems(
 ) {
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
-    val messageLink = "https://nexy.app/chat/$chatId/message/${serverMessageId ?: messageId}"
+    val messageLink = "nexy://chat/$chatId/message/${serverMessageId ?: messageId}"
 
     DropdownMenuItem(
         text = { Text("Reply") },

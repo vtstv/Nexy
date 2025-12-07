@@ -230,4 +230,8 @@ class MessageDelegate @Inject constructor(
             uiState.value = uiState.value.copy(participants = currentParticipants)
         }
     }
+    
+    suspend fun getMessageById(messageId: String): Result<Message> {
+        return chatRepository.getMessageById(messageId)
+    }
 }

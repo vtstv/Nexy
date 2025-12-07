@@ -57,6 +57,8 @@ class ChatRepository @Inject constructor(
     
     suspend fun getLastMessageForChat(chatId: Int): Message? = messageOperations.getLastMessageForChat(chatId)
     
+    suspend fun getMessageById(messageId: String): Result<Message> = messageOperations.getMessageById(messageId)
+    
     suspend fun loadMessages(chatId: Int, limit: Int = 50, offset: Int = 0): Result<List<Message>> = 
         messageOperations.loadMessages(chatId, limit, offset)
     

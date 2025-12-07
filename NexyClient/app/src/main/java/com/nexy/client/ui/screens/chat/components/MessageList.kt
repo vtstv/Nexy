@@ -59,7 +59,11 @@ fun MessageList(
     onUserLinkClick: (String) -> Unit = {},
     onReactionClick: (String, String) -> Unit = { _, _ -> },
     invitePreviewProvider: (String) -> InvitePreviewResponse? = { null },
-    isLoadingInvitePreview: (String) -> Boolean = { false }
+    isLoadingInvitePreview: (String) -> Boolean = { false },
+    messageLinkPreviewProvider: (String, String) -> Message? = { _, _ -> null },
+    isLoadingMessagePreview: (String, String) -> Boolean = { _, _ -> false },
+    onLoadMessagePreview: (String, String) -> Unit = { _, _ -> },
+    onNavigateToMessage: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
@@ -239,6 +243,10 @@ fun MessageList(
                         onReactionClick = onReactionClick,
                         invitePreviewProvider = invitePreviewProvider,
                         isLoadingInvitePreview = isLoadingInvitePreview,
+                        messageLinkPreviewProvider = messageLinkPreviewProvider,
+                        isLoadingMessagePreview = isLoadingMessagePreview,
+                        onLoadMessagePreview = onLoadMessagePreview,
+                        onNavigateToMessage = onNavigateToMessage,
                         participants = participants
                     )
                 }

@@ -266,7 +266,19 @@ fun ChatScreen(
                                 viewModel.toggleReaction(messageId, emoji)
                             },
                             invitePreviewProvider = { code -> viewModel.getInvitePreview(code) },
-                            isLoadingInvitePreview = { code -> viewModel.isLoadingInvitePreview(code) }
+                            isLoadingInvitePreview = { code -> viewModel.isLoadingInvitePreview(code) },
+                            messageLinkPreviewProvider = { chatId, messageId -> 
+                                viewModel.getMessagePreview(chatId, messageId)
+                            },
+                            isLoadingMessagePreview = { chatId, messageId -> 
+                                viewModel.isLoadingMessagePreview(chatId, messageId)
+                            },
+                            onLoadMessagePreview = { chatId, messageId ->
+                                viewModel.loadMessagePreview(chatId, messageId)
+                            },
+                            onNavigateToMessage = { messageId ->
+                                viewModel.navigateToMessage(messageId)
+                            }
                         )
                     }
                     

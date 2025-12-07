@@ -20,6 +20,7 @@ import com.nexy.client.ui.components.LinkParser
 import com.nexy.client.ui.components.LinkedText
 import com.nexy.client.ui.screens.chat.components.bubble.*
 import com.nexy.client.ui.screens.chat.components.invite.InviteLinkCard
+import com.nexy.client.ui.screens.chat.components.message.MessageLinkCard
 import java.io.File
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -52,6 +53,10 @@ fun MessageBubble(
     onReactionClick: (String, String) -> Unit = { _, _ -> },
     invitePreviewProvider: (String) -> InvitePreviewResponse? = { null },
     isLoadingInvitePreview: (String) -> Boolean = { false },
+    messageLinkPreviewProvider: (String, String) -> Message? = { _, _ -> null },
+    isLoadingMessagePreview: (String, String) -> Boolean = { _, _ -> false },
+    onLoadMessagePreview: (String, String) -> Unit = { _, _ -> },
+    onNavigateToMessage: (String) -> Unit = {},
     participants: Map<Int, com.nexy.client.data.models.User> = emptyMap()
 ) {
     val context = LocalContext.current
@@ -66,6 +71,21 @@ fun MessageBubble(
     // Check if message contains an invite link
     val inviteCode = remember(message.content) {
         LinkParser.extractInviteCode(message.content ?: "")
+    }
+    
+    // Check if message contains a message link
+    val messageLink = remember(message.content) {
+        LinkParser.extractMessageLink(message.content ?: "")
+    }
+    
+    // Load message preview only once when message link is detected
+    LaunchedEffect(messageLink) {
+        if (messageLink != null) {
+            val preview = messageLinkPreviewProvider(messageLink.first, messageLink.second)
+            if (preview == null && !isLoadingMessagePreview(messageLink.first, messageLink.second)) {
+                onLoadMessagePreview(messageLink.first, messageLink.second)
+            }
+        }
     }
 
     Row(
@@ -147,6 +167,13 @@ fun MessageBubble(
                                 isLoading = isLoadingInvitePreview(inviteCode),
                                 onJoinClick = { onInviteLinkClick(inviteCode) }
                             )
+                        } else if (messageLink != null) {
+                            // Show message link card for messages with message links
+                            MessageLinkCard(
+                                linkedMessage = messageLinkPreviewProvider(messageLink.first, messageLink.second),
+                                isLoading = isLoadingMessagePreview(messageLink.first, messageLink.second),
+                                onNavigateClick = { onNavigateToMessage(messageLink.second) }
+                            )
                         } else {
                             Row(verticalAlignment = Alignment.Bottom) {
                                 LinkedText(
@@ -157,6 +184,9 @@ fun MessageBubble(
                                     ),
                                     onInviteLinkClick = onInviteLinkClick,
                                     onUserLinkClick = onUserLinkClick,
+                                    onMessageLinkClick = { chatId, msgId -> 
+                                        onNavigateToMessage(msgId)
+                                    },
                                     modifier = Modifier.weight(1f, fill = false)
                                 )
 
@@ -171,8 +201,8 @@ fun MessageBubble(
                             }
                         }
                         
-                        // Show timestamp separately for invite cards and attachments
-                        if (message.mediaUrl != null || inviteCode != null) {
+                        // Show timestamp separately for invite cards, message links and attachments
+                        if (message.mediaUrl != null || inviteCode != null || messageLink != null) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.End

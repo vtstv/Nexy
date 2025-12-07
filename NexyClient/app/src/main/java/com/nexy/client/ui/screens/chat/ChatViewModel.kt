@@ -229,6 +229,58 @@ class ChatViewModel @Inject constructor(
     fun isLoadingInvitePreview(code: String) = membershipDelegate.isLoadingInvitePreview(code)
     // endregion
 
+    // region Message Links
+    private val failedMessageLinks = mutableSetOf<String>()
+    
+    fun loadMessagePreview(chatId: String, messageId: String) {
+        val key = "$chatId|$messageId"
+        
+        // Don't retry failed requests to avoid infinite loops
+        if (failedMessageLinks.contains(key)) {
+            return
+        }
+        
+        if (_uiState.value.loadingMessageLinks.contains(key) || _uiState.value.messageLinkPreviews.containsKey(key)) {
+            return
+        }
+        
+        _uiState.value = _uiState.value.copy(
+            loadingMessageLinks = _uiState.value.loadingMessageLinks + key
+        )
+        
+        viewModelScope.launch {
+            messageDelegate.getMessageById(messageId).fold(
+                onSuccess = { message ->
+                    _uiState.value = _uiState.value.copy(
+                        messageLinkPreviews = _uiState.value.messageLinkPreviews + (key to message),
+                        loadingMessageLinks = _uiState.value.loadingMessageLinks - key
+                    )
+                },
+                onFailure = { error ->
+                    android.util.Log.e("ChatViewModel", "Failed to load message preview for $messageId", error)
+                    failedMessageLinks.add(key)
+                    _uiState.value = _uiState.value.copy(
+                        loadingMessageLinks = _uiState.value.loadingMessageLinks - key
+                    )
+                }
+            )
+        }
+    }
+    
+    fun getMessagePreview(chatId: String, messageId: String): Message? {
+        return _uiState.value.messageLinkPreviews["$chatId|$messageId"]
+    }
+    
+    fun isLoadingMessagePreview(chatId: String, messageId: String): Boolean {
+        return _uiState.value.loadingMessageLinks.contains("$chatId|$messageId")
+    }
+    
+    fun navigateToMessage(messageId: String) {
+        android.util.Log.d("ChatViewModel", "Navigating to message: $messageId")
+        // TODO: Implement scroll to message functionality
+    }
+    // endregion
+
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
     }

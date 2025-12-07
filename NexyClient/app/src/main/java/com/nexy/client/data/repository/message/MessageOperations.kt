@@ -59,6 +59,31 @@ class MessageOperations @Inject constructor(
         }
     }
     
+    suspend fun getMessageById(messageId: String): Result<Message> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.getMessageById(messageId)
+                if (response.isSuccessful && response.body() != null) {
+                    val message = response.body()!!
+                    
+                    val decryptedMessage = if (!BuildConfig.DEBUG && message.encrypted && message.content?.startsWith("{\"ciphertext\"") == true) {
+                        decryptMessage(message)
+                    } else {
+                        message
+                    }
+                    
+                    Result.success(decryptedMessage)
+                } else {
+                    Log.e(TAG, "getMessageById failed: code=${response.code()}, message=${response.message()}")
+                    Result.failure(Exception("Failed to get message"))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "getMessageById exception", e)
+                Result.failure(e)
+            }
+        }
+    }
+    
     suspend fun loadMessages(chatId: Int, limit: Int = 50, offset: Int = 0): Result<List<Message>> {
         return withContext(Dispatchers.IO) {
             try {

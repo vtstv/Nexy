@@ -154,10 +154,11 @@ func (rt *Router) Setup() *mux.Router {
 	messages.HandleFunc("/history", rt.messageController.GetChatHistory).Methods("GET")
 	messages.HandleFunc("/search", rt.messageController.SearchMessages).Methods("GET")
 	messages.HandleFunc("/delete", rt.messageController.DeleteMessage).Methods("POST")
-	messages.HandleFunc("/{id}", rt.messageController.UpdateMessage).Methods("PUT")
+	messages.HandleFunc("/{messageId}/info", rt.messageController.GetMessageByID).Methods("GET")
 	messages.HandleFunc("/{messageId:[0-9]+}/reactions", rt.reactionController.GetReactions).Methods("GET")
 	messages.HandleFunc("/reactions", rt.reactionController.AddReaction).Methods("POST")
 	messages.HandleFunc("/reactions", rt.reactionController.RemoveReaction).Methods("DELETE")
+	messages.HandleFunc("/{id}", rt.messageController.UpdateMessage).Methods("PUT")
 
 	files := api.PathPrefix("/files").Subrouter()
 	// Upload requires authentication

@@ -190,3 +190,91 @@ func (s *MessageService) SearchMessages(ctx context.Context, chatID, userID int,
 
 	return s.messageRepo.SearchMessages(ctx, chatID, query)
 }
+
+func (s *MessageService) GetMessageByID(ctx context.Context, messageID string, userID int) (*models.Message, error) {
+	msg, err := s.messageRepo.GetByUUID(ctx, messageID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("message not found")
+		}
+		return nil, err
+	}
+	if msg == nil {
+		return nil, errors.New("message not found")
+	}
+
+	isMember, err := s.chatRepo.IsMember(ctx, msg.ChatID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	chat, err := s.chatRepo.GetByID(ctx, msg.ChatID)
+	if err != nil {
+		return nil, err
+	}
+	if chat == nil {
+		return nil, errors.New("chat not found")
+	}
+
+	if !isMember && chat.GroupType != "public_group" {
+		return nil, errors.New("unauthorized")
+	}
+
+	if msg.SenderID > 0 {
+		sender, err := s.userRepo.GetByID(ctx, msg.SenderID)
+		if err == nil && sender != nil {
+			msg.Sender = sender
+		}
+	}
+
+	reactions, err := s.reactionRepo.GetReactionsByMessageID(ctx, msg.ID, userID)
+	if err == nil {
+		msg.Reactions = reactions
+	}
+
+	return msg, nil
+}
+
+func (s *MessageService) GetMessageByServerID(ctx context.Context, serverID int, userID int) (*models.Message, error) {
+	msg, err := s.messageRepo.GetByID(ctx, serverID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("message not found")
+		}
+		return nil, err
+	}
+	if msg == nil {
+		return nil, errors.New("message not found")
+	}
+
+	isMember, err := s.chatRepo.IsMember(ctx, msg.ChatID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	chat, err := s.chatRepo.GetByID(ctx, msg.ChatID)
+	if err != nil {
+		return nil, err
+	}
+	if chat == nil {
+		return nil, errors.New("chat not found")
+	}
+
+	if !isMember && chat.GroupType != "public_group" {
+		return nil, errors.New("unauthorized")
+	}
+
+	if msg.SenderID > 0 {
+		sender, err := s.userRepo.GetByID(ctx, msg.SenderID)
+		if err == nil && sender != nil {
+			msg.Sender = sender
+		}
+	}
+
+	reactions, err := s.reactionRepo.GetReactionsByMessageID(ctx, msg.ID, userID)
+	if err == nil {
+		msg.Reactions = reactions
+	}
+
+	return msg, nil
+}
