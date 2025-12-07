@@ -23,12 +23,19 @@ class MessageStateHandler @Inject constructor(
         val body = nexyMessage.body ?: return
         val messageId = body["message_id"] as? String ?: return
         val status = body["status"] as? String
+        val serverId = (body["server_id"] as? Double)?.toInt()
         
         if (status == "ok") {
-            Log.d(TAG, "Received ACK for message: $messageId")
+            Log.d(TAG, "Received ACK for message: $messageId, serverId=$serverId")
             pendingMessageDao.delete(messageId)
-            messageDao.updateMessageStatus(messageId, MessageStatus.SENT.name)
-            Log.d(TAG, "Message $messageId marked as SENT and removed from queue")
+            
+            if (serverId != null && serverId > 0) {
+                messageDao.updateMessageServerIdAndStatus(messageId, serverId, MessageStatus.SENT.name)
+                Log.d(TAG, "Message $messageId marked as SENT with serverId=$serverId")
+            } else {
+                messageDao.updateMessageStatus(messageId, MessageStatus.SENT.name)
+                Log.d(TAG, "Message $messageId marked as SENT (no serverId)")
+            }
         }
     }
 

@@ -57,7 +57,7 @@ fun MessageList(
     onSaveFile: (String) -> Unit,
     onInviteLinkClick: (String) -> Unit = {},
     onUserLinkClick: (String) -> Unit = {},
-    onReactionClick: (Int, String) -> Unit = { _, _ -> },
+    onReactionClick: (String, String) -> Unit = { _, _ -> },
     invitePreviewProvider: (String) -> InvitePreviewResponse? = { null },
     isLoadingInvitePreview: (String) -> Boolean = { false }
 ) {

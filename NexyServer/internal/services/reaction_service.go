@@ -22,34 +22,65 @@ func NewReactionService(reactionRepo *repositories.ReactionRepository, messageRe
 	}
 }
 
-func (s *ReactionService) AddReaction(ctx context.Context, messageID, userID int, emoji string) (int, error) {
+// AddReactionResult contains the result of adding a reaction
+type AddReactionResult struct {
+	ChatID        int
+	OldEmoji      string // The emoji that was removed (if any)
+	IsNewReaction bool   // True if a new reaction was added (not just toggled off)
+}
+
+func (s *ReactionService) AddReaction(ctx context.Context, messageID, userID int, emoji string) (*AddReactionResult, error) {
 	// Validate emoji (basic check)
 	if len(emoji) == 0 || len(emoji) > 10 {
-		return 0, errors.New("invalid emoji")
+		return nil, errors.New("invalid emoji")
 	}
 
 	// Check if message exists
 	message, err := s.messageRepo.GetByID(ctx, messageID)
 	if err != nil {
-		return 0, errors.New("message not found")
+		return nil, errors.New("message not found")
 	}
 
 	// Check if user is a member of the chat
 	isMember, err := s.chatRepo.IsMember(ctx, message.ChatID, userID)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	if !isMember {
-		return 0, errors.New("user is not a member of this chat")
+		return nil, errors.New("user is not a member of this chat")
 	}
 
+	// Remove any existing reaction by this user on this message (single reaction per user)
+	oldEmoji, err := s.reactionRepo.RemoveAllUserReactions(ctx, messageID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &AddReactionResult{
+		ChatID:   message.ChatID,
+		OldEmoji: oldEmoji,
+	}
+
+	// If user clicked the same emoji they already had, just remove it (toggle off)
+	if oldEmoji == emoji {
+		result.IsNewReaction = false
+		return result, nil
+	}
+
+	// Add the new reaction
 	reaction := &models.MessageReaction{
 		MessageID: messageID,
 		UserID:    userID,
 		Emoji:     emoji,
 	}
 
-	return message.ChatID, s.reactionRepo.AddReaction(ctx, reaction)
+	err = s.reactionRepo.AddReaction(ctx, reaction)
+	if err != nil {
+		return nil, err
+	}
+
+	result.IsNewReaction = true
+	return result, nil
 }
 
 func (s *ReactionService) RemoveReaction(ctx context.Context, messageID, userID int, emoji string) (int, error) {

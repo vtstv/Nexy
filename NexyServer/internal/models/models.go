@@ -116,24 +116,25 @@ type ChatInviteLink struct {
 }
 
 type Message struct {
-	ID          int       `json:"id"`
-	MessageID   string    `json:"message_id"`
-	ChatID      int       `json:"chat_id"`
-	SenderID    int       `json:"sender_id"`
-	Sender      *User     `json:"sender,omitempty"`
-	MessageType string    `json:"message_type"`
-	Content     string    `json:"content,omitempty"`
-	MediaURL    string    `json:"media_url,omitempty"`
-	MediaType   string    `json:"media_type,omitempty"`
-	FileSize    *int64    `json:"file_size,omitempty"`
-	Duration    *int      `json:"duration,omitempty"` // Duration in seconds for voice messages
-	ReplyToID   *int      `json:"reply_to_id,omitempty"`
-	IsEdited    bool      `json:"is_edited"`
-	IsDeleted   bool      `json:"is_deleted"`
-	Status      string    `json:"status,omitempty"`
-	Pts         int       `json:"pts,omitempty"` // sequence number for sync
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID          int             `json:"id"`
+	MessageID   string          `json:"message_id"`
+	ChatID      int             `json:"chat_id"`
+	SenderID    int             `json:"sender_id"`
+	Sender      *User           `json:"sender,omitempty"`
+	MessageType string          `json:"message_type"`
+	Content     string          `json:"content,omitempty"`
+	MediaURL    string          `json:"media_url,omitempty"`
+	MediaType   string          `json:"media_type,omitempty"`
+	FileSize    *int64          `json:"file_size,omitempty"`
+	Duration    *int            `json:"duration,omitempty"` // Duration in seconds for voice messages
+	ReplyToID   *int            `json:"reply_to_id,omitempty"`
+	IsEdited    bool            `json:"is_edited"`
+	IsDeleted   bool            `json:"is_deleted"`
+	Status      string          `json:"status,omitempty"`
+	Pts         int             `json:"pts,omitempty"` // sequence number for sync
+	Reactions   []ReactionCount `json:"reactions,omitempty"`
+	CreatedAt   time.Time       `json:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at"`
 }
 
 type MessageStatus struct {

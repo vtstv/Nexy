@@ -104,7 +104,8 @@ func (h *Hub) handleChatMessage(message *NexyMessage, unregisterFunc func(*Clien
 	}
 
 	// Save message to database
-	if err := h.messageRepo.CreateMessageFromWebSocket(ctx, message.Header.MessageID, *message.Header.ChatID, message.Header.SenderID, message.Body); err != nil {
+	serverID, err := h.messageRepo.CreateMessageFromWebSocket(ctx, message.Header.MessageID, *message.Header.ChatID, message.Header.SenderID, message.Body)
+	if err != nil {
 		log.Printf("Error saving message to database: %v", err)
 
 		// If it's a duplicate key error, the message was already saved - send OK ACK
@@ -121,12 +122,21 @@ func (h *Hub) handleChatMessage(message *NexyMessage, unregisterFunc func(*Clien
 		return
 	}
 
-	log.Printf("Message saved to database: messageID=%s, chatID=%d", message.Header.MessageID, *message.Header.ChatID)
+	log.Printf("Message saved to database: messageID=%s, serverID=%d, chatID=%d", message.Header.MessageID, serverID, *message.Header.ChatID)
 
-	// Send ACK to sender confirming message was saved
-	ack, _ := NewNexyMessage(TypeAck, 0, nil, AckBody{MessageID: message.Header.MessageID, Status: "ok"})
+	// Send ACK to sender confirming message was saved, including server_id
+	ack, _ := NewNexyMessage(TypeAck, 0, nil, AckBody{MessageID: message.Header.MessageID, ServerID: serverID, Status: "ok"})
 	h.sendToUser(message.Header.SenderID, ack, unregisterFunc)
-	log.Printf("ACK sent to sender %d for message %s", message.Header.SenderID, message.Header.MessageID)
+	log.Printf("ACK sent to sender %d for message %s (serverID=%d)", message.Header.SenderID, message.Header.MessageID, serverID)
+
+	// Add server_id to message body for broadcast
+	var bodyMap map[string]interface{}
+	if err := json.Unmarshal(message.Body, &bodyMap); err == nil {
+		bodyMap["server_id"] = serverID
+		if newBody, err := json.Marshal(bodyMap); err == nil {
+			message.Body = newBody
+		}
+	}
 
 	// Broadcast to chat members
 	h.broadcastToChatMembers(*message.Header.ChatID, message)

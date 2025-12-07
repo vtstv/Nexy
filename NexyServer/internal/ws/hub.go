@@ -34,7 +34,7 @@ type Hub struct {
 }
 
 type MessageRepository interface {
-	CreateMessageFromWebSocket(ctx context.Context, messageID string, chatID, senderID int, bodyJSON []byte) error
+	CreateMessageFromWebSocket(ctx context.Context, messageID string, chatID, senderID int, bodyJSON []byte) (int, error)
 	GetByUUID(ctx context.Context, uuid string) (*models.Message, error)
 	UpdateStatus(ctx context.Context, status *models.MessageStatus) error
 	Update(ctx context.Context, msg *models.Message) error

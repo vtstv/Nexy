@@ -56,6 +56,7 @@ type NexyHeader struct {
 type ChatMessageBody struct {
 	Content     string      `json:"content,omitempty"`
 	MessageType string      `json:"message_type"`
+	ServerID    int         `json:"server_id,omitempty"`
 	MediaURL    string      `json:"media_url,omitempty"`
 	MediaType   string      `json:"media_type,omitempty"`
 	FileSize    *int64      `json:"file_size,omitempty"`
@@ -124,6 +125,7 @@ type BannedFromGroupBody struct {
 
 type AckBody struct {
 	MessageID string `json:"message_id"`
+	ServerID  int    `json:"server_id,omitempty"`
 	Status    string `json:"status"`
 	Error     string `json:"error,omitempty"`
 }

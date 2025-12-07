@@ -14,18 +14,20 @@ import (
 )
 
 type MessageService struct {
-	messageRepo *repositories.MessageRepository
-	chatRepo    *repositories.ChatRepository
-	userRepo    *repositories.UserRepository
-	fileService *FileService
+	messageRepo  *repositories.MessageRepository
+	chatRepo     *repositories.ChatRepository
+	userRepo     *repositories.UserRepository
+	reactionRepo *repositories.ReactionRepository
+	fileService  *FileService
 }
 
-func NewMessageService(messageRepo *repositories.MessageRepository, chatRepo *repositories.ChatRepository, userRepo *repositories.UserRepository, fileService *FileService) *MessageService {
+func NewMessageService(messageRepo *repositories.MessageRepository, chatRepo *repositories.ChatRepository, userRepo *repositories.UserRepository, reactionRepo *repositories.ReactionRepository, fileService *FileService) *MessageService {
 	return &MessageService{
-		messageRepo: messageRepo,
-		chatRepo:    chatRepo,
-		userRepo:    userRepo,
-		fileService: fileService,
+		messageRepo:  messageRepo,
+		chatRepo:     chatRepo,
+		userRepo:     userRepo,
+		reactionRepo: reactionRepo,
+		fileService:  fileService,
 	}
 }
 
@@ -57,13 +59,30 @@ func (s *MessageService) GetChatHistory(ctx context.Context, chatID, userID, lim
 		return nil, err
 	}
 
-	// Enrich messages with sender info
+	// Collect message IDs for batch reaction fetch
+	messageIDs := make([]int, 0, len(messages))
+	for _, msg := range messages {
+		messageIDs = append(messageIDs, msg.ID)
+	}
+
+	// Fetch reactions for all messages in one query
+	reactionsMap, err := s.reactionRepo.GetReactionsByMessageIDs(ctx, messageIDs, userID)
+	if err != nil {
+		// Log error but don't fail - reactions are optional
+		reactionsMap = make(map[int][]models.ReactionCount)
+	}
+
+	// Enrich messages with sender info and reactions
 	for _, msg := range messages {
 		if msg.SenderID > 0 {
 			sender, err := s.userRepo.GetByID(ctx, msg.SenderID)
 			if err == nil && sender != nil {
 				msg.Sender = sender
 			}
+		}
+		// Attach reactions to message
+		if reactions, ok := reactionsMap[msg.ID]; ok {
+			msg.Reactions = reactions
 		}
 	}
 

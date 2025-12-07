@@ -34,8 +34,14 @@ interface MessageDao {
     @Query("UPDATE messages SET status = :status WHERE id = :messageId")
     suspend fun updateMessageStatus(messageId: String, status: String)
 
+    @Query("UPDATE messages SET serverId = :serverId, status = :status WHERE id = :messageId")
+    suspend fun updateMessageServerIdAndStatus(messageId: String, serverId: Int, status: String)
+
     @Query("UPDATE messages SET reactions = :reactions WHERE serverId = :serverId")
     suspend fun updateReactions(serverId: Int, reactions: List<ReactionCount>)
+    
+    @Query("UPDATE messages SET reactions = :reactions WHERE id = :messageId")
+    suspend fun updateReactionsByClientId(messageId: String, reactions: List<ReactionCount>)
     
     @Query("UPDATE messages SET status = 'READ' WHERE chatId = :chatId AND timestamp <= :timestamp AND status != 'READ' AND senderId = :currentUserId")
     suspend fun markMessagesAsReadUpTo(chatId: Int, timestamp: Long, currentUserId: Int): Int

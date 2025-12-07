@@ -49,9 +49,11 @@ class ChatMessageHandler @Inject constructor(
         }
         
         val duration = (body["duration"] as? Number)?.toInt()
+        val serverId = (body["server_id"] as? Double)?.toInt()
         
         val message = Message(
             id = header.messageId,
+            serverId = serverId,
             chatId = header.chatId ?: 0,
             senderId = header.senderId ?: 0,
             content = content,

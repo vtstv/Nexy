@@ -260,7 +260,7 @@ func (r *MessageRepository) DeleteMessage(ctx context.Context, messageID string,
 }
 
 // CreateMessageFromWebSocket creates a message from WebSocket data
-func (r *MessageRepository) CreateMessageFromWebSocket(ctx context.Context, messageID string, chatID, senderID int, bodyJSON []byte) error {
+func (r *MessageRepository) CreateMessageFromWebSocket(ctx context.Context, messageID string, chatID, senderID int, bodyJSON []byte) (int, error) {
 	var body struct {
 		Content     string `json:"content"`
 		MessageType string `json:"message_type"`
@@ -273,7 +273,7 @@ func (r *MessageRepository) CreateMessageFromWebSocket(ctx context.Context, mess
 
 	if err := json.Unmarshal(bodyJSON, &body); err != nil {
 		log.Printf("Failed to parse message body: %v", err)
-		return err
+		return 0, err
 	}
 
 	msg := &models.Message{
@@ -292,5 +292,8 @@ func (r *MessageRepository) CreateMessageFromWebSocket(ctx context.Context, mess
 	log.Printf("Creating message: id=%s, chatID=%d, senderID=%d, type=%s, content='%s'",
 		messageID, chatID, senderID, body.MessageType, body.Content)
 
-	return r.Create(ctx, msg)
+	if err := r.Create(ctx, msg); err != nil {
+		return 0, err
+	}
+	return msg.ID, nil
 }

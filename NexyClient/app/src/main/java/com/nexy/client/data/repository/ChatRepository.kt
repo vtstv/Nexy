@@ -182,6 +182,12 @@ class ChatRepository @Inject constructor(
     suspend fun removeReaction(messageId: Int, emoji: String): Result<Unit> = 
         reactionOperations.removeReaction(messageId, emoji)
     
+    suspend fun addReactionOptimistic(clientMessageId: String, emoji: String): Result<Unit> =
+        reactionOperations.addReactionOptimistic(clientMessageId, emoji)
+    
+    suspend fun removeReactionOptimistic(clientMessageId: String, emoji: String): Result<Unit> =
+        reactionOperations.removeReactionOptimistic(clientMessageId, emoji)
+    
     suspend fun getReactions(messageId: Int): Result<List<ReactionCount>> = 
         reactionOperations.getReactions(messageId)
 }

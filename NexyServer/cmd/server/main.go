@@ -53,7 +53,7 @@ func main() {
 	groupService := services.NewGroupService(chatRepo, userRepo)
 	inviteService := services.NewInviteService(inviteRepo)
 	fileService := services.NewFileService(fileRepo, &cfg.Upload)
-	messageService := services.NewMessageService(messageRepo, chatRepo, userRepo, fileService)
+	messageService := services.NewMessageService(messageRepo, chatRepo, userRepo, reactionRepo, fileService)
 	qrService := services.NewQRService()
 	e2eService := services.NewE2EService(e2eRepo)
 	onlineStatusService := services.NewOnlineStatusService(userRepo)

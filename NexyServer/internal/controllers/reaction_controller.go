@@ -50,18 +50,29 @@ func (c *ReactionController) AddReaction(w http.ResponseWriter, r *http.Request)
 
 	log.Printf("AddReaction request: userID=%d, messageID=%d, emoji=%s", userID, req.MessageID, req.Emoji)
 
-	chatID, err := c.reactionService.AddReaction(r.Context(), req.MessageID, userID, req.Emoji)
+	result, err := c.reactionService.AddReaction(r.Context(), req.MessageID, userID, req.Emoji)
 	if err != nil {
 		log.Printf("AddReaction error: %v", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// Broadcast reaction to all chat members via WebSocket
-	c.hub.BroadcastReactionAdd(chatID, req.MessageID, userID, req.Emoji)
+	// If there was an old reaction (different emoji), broadcast its removal first
+	if result.OldEmoji != "" && result.OldEmoji != req.Emoji {
+		c.hub.BroadcastReactionRemove(result.ChatID, req.MessageID, userID, result.OldEmoji)
+	}
 
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "reaction added"})
+	// If a new reaction was added (not just toggled off), broadcast it
+	if result.IsNewReaction {
+		c.hub.BroadcastReactionAdd(result.ChatID, req.MessageID, userID, req.Emoji)
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"message": "reaction added"})
+	} else {
+		// Reaction was toggled off (same emoji clicked)
+		c.hub.BroadcastReactionRemove(result.ChatID, req.MessageID, userID, req.Emoji)
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"message": "reaction removed"})
+	}
 }
 
 func (c *ReactionController) RemoveReaction(w http.ResponseWriter, r *http.Request) {

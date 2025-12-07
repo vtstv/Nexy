@@ -189,25 +189,24 @@ class MessageDelegate @Inject constructor(
         }
     }
     
-    fun toggleReaction(messageId: Int, emoji: String) {
+    fun toggleReaction(clientMessageId: String, emoji: String) {
         scope.launch {
-            // Find if current user already reacted with this emoji
             val currentMessages = uiState.value.messages
-            val message = currentMessages.find { it.serverId == messageId }
+            val message = currentMessages.find { it.id == clientMessageId }
             val currentUserReacted = message?.reactions?.find { it.emoji == emoji }?.reactedBy == true
             
             val result = if (currentUserReacted) {
-                chatRepository.removeReaction(messageId, emoji)
+                chatRepository.removeReactionOptimistic(clientMessageId, emoji)
             } else {
-                chatRepository.addReaction(messageId, emoji)
+                chatRepository.addReactionOptimistic(clientMessageId, emoji)
             }
             
             result.onFailure { error ->
+                android.util.Log.e("MessageDelegate", "Reaction error: ${error.message}", error)
                 uiState.value = uiState.value.copy(
                     error = error.message ?: "Failed to update reaction"
                 )
             }
-            // No need to fetch reactions here, we rely on WebSocket events
         }
     }
 

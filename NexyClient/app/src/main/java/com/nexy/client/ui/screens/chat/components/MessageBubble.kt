@@ -49,7 +49,7 @@ fun MessageBubble(
     onSaveFile: (String) -> Unit = {},
     onInviteLinkClick: (String) -> Unit = {},
     onUserLinkClick: (String) -> Unit = {},
-    onReactionClick: (Int, String) -> Unit = { _, _ -> },
+    onReactionClick: (String, String) -> Unit = { _, _ -> },
     invitePreviewProvider: (String) -> InvitePreviewResponse? = { null },
     isLoadingInvitePreview: (String) -> Boolean = { false },
     participants: Map<Int, com.nexy.client.data.models.User> = emptyMap()
@@ -193,7 +193,7 @@ fun MessageBubble(
                             reactions = message.reactions,
                             currentUserId = currentUserId,
                             onReactionClick = { emoji ->
-                                message.serverId?.let { onReactionClick(it, emoji) }
+                                onReactionClick(message.id, emoji)
                             },
                             modifier = Modifier.padding(top = 4.dp),
                             participants = participants
@@ -246,7 +246,7 @@ fun MessageBubble(
         ReactionFloatingPanel(
             onDismiss = { showReactionPanel = false },
             onReactionSelected = { emoji ->
-                message.serverId?.let { onReactionClick(it, emoji) }
+                onReactionClick(message.id, emoji)
                 showReactionPanel = false
             },
             contextMenuContent = {
