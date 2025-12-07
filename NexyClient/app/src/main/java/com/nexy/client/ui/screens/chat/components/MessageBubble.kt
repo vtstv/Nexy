@@ -51,7 +51,8 @@ fun MessageBubble(
     onUserLinkClick: (String) -> Unit = {},
     onReactionClick: (Int, String) -> Unit = { _, _ -> },
     invitePreviewProvider: (String) -> InvitePreviewResponse? = { null },
-    isLoadingInvitePreview: (String) -> Boolean = { false }
+    isLoadingInvitePreview: (String) -> Boolean = { false },
+    participants: Map<Int, com.nexy.client.data.models.User> = emptyMap()
 ) {
     val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -195,7 +196,8 @@ fun MessageBubble(
                             onReactionClick = { emoji ->
                                 message.serverId?.let { onReactionClick(it, emoji) }
                             },
-                            modifier = Modifier.padding(top = 4.dp)
+                            modifier = Modifier.padding(top = 4.dp),
+                            participants = participants
                         )
                     }
                 }

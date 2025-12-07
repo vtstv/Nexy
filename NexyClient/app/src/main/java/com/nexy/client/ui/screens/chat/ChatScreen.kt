@@ -239,7 +239,10 @@ fun ChatScreen(
                             avatarSize = avatarSize,
                             firstUnreadMessageId = uiState.firstUnreadMessageId,
                             userRole = uiState.userRole,
-                            onDeleteMessage = viewModel::deleteMessage,
+                            participants = uiState.participants,
+                            onDeleteMessage = { messageId ->
+                                viewModel.deleteMessage(messageId)
+                            },
                             onReplyMessage = { message -> replyToMessage = message },
                             onEditMessage = viewModel::startEditing,
                             onDownloadFile = { fileId, fileName ->

@@ -133,6 +133,7 @@ class ChatViewModel @Inject constructor(
                     chatType = chatInfo.chatType,
                     groupType = chatInfo.groupType,
                     participantIds = chatInfo.participantIds,
+                    participants = chatInfo.participants,
                     isSelfChat = chatInfo.isSelfChat,
                     isCreator = chatInfo.isCreator,
                     isMember = chatInfo.isMember,

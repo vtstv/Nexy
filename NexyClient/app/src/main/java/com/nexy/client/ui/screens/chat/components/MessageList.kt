@@ -43,6 +43,7 @@ fun MessageList(
     avatarSize: Float = 32f,
     firstUnreadMessageId: String? = null,
     userRole: String? = null,
+    participants: Map<Int, com.nexy.client.data.models.User> = emptyMap(),
     onDeleteMessage: (String) -> Unit,
     onReplyMessage: (Message) -> Unit = {},
     onEditMessage: (Message) -> Unit = {},
@@ -234,7 +235,8 @@ fun MessageList(
                         onUserLinkClick = onUserLinkClick,
                         onReactionClick = onReactionClick,
                         invitePreviewProvider = invitePreviewProvider,
-                        isLoadingInvitePreview = isLoadingInvitePreview
+                        isLoadingInvitePreview = isLoadingInvitePreview,
+                        participants = participants
                     )
                 }
             }

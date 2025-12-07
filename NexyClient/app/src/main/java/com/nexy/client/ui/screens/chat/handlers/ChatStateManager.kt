@@ -29,12 +29,16 @@ class ChatStateManager @Inject constructor(
         var otherUserOnlineStatus: String? = null
         var recipientVoiceMessagesEnabled = true
         var userRole: String? = null
+        val participantsMap = mutableMapOf<Int, com.nexy.client.data.models.User>()
         
         val name = if (chat.type == ChatType.PRIVATE) {
             if (chat.participantIds != null && currentUserId != null) {
                 val otherUserId = chat.participantIds.firstOrNull { it != currentUserId } ?: currentUserId
                 val userResult = userRepository.getUserById(otherUserId, forceRefresh = true)
                 val otherUser = userResult.getOrNull()
+                if (otherUser != null) {
+                    participantsMap[otherUser.id] = otherUser
+                }
                 otherUserOnlineStatus = otherUser?.onlineStatus
                 recipientVoiceMessagesEnabled = otherUser?.voiceMessagesEnabled ?: true
                 otherUser?.displayName?.takeIf { it.isNotBlank() } ?: otherUser?.username ?: "Chat"
@@ -45,7 +49,13 @@ class ChatStateManager @Inject constructor(
             // Load user role for group chats
             if (currentUserId != null && chat.isMember) {
                 val membersResult = chatRepository.getGroupMembers(chatId)
-                membersResult.getOrNull()?.find { it.userId == currentUserId }?.let { member ->
+                val members = membersResult.getOrNull()
+                members?.forEach { member ->
+                    member.user?.let { user ->
+                        participantsMap[user.id] = user
+                    }
+                }
+                members?.find { it.userId == currentUserId }?.let { member ->
                     userRole = member.role.name.lowercase()
                 }
             }
@@ -58,6 +68,7 @@ class ChatStateManager @Inject constructor(
             chatType = chat.type,
             groupType = chat.groupType,
             participantIds = chat.participantIds ?: emptyList(),
+            participants = participantsMap,
             isSelfChat = chat.type == ChatType.PRIVATE && chat.participantIds?.size == 1 && chat.participantIds.contains(currentUserId),
             isCreator = chat.createdBy == currentUserId,
             isMember = chat.isMember || (chat.participantIds?.contains(currentUserId) == true),
@@ -96,6 +107,7 @@ data class ChatInfo(
     val chatType: ChatType,
     val groupType: GroupType?,
     val participantIds: List<Int>,
+    val participants: Map<Int, com.nexy.client.data.models.User> = emptyMap(),
     val isSelfChat: Boolean,
     val isCreator: Boolean,
     val isMember: Boolean,

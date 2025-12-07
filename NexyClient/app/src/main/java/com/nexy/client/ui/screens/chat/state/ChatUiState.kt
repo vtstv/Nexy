@@ -17,6 +17,7 @@ data class ChatUiState(
     val chatType: ChatType = ChatType.PRIVATE,
     val groupType: GroupType? = null,
     val participantIds: List<Int> = emptyList(),
+    val participants: Map<Int, com.nexy.client.data.models.User> = emptyMap(),
     val isSelfChat: Boolean = false,
     val isCreator: Boolean = false,
     val isSearching: Boolean = false,
