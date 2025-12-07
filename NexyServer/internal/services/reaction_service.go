@@ -26,7 +26,7 @@ func NewReactionService(reactionRepo *repositories.ReactionRepository, messageRe
 type AddReactionResult struct {
 	ChatID          int
 	IsNewReaction   bool   // True if a new reaction was added, false if toggled off (removed)
-	RemovedOldEmoji string // If user's own reaction was replaced, this contains the old emoji
+	RemovedOldEmoji string // If user's reaction was replaced, this contains the old emoji
 }
 
 func (s *ReactionService) AddReaction(ctx context.Context, messageID, userID int, emoji string) (*AddReactionResult, error) {
@@ -54,14 +54,14 @@ func (s *ReactionService) AddReaction(ctx context.Context, messageID, userID int
 		ChatID: message.ChatID,
 	}
 
-	// Check if user already has this exact reaction
+	// Check if user already has this exact reaction (same emoji)
 	hasReaction, err := s.reactionRepo.HasUserReaction(ctx, messageID, userID, emoji)
 	if err != nil {
 		return nil, err
 	}
 
 	if hasReaction {
-		// Toggle off - remove the reaction
+		// Toggle off - remove the reaction (user clicked same emoji again)
 		err = s.reactionRepo.RemoveReaction(ctx, messageID, userID, emoji)
 		if err != nil {
 			return nil, err
@@ -70,27 +70,20 @@ func (s *ReactionService) AddReaction(ctx context.Context, messageID, userID int
 		return result, nil
 	}
 
-	// Check if this emoji already exists on the message (from other users)
-	emojiExists, err := s.reactionRepo.EmojiExistsOnMessage(ctx, messageID, emoji)
+	// User wants to add a different reaction
+	// RULE: Each user can have ONLY ONE reaction per message
+	// So we need to remove any existing reaction first
+	oldEmoji, err := s.reactionRepo.GetUserOwnReactionEmoji(ctx, messageID, userID)
 	if err != nil {
 		return nil, err
 	}
-
-	// If emoji doesn't exist yet (user is creating a NEW reaction type),
-	// we need to remove their old "own" reaction first (one own reaction per user)
-	if !emojiExists {
-		oldEmoji, err := s.reactionRepo.GetUserOwnReactionEmoji(ctx, messageID, userID)
+	if oldEmoji != "" {
+		// Remove user's old reaction
+		err = s.reactionRepo.RemoveReaction(ctx, messageID, userID, oldEmoji)
 		if err != nil {
 			return nil, err
 		}
-		if oldEmoji != "" {
-			// Remove user's old own reaction
-			err = s.reactionRepo.RemoveUserOwnReaction(ctx, messageID, userID, oldEmoji)
-			if err != nil {
-				return nil, err
-			}
-			result.RemovedOldEmoji = oldEmoji
-		}
+		result.RemovedOldEmoji = oldEmoji
 	}
 
 	// Add the new reaction
