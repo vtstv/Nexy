@@ -28,7 +28,8 @@ class MessageMappers @Inject constructor() {
         duration = message.duration,
         replyToId = message.replyToId?.toString(),
         isEdited = message.isEdited,
-        isSyncedToServer = true
+        isSyncedToServer = true,
+        reactions = message.reactions
     )
 
     fun entityToModel(entity: MessageEntity) = Message(
@@ -47,7 +48,8 @@ class MessageMappers @Inject constructor() {
         replyToId = entity.replyToId?.toIntOrNull(),
         isEdited = entity.isEdited,
         encrypted = false,
-        encryptionAlgorithm = null
+        encryptionAlgorithm = null,
+        reactions = entity.reactions
     )
 
     fun messageWithSenderToModel(messageWithSender: MessageWithSender): Message {

@@ -34,54 +34,6 @@ class MessageDelegate @Inject constructor(
         this.scope = scope
         this.uiState = uiState
         this.getChatId = getChatId
-        observeReactionEvents()
-    }
-
-    private suspend fun refreshReactions(messages: List<Message>) {
-        val ids = messages.mapNotNull { it.serverId }
-        if (ids.isEmpty()) return
-
-        val reactionsMap = mutableMapOf<Int, List<com.nexy.client.data.models.ReactionCount>>()
-        for (id in ids) {
-            chatRepository.getReactions(id).onSuccess { reactions ->
-                reactionsMap[id] = reactions
-            }
-        }
-
-        uiState.value = uiState.value.copy(
-            messages = messages.map { msg ->
-                val sid = msg.serverId
-                if (sid != null && reactionsMap.containsKey(sid)) {
-                    msg.copy(reactions = reactionsMap[sid])
-                } else msg
-            }
-        )
-    }
-    
-    private fun observeReactionEvents() {
-        scope.launch {
-            webSocketMessageHandler.reactionEvents.collect { event ->
-                android.util.Log.d("MessageDelegate", "Reaction event: messageId=${event.messageId}, emoji=${event.emoji}, isAdd=${event.isAdd}")
-                
-                // Reload messages to get updated reactions
-                val currentUserId = uiState.value.currentUserId ?: return@collect
-                val result = chatRepository.getReactions(event.messageId)
-                
-                result.onSuccess { reactions ->
-                    // Update the message in the current list only if reactions changed to prevent flicker
-                    val updatedMessages = uiState.value.messages.map { message ->
-                        if (message.serverId == event.messageId) {
-                            if (message.reactions == reactions) message else message.copy(reactions = reactions)
-                        } else {
-                            message
-                        }
-                    }
-                    if (updatedMessages !== uiState.value.messages) {
-                        uiState.value = uiState.value.copy(messages = updatedMessages)
-                    }
-                }
-            }
-        }
     }
 
     fun onMessageTextChanged(text: TextFieldValue) {
@@ -179,30 +131,10 @@ class MessageDelegate @Inject constructor(
                     .maxByOrNull { it.timestamp!! }
                 readReceiptHandler.updateLastKnownMessageId(newestMessage?.id)
 
-                val previousMessages = uiState.value.messages
-                val mergedMessages = messages.map { msg ->
-                    val previous = previousMessages.find {
-                        (it.serverId != null && it.serverId == msg.serverId) || it.id == msg.id
-                    }
-                    when {
-                        msg.reactions != null -> msg // server provided reactions
-                        previous?.reactions != null -> msg.copy(reactions = previous.reactions) // preserve existing reactions when absent in new payload
-                        else -> msg
-                    }
-                }
-
                 uiState.value = uiState.value.copy(
-                    messages = mergedMessages,
+                    messages = messages,
                     isLoading = false
                 )
-
-                // Refresh reactions only if some merged messages are missing them to avoid unnecessary recomposition flicker
-                val needsRefresh = mergedMessages.any { it.serverId != null && it.reactions == null }
-                if (needsRefresh) {
-                    scope.launch {
-                        refreshReactions(mergedMessages)
-                    }
-                }
 
                 if (!readReceiptHandler.isChatActive()) {
                     android.util.Log.d("MessageDelegate", "Chat not active, skipping markAsRead")
@@ -271,15 +203,8 @@ class MessageDelegate @Inject constructor(
                 uiState.value = uiState.value.copy(
                     error = error.message ?: "Failed to update reaction"
                 )
-            }.onSuccess {
-                // Pull fresh reactions for this message to keep UI in sync
-                chatRepository.getReactions(messageId).onSuccess { reactions ->
-                    val updated = uiState.value.messages.map { msg ->
-                        if (msg.serverId == messageId) msg.copy(reactions = reactions) else msg
-                    }
-                    uiState.value = uiState.value.copy(messages = updated)
-                }
             }
+            // No need to fetch reactions here, we rely on WebSocket events
         }
     }
 }

@@ -117,8 +117,19 @@ class MessageOperations @Inject constructor(
                             } else {
                                 entity.status
                             }
+
+                            // Preserve reactions if server didn't return them (null)
+                            // If server returns empty list, it means reactions were cleared, so we use it.
+                            val finalReactions = if (entity.reactions == null) {
+                                existing.reactions
+                            } else {
+                                entity.reactions
+                            }
                             
-                            messageDao.updateMessage(entity.copy(status = finalStatus))
+                            messageDao.updateMessage(entity.copy(
+                                status = finalStatus,
+                                reactions = finalReactions
+                            ))
                         } else {
                             messageDao.insertMessage(entity)
                         }

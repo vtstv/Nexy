@@ -5,6 +5,8 @@ import androidx.room.PrimaryKey
 import androidx.room.ForeignKey
 import androidx.room.Index
 
+import com.nexy.client.data.models.ReactionCount
+
 @Entity(
     tableName = "messages",
     foreignKeys = [
@@ -32,5 +34,6 @@ data class MessageEntity(
     val duration: Int? = null,  // Duration in seconds for voice messages
     val replyToId: String?,
     val isEdited: Boolean = false,
-    val isSyncedToServer: Boolean = false
+    val isSyncedToServer: Boolean = false,
+    val reactions: List<ReactionCount>? = null
 )

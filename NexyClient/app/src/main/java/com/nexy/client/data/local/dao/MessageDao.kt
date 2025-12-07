@@ -5,6 +5,8 @@ import com.nexy.client.data.local.entity.MessageEntity
 import com.nexy.client.data.local.models.MessageWithSender
 import kotlinx.coroutines.flow.Flow
 
+import com.nexy.client.data.models.ReactionCount
+
 @Dao
 interface MessageDao {
     @Transaction
@@ -13,6 +15,9 @@ interface MessageDao {
     
     @Query("SELECT * FROM messages WHERE id = :messageId")
     suspend fun getMessageById(messageId: String): MessageEntity?
+
+    @Query("SELECT * FROM messages WHERE serverId = :serverId LIMIT 1")
+    suspend fun getMessageByServerId(serverId: Int): MessageEntity?
     
     @Query("SELECT * FROM messages WHERE chatId = :chatId AND isSyncedToServer = 0")
     suspend fun getUnsyncedMessages(chatId: Int): List<MessageEntity>
@@ -28,6 +33,9 @@ interface MessageDao {
     
     @Query("UPDATE messages SET status = :status WHERE id = :messageId")
     suspend fun updateMessageStatus(messageId: String, status: String)
+
+    @Query("UPDATE messages SET reactions = :reactions WHERE serverId = :serverId")
+    suspend fun updateReactions(serverId: Int, reactions: List<ReactionCount>)
     
     @Query("UPDATE messages SET status = 'READ' WHERE chatId = :chatId AND timestamp <= :timestamp AND status != 'READ' AND senderId = :currentUserId")
     suspend fun markMessagesAsReadUpTo(chatId: Int, timestamp: Long, currentUserId: Int): Int

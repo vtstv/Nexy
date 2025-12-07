@@ -15,6 +15,8 @@ import com.nexy.client.data.local.entity.PendingMessageEntity
 import com.nexy.client.data.local.entity.SearchHistoryEntity
 import com.nexy.client.data.local.entity.UserEntity
 
+import androidx.room.TypeConverters
+
 @Database(
     entities = [
         UserEntity::class,
@@ -23,9 +25,10 @@ import com.nexy.client.data.local.entity.UserEntity
         PendingMessageEntity::class,
         SearchHistoryEntity::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
+@TypeConverters(Converters::class)
 abstract class NexyDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun messageDao(): MessageDao
@@ -34,6 +37,12 @@ abstract class NexyDatabase : RoomDatabase() {
     abstract fun searchHistoryDao(): SearchHistoryDao
     
     companion object {
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE messages ADD COLUMN reactions TEXT DEFAULT NULL")
+            }
+        }
+
         val MIGRATION_10_11 = object : Migration(10, 11) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("""
