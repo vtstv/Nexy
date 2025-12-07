@@ -50,13 +50,24 @@ class ChatStateManager @Inject constructor(
             if (currentUserId != null && chat.isMember) {
                 val membersResult = chatRepository.getGroupMembers(chatId)
                 val members = membersResult.getOrNull()
-                members?.forEach { member ->
-                    member.user?.let { user ->
-                        participantsMap[user.id] = user
+                
+                if (members != null) {
+                    members.forEach { member ->
+                        member.user?.let { user ->
+                            participantsMap[user.id] = user
+                        }
                     }
-                }
-                members?.find { it.userId == currentUserId }?.let { member ->
-                    userRole = member.role.name.lowercase()
+                    members.find { it.userId == currentUserId }?.let { member ->
+                        userRole = member.role.name.lowercase()
+                    }
+                } else {
+                    // Fallback: Load participants from local DB if network call fails
+                    chat.participantIds?.forEach { userId ->
+                        val userResult = userRepository.getUserById(userId, forceRefresh = false)
+                        userResult.getOrNull()?.let { user ->
+                            participantsMap[user.id] = user
+                        }
+                    }
                 }
             }
             chat.name ?: "Group Chat"

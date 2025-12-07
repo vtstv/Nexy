@@ -53,7 +53,13 @@ class UserRepository @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
-                Result.failure(e)
+                // Fallback to cache on network error
+                val cachedUser = userDao.getUserById(userId)
+                if (cachedUser != null) {
+                    Result.success(cachedUser.toModel())
+                } else {
+                    Result.failure(e)
+                }
             }
         }
     }
