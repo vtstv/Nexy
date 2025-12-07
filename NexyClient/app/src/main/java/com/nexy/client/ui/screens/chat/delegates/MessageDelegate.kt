@@ -234,4 +234,66 @@ class MessageDelegate @Inject constructor(
     suspend fun getMessageById(messageId: String): Result<Message> {
         return chatRepository.getMessageById(messageId)
     }
+    
+    suspend fun scrollToMessageId(messageId: String) {
+        android.util.Log.d("MessageDelegate", "scrollToMessageId: $messageId")
+        
+        // Check if message already exists in current list
+        val currentMessages = uiState.value.messages
+        val existingMessage = currentMessages.find { 
+            it.id == messageId || it.serverId?.toString() == messageId 
+        }
+        
+        if (existingMessage != null) {
+            android.util.Log.d("MessageDelegate", "Message found in current list: ${existingMessage.id}")
+            uiState.value = uiState.value.copy(
+                targetMessageId = existingMessage.id,
+                isLoadingToMessage = false
+            )
+            return
+        }
+        
+        // Message not in current list, need to load it from API
+        android.util.Log.d("MessageDelegate", "Message not in current list, loading from API")
+        uiState.value = uiState.value.copy(isLoadingToMessage = true)
+        
+        // Get the message details first to verify it exists
+        val result = chatRepository.getMessageById(messageId)
+        result.onSuccess { message ->
+            android.util.Log.d("MessageDelegate", "Message loaded from API: ${message.id}, serverID: ${message.serverId}")
+            
+            // Temporarily add the message to the list so we can scroll to it
+            // This allows scrolling even if the message is not in the current page
+            val updatedMessages = currentMessages.toMutableList()
+            
+            // Find appropriate position based on timestamp
+            val insertIndex = if (message.timestamp != null) {
+                // Messages are sorted newest first (index 0 = newest)
+                updatedMessages.indexOfFirst { existing ->
+                    existing.timestamp != null && existing.timestamp!! < message.timestamp!!
+                }.let { if (it == -1) updatedMessages.size else it }
+            } else {
+                // If no timestamp, add at the end
+                updatedMessages.size
+            }
+            
+            updatedMessages.add(insertIndex, message)
+            android.util.Log.d("MessageDelegate", "Inserted message at index $insertIndex, total messages: ${updatedMessages.size}")
+            
+            // Update state with the message added and set target
+            uiState.value = uiState.value.copy(
+                messages = updatedMessages,
+                targetMessageId = message.id,
+                isLoadingToMessage = false
+            )
+            
+            android.util.Log.d("MessageDelegate", "Target message set: ${message.id}, ready to scroll")
+        }.onFailure { error ->
+            android.util.Log.e("MessageDelegate", "Failed to get message: ${error.message}")
+            uiState.value = uiState.value.copy(
+                error = error.message ?: "Message not found",
+                isLoadingToMessage = false
+            )
+        }
+    }
 }

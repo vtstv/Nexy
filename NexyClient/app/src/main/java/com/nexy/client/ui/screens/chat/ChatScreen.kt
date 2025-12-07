@@ -2,6 +2,8 @@ package com.nexy.client.ui.screens.chat
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
@@ -33,6 +35,9 @@ fun ChatScreen(
     onNavigateToGroupSettings: ((Int) -> Unit)? = null,
     onNavigateToGroupInfo: ((Int) -> Unit)? = null,
     onNavigateToChat: ((Int) -> Unit)? = null,
+    onNavigateToChatWithMessage: ((Int, String) -> Unit)? = null,
+    initialTargetMessageId: String? = null,
+    onConsumeTargetMessage: (() -> Unit)? = null,
     onNavigateToUserProfile: ((Int) -> Unit)? = null,
     viewModel: ChatViewModel = hiltViewModel(key = "chat_$chatId"),
     themeViewModel: ThemeViewModel = hiltViewModel(),
@@ -70,6 +75,15 @@ fun ChatScreen(
         viewModel.initializeChatId(chatId)
         hasScrolledToBottom.value = false // Reset scroll flag when changing chat
     }
+
+    // Handle pending deep link target when opening chat from another screen
+    LaunchedEffect(chatId, initialTargetMessageId) {
+        if (initialTargetMessageId != null) {
+            android.util.Log.d("ChatScreen", "Pending message deep link for chat $chatId: $initialTargetMessageId")
+            viewModel.navigateToMessage(initialTargetMessageId)
+            onConsumeTargetMessage?.invoke()
+        }
+    }
     
     // Use LifecycleEventObserver for reliable pause/resume detection
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -100,6 +114,30 @@ fun ChatScreen(
             // With reverseLayout = true, index 0 is the bottom (newest message)
             listState.scrollToItem(0)
             hasScrolledToBottom.value = true
+        }
+    }
+    
+    // Scroll to target message when it's found
+    LaunchedEffect(uiState.targetMessageId, uiState.messages.size) {
+        val targetId = uiState.targetMessageId
+        if (targetId != null && uiState.messages.isNotEmpty()) {
+            val targetIndexInOriginal = uiState.messages.indexOfFirst { it.id == targetId }
+            if (targetIndexInOriginal >= 0) {
+                // MessageList uses reversedMessages with reverseLayout=true, so translate index
+                val reversedIndex = uiState.messages.size - 1 - targetIndexInOriginal
+                android.util.Log.d(
+                    "ChatScreen",
+                    "Found target message: $targetId, originalIndex=$targetIndexInOriginal, reversedIndex=$reversedIndex, total=${uiState.messages.size}"
+                )
+                // Animate to make the movement obvious
+                listState.animateScrollToItem(reversedIndex)
+
+                // Keep target highlighted briefly
+                kotlinx.coroutines.delay(1200)
+                viewModel.clearTargetMessage()
+            } else {
+                android.util.Log.d("ChatScreen", "Target message $targetId not found in list of ${uiState.messages.size} messages")
+            }
         }
     }
     
@@ -232,6 +270,7 @@ fun ChatScreen(
                             messages = uiState.messages,
                             currentUserId = uiState.currentUserId,
                             listState = listState,
+                            highlightMessageId = uiState.targetMessageId,
                             chatType = uiState.chatType,
                             fontScale = fontScale,
                             incomingTextColor = incomingTextColor,
@@ -276,10 +315,39 @@ fun ChatScreen(
                             onLoadMessagePreview = { chatId, messageId ->
                                 viewModel.loadMessagePreview(chatId, messageId)
                             },
-                            onNavigateToMessage = { messageId ->
-                                viewModel.navigateToMessage(messageId)
+                            onNavigateToMessage = { targetChatId, messageId ->
+                                android.util.Log.d("ChatScreen", "onNavigateToMessage clicked: chat=$targetChatId message=$messageId current=$chatId")
+                                val parsedChatId = targetChatId.toIntOrNull()
+                                if (parsedChatId != null && parsedChatId != chatId) {
+                                    onNavigateToChatWithMessage?.invoke(parsedChatId, messageId)
+                                } else {
+                                    viewModel.navigateToMessage(messageId)
+                                }
                             }
                         )
+                        
+                        // Show loading indicator when loading to target message
+                        if (uiState.isLoadingToMessage) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
+                                    .clickable(enabled = false) {}, // Block clicks while loading
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    CircularProgressIndicator()
+                                    Text(
+                                        text = "Loading message...",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        }
                     }
                     
                     if (!uiState.isMember && uiState.groupType == com.nexy.client.data.models.GroupType.PUBLIC_GROUP) {

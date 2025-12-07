@@ -8,10 +8,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nexy.client.ui.screens.chat.list.ChatListScreen
 import com.nexy.client.ui.screens.chat.ChatScreen
 import com.nexy.client.ui.screens.main.components.*
 import androidx.activity.compose.BackHandler
+import com.nexy.client.ui.NavigationViewModel
 
 /**
  * Main screen with adaptive layout
@@ -32,9 +34,17 @@ fun MainScreen(
     onChatSelected: (Int?) -> Unit = {},
     initialChatId: Int? = null
 ) {
+    val navigationViewModel: NavigationViewModel = viewModel()
+    val pendingMessageLink by navigationViewModel.pendingMessageLink.collectAsState()
+
     val screenConfig = rememberScreenConfig()
     val dialogState = rememberDialogState()
     var selectedChatId by remember { mutableStateOf(initialChatId) }
+
+    // If there's a pending deep link to a message, pass it to the active chat
+    val targetMessageIdForSelected = remember(pendingMessageLink, selectedChatId) {
+        pendingMessageLink?.takeIf { it.first == selectedChatId }?.second
+    }
 
     // Update selected chat when initialChatId changes
     LaunchedEffect(initialChatId) {
@@ -59,6 +69,13 @@ fun MainScreen(
         SplitScreenLayout(
             selectedChatId = selectedChatId,
             onChatSelected = { chatId -> if (chatId > 0) selectedChatId = chatId },
+            onNavigateToChatWithMessage = { chatId, messageId ->
+                navigationViewModel.setPendingMessageLink(chatId, messageId)
+                navigationViewModel.selectChat(chatId)
+                selectedChatId = chatId
+            },
+            targetMessageId = targetMessageIdForSelected,
+            onConsumeTargetMessage = navigationViewModel::clearPendingMessageLink,
             onNavigateToProfile = onNavigateToProfile,
             onNavigateToSettings = onNavigateToSettings,
             onNavigateToGroupInfo = onNavigateToGroupInfo,
@@ -70,6 +87,13 @@ fun MainScreen(
         SinglePaneLayout(
             selectedChatId = selectedChatId,
             onChatSelected = { chatId -> if (chatId > 0) selectedChatId = chatId },
+            onNavigateToChatWithMessage = { chatId, messageId ->
+                navigationViewModel.setPendingMessageLink(chatId, messageId)
+                navigationViewModel.selectChat(chatId)
+                selectedChatId = chatId
+            },
+            targetMessageId = targetMessageIdForSelected,
+            onConsumeTargetMessage = navigationViewModel::clearPendingMessageLink,
             onClearSelection = { selectedChatId = null },
             onNavigateToProfile = onNavigateToProfile,
             onNavigateToSettings = onNavigateToSettings,

@@ -38,5 +38,7 @@ data class ChatUiState(
     val loadingMessageLinks: Set<String> = emptySet(),
     val voiceMessagesEnabled: Boolean = true,
     val recipientVoiceMessagesEnabled: Boolean = true,
-    val userRole: String? = null
+    val userRole: String? = null,
+    val targetMessageId: String? = null,
+    val isLoadingToMessage: Boolean = false
 )

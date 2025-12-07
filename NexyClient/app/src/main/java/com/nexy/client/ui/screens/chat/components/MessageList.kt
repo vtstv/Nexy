@@ -1,30 +1,57 @@
 package com.nexy.client.ui.screens.chat.components
 
+import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Forward
-import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.unit.dp
 import com.nexy.client.data.models.ChatType
 import com.nexy.client.data.models.InvitePreviewResponse
 import com.nexy.client.data.models.Message
@@ -39,6 +66,7 @@ fun MessageList(
     messages: List<Message>,
     currentUserId: Int?,
     listState: LazyListState,
+    highlightMessageId: String? = null,
     chatType: ChatType = ChatType.PRIVATE,
     fontScale: Float = 1.0f,
     incomingTextColor: Long = 0L,
@@ -63,7 +91,7 @@ fun MessageList(
     messageLinkPreviewProvider: (String, String) -> Message? = { _, _ -> null },
     isLoadingMessagePreview: (String, String) -> Boolean = { _, _ -> false },
     onLoadMessagePreview: (String, String) -> Unit = { _, _ -> },
-    onNavigateToMessage: (String) -> Unit = {}
+    onNavigateToMessage: (String, String) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
@@ -105,7 +133,7 @@ fun MessageList(
     var isDateVisible by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    
+
     LaunchedEffect(listState.isScrollInProgress) {
         if (listState.isScrollInProgress) {
             isDateVisible = true
@@ -120,7 +148,6 @@ fun MessageList(
             val layoutInfo = listState.layoutInfo
             val visibleItems = layoutInfo.visibleItemsInfo
             if (visibleItems.isNotEmpty()) {
-                // In reverseLayout, the item at the top of the screen has the highest index
                 val topItem = visibleItems.maxByOrNull { it.index }
                 val index = topItem?.index
                 if (index != null && index in reversedMessages.indices) {
@@ -140,13 +167,10 @@ fun MessageList(
                         showDatePicker = false
                         val selectedDateMillis = datePickerState.selectedDateMillis
                         if (selectedDateMillis != null) {
-                            // Find the first message of the selected day
-                            // Since reversedMessages is [Newest ... Oldest], we want the message with the highest index
-                            // that matches the date (which is the oldest message of that day)
                             val indexToScroll = reversedMessages.indexOfLast { message ->
                                 isSameDay(message.timestamp, selectedDateMillis)
                             }
-                            
+
                             if (indexToScroll != -1) {
                                 scope.launch {
                                     listState.scrollToItem(indexToScroll)
@@ -183,7 +207,7 @@ fun MessageList(
                 } else {
                     !isSameDay(message.timestamp, nextMessage.timestamp)
                 }
-                
+
                 val showUnreadDivider = firstUnreadMessageId != null && message.id == firstUnreadMessageId
 
                 Column(
@@ -193,7 +217,7 @@ fun MessageList(
                         UnreadMessagesDivider()
                         Spacer(modifier = Modifier.height(8.dp))
                     }
-                    
+
                     if (showDateHeader) {
                         DateHeader(
                             timestamp = message.timestamp,
@@ -209,7 +233,7 @@ fun MessageList(
                     }
 
                     val isOwnMessage = message.senderId == currentUserId
-                    val canDeleteMessage = isOwnMessage || 
+                    val canDeleteMessage = isOwnMessage ||
                         (chatType == ChatType.GROUP && (userRole == "admin" || userRole == "owner"))
                     val canPinMessage = chatType == ChatType.GROUP && (userRole == "admin" || userRole == "owner")
 
@@ -217,6 +241,7 @@ fun MessageList(
 
                     MessageBubble(
                         message = message,
+                        highlight = message.id == highlightMessageId,
                         isOwnMessage = isOwnMessage,
                         isGroupChat = chatType == ChatType.GROUP,
                         canDeleteMessage = canDeleteMessage,
@@ -284,7 +309,7 @@ fun MessageList(
                         IconButton(onClick = { exitSelection() }) {
                             Icon(imageVector = Icons.Default.Close, contentDescription = "Close selection")
                         }
-                        Text(text = "${selectedIds.size} selected")
+                        Text(text = "${'$'}{selectedIds.size} selected")
                     }
 
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {

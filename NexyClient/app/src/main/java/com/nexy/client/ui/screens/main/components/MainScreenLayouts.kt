@@ -17,6 +17,9 @@ import com.nexy.client.ui.screens.chat.list.ChatListScreen
 fun SplitScreenLayout(
     selectedChatId: Int?,
     onChatSelected: (Int) -> Unit,
+    onNavigateToChatWithMessage: (Int, String) -> Unit,
+    targetMessageId: String? = null,
+    onConsumeTargetMessage: () -> Unit = {},
     onNavigateToProfile: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToGroupInfo: (Int) -> Unit,
@@ -68,6 +71,9 @@ fun SplitScreenLayout(
                         onNavigateToGroupSettings = dialogState::openGroupSettings,
                         onNavigateToGroupInfo = onNavigateToGroupInfo,
                         onNavigateToChat = onChatSelected,
+                        onNavigateToChatWithMessage = onNavigateToChatWithMessage,
+                        initialTargetMessageId = targetMessageId,
+                        onConsumeTargetMessage = onConsumeTargetMessage,
                         showBackButton = false
                     )
                 }
@@ -92,6 +98,9 @@ fun SplitScreenLayout(
 fun SinglePaneLayout(
     selectedChatId: Int?,
     onChatSelected: (Int) -> Unit,
+    onNavigateToChatWithMessage: (Int, String) -> Unit,
+    targetMessageId: String? = null,
+    onConsumeTargetMessage: () -> Unit = {},
     onClearSelection: () -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToSettings: () -> Unit,
@@ -107,7 +116,10 @@ fun SinglePaneLayout(
                 onNavigateBack = onClearSelection,
                 onNavigateToGroupSettings = dialogState::openGroupSettings,
                 onNavigateToGroupInfo = onNavigateToGroupInfo,
-                onNavigateToChat = onChatSelected
+                onNavigateToChat = onChatSelected,
+                onNavigateToChatWithMessage = onNavigateToChatWithMessage,
+                initialTargetMessageId = targetMessageId,
+                onConsumeTargetMessage = onConsumeTargetMessage
             )
         } else {
             ChatListScreen(

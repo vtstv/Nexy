@@ -276,8 +276,17 @@ class ChatViewModel @Inject constructor(
     }
     
     fun navigateToMessage(messageId: String) {
-        android.util.Log.d("ChatViewModel", "Navigating to message: $messageId")
-        // TODO: Implement scroll to message functionality
+        android.util.Log.d("ChatViewModel", "Navigating to message: $messageId (serverID or UUID)")
+        viewModelScope.launch {
+            messageDelegate.scrollToMessageId(messageId)
+        }
+    }
+    
+    fun clearTargetMessage() {
+        _uiState.value = _uiState.value.copy(
+            targetMessageId = null,
+            isLoadingToMessage = false
+        )
     }
     // endregion
 
