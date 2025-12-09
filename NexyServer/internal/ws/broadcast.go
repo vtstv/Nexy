@@ -116,6 +116,11 @@ func (h *Hub) broadcastToChatMembers(chatID int, message *NexyMessage) {
 func (h *Hub) sendFcmForMessage(userID int, message *NexyMessage) {
 	ctx := context.Background()
 
+	if userID == message.Header.SenderID {
+		log.Printf("Skipping FCM notification for sender %d", userID)
+		return
+	}
+
 	// Parse message body to get content
 	var messageBody ChatMessageBody
 	if err := json.Unmarshal(message.Body, &messageBody); err != nil {
