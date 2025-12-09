@@ -3,25 +3,27 @@ package com.nexy.client.ui.screens.chat.components
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
-import com.nexy.client.R
-
-import com.nexy.client.data.models.Message
-import androidx.compose.material.icons.automirrored.filled.Reply
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.unit.dp
+import com.nexy.client.R
+import com.nexy.client.data.models.Message
 import com.nexy.client.ui.screens.chat.components.voice.VoiceRecorder
 import java.io.File
 
@@ -228,58 +230,68 @@ private fun InputRow(
     isEditing: Boolean = false,
     voiceMessagesEnabled: Boolean = true
 ) {
+    val hasText = text.text.isNotBlank()
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(12.dp),
+            .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(
-            onClick = onAttachFile,
-            modifier = Modifier.size(48.dp)
-        ) {
-            Icon(Icons.Default.AttachFile, stringResource(R.string.attach_file))
-        }
-        
-        IconButton(
             onClick = onToggleEmojiPicker,
-            modifier = Modifier.size(48.dp)
+            modifier = Modifier.size(36.dp)
         ) {
             Icon(Icons.Default.EmojiEmotions, stringResource(R.string.add_emoji))
         }
-        
+
         OutlinedTextField(
             value = text,
             onValueChange = onTextChange,
             modifier = Modifier
                 .weight(1f)
-                .padding(horizontal = 8.dp),
+                .padding(horizontal = 6.dp)
+                .heightIn(min = 46.dp),
             placeholder = { Text(stringResource(R.string.message_placeholder)) },
             maxLines = 4,
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp)
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+            trailingIcon = {
+                AnimatedVisibility(
+                    visible = !hasText,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    IconButton(
+                        onClick = onAttachFile,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(Icons.Default.AttachFile, stringResource(R.string.attach_file))
+                    }
+                }
+            }
         )
-        
-        if (text.text.isBlank() && !isEditing && voiceMessagesEnabled) {
-            IconButton(
+
+        Spacer(modifier = Modifier.width(4.dp))
+
+        if (!hasText && !isEditing && voiceMessagesEnabled) {
+            FilledIconButton(
                 onClick = onStartRecording,
-                modifier = Modifier.size(48.dp)
+                modifier = Modifier.size(40.dp)
             ) {
                 Icon(
                     Icons.Default.Mic,
-                    contentDescription = "Record voice message",
-                    tint = MaterialTheme.colorScheme.primary
+                    contentDescription = "Record voice message"
                 )
             }
         } else {
-            IconButton(
+            FilledIconButton(
                 onClick = onSend,
                 enabled = sendEnabled,
-                modifier = Modifier.size(48.dp)
+                modifier = Modifier.size(40.dp)
             ) {
                 Icon(
-                    if (isEditing) Icons.Default.Check else Icons.AutoMirrored.Filled.Send, 
-                    if (isEditing) "Save" else stringResource(R.string.send),
-                    tint = if (sendEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                    if (isEditing) Icons.Default.Check else Icons.AutoMirrored.Filled.Send,
+                    if (isEditing) "Save" else stringResource(R.string.send)
                 )
             }
         }
