@@ -5,11 +5,13 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.nexy.client.data.local.dao.ChatDao
+import com.nexy.client.data.local.dao.FolderDao
 import com.nexy.client.data.local.dao.MessageDao
 import com.nexy.client.data.local.dao.PendingMessageDao
 import com.nexy.client.data.local.dao.SearchHistoryDao
 import com.nexy.client.data.local.dao.UserDao
 import com.nexy.client.data.local.entity.ChatEntity
+import com.nexy.client.data.local.entity.ChatFolderEntity
 import com.nexy.client.data.local.entity.MessageEntity
 import com.nexy.client.data.local.entity.PendingMessageEntity
 import com.nexy.client.data.local.entity.SearchHistoryEntity
@@ -23,9 +25,10 @@ import androidx.room.TypeConverters
         MessageEntity::class,
         ChatEntity::class,
         PendingMessageEntity::class,
-        SearchHistoryEntity::class
+        SearchHistoryEntity::class,
+        ChatFolderEntity::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -35,11 +38,38 @@ abstract class NexyDatabase : RoomDatabase() {
     abstract fun chatDao(): ChatDao
     abstract fun pendingMessageDao(): PendingMessageDao
     abstract fun searchHistoryDao(): SearchHistoryDao
+    abstract fun folderDao(): FolderDao
     
     companion object {
         val MIGRATION_11_12 = object : Migration(11, 12) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE messages ADD COLUMN reactions TEXT DEFAULT NULL")
+            }
+        }
+
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                        CREATE TABLE IF NOT EXISTS chat_folders (
+                            id INTEGER NOT NULL PRIMARY KEY,
+                            userId INTEGER NOT NULL,
+                            name TEXT NOT NULL,
+                            icon TEXT NOT NULL,
+                            color TEXT NOT NULL,
+                            position INTEGER NOT NULL,
+                            includeContacts INTEGER NOT NULL,
+                            includeNonContacts INTEGER NOT NULL,
+                            includeGroups INTEGER NOT NULL,
+                            includeChannels INTEGER NOT NULL,
+                            includeBots INTEGER NOT NULL,
+                            includedChatIds TEXT,
+                            excludedChatIds TEXT,
+                            createdAt TEXT,
+                            updatedAt TEXT
+                        )
+                    """
+                )
             }
         }
 

@@ -1,6 +1,6 @@
-# Nexy - Secure Messaging Platform (WIP)
+# Nexy - Messaging Platform (WIP)
 
-A modern, secure messaging application with end-to-end encryption (E2EE), built with Go backend and Android Kotlin client.
+A modern, messaging application with end-to-end encryption (E2EE), built with Go backend and Android Kotlin client.
 
 ## 🔐 Features
 

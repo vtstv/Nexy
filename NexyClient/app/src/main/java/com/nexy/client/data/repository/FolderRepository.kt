@@ -1,6 +1,8 @@
 package com.nexy.client.data.repository
 
 import com.nexy.client.data.api.NexyApiService
+import com.nexy.client.data.local.dao.FolderDao
+import com.nexy.client.data.local.entity.ChatFolderEntity
 import com.nexy.client.data.models.AddChatsToFolderRequest
 import com.nexy.client.data.models.ChatFolder
 import com.nexy.client.data.models.CreateFolderRequest
@@ -11,13 +13,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class FolderRepository @Inject constructor(
-    private val apiService: NexyApiService
+    private val apiService: NexyApiService,
+    private val folderDao: FolderDao,
+    private val applicationScope: CoroutineScope
 ) {
     private val _folders = MutableStateFlow<List<ChatFolder>>(emptyList())
     val folders: StateFlow<List<ChatFolder>> = _folders.asStateFlow()
@@ -28,15 +34,24 @@ class FolderRepository @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    // Scope for background operations if needed, though usually we suspend
-    // But here we want to keep the state updated
+    init {
+        applicationScope.launch {
+            folderDao.observeFolders().collectLatest { entities ->
+                _folders.value = entities.map { it.toModel() }
+            }
+        }
+    }
     
     suspend fun loadFolders() {
         _isLoading.value = true
         try {
             val response = apiService.getFolders()
             if (response.isSuccessful) {
-                _folders.value = response.body() ?: emptyList()
+                val remoteFolders = response.body() ?: emptyList()
+                withContext(Dispatchers.IO) {
+                    folderDao.replaceAll(remoteFolders.map { it.toEntity() })
+                }
+                _error.value = null
             } else {
                 _error.value = "Failed to load folders"
             }
@@ -68,14 +83,12 @@ class FolderRepository @Inject constructor(
             val response = apiService.createFolder(request)
             if (response.isSuccessful) {
                 val folder = response.body()
-                if (folder != null) {
-                    val currentList = _folders.value.toMutableList()
-                    currentList.add(folder)
-                    _folders.value = currentList
-                    Result.success(folder)
-                } else {
-                    Result.failure(Exception("Response body is null"))
+                folder?.let {
+                    withContext(Dispatchers.IO) {
+                        folderDao.upsertFolder(it.toEntity())
+                    }
                 }
+                folder?.let { Result.success(it) } ?: Result.failure(Exception("Response body is null"))
             } else {
                 Result.failure(Exception("Failed to create folder"))
             }
@@ -107,22 +120,35 @@ class FolderRepository @Inject constructor(
             )
             val response = apiService.updateFolder(folderId, request)
             if (response.isSuccessful) {
-                val currentList = _folders.value.toMutableList()
-                val index = currentList.indexOfFirst { it.id == folderId }
-                if (index != -1) {
-                    val oldFolder = currentList[index]
-                    val newFolder = oldFolder.copy(
-                        name = name, 
-                        icon = icon, 
+                withContext(Dispatchers.IO) {
+                    val existing = folderDao.getFolderById(folderId)
+                    val updated = (existing ?: ChatFolderEntity(
+                        id = folderId,
+                        userId = 0,
+                        name = name,
+                        icon = icon,
                         color = color,
-                        includeContacts = includeContacts ?: oldFolder.includeContacts,
-                        includeNonContacts = includeNonContacts ?: oldFolder.includeNonContacts,
-                        includeGroups = includeGroups ?: oldFolder.includeGroups
+                        position = existing?.position ?: Int.MAX_VALUE,
+                        includeContacts = includeContacts ?: existing?.includeContacts ?: false,
+                        includeNonContacts = includeNonContacts ?: existing?.includeNonContacts ?: false,
+                        includeGroups = includeGroups ?: existing?.includeGroups ?: false,
+                        includeChannels = existing?.includeChannels ?: false,
+                        includeBots = existing?.includeBots ?: false,
+                        includedChatIds = existing?.includedChatIds,
+                        excludedChatIds = existing?.excludedChatIds,
+                        createdAt = existing?.createdAt,
+                        updatedAt = existing?.updatedAt
+                    )).copy(
+                        name = name,
+                        icon = icon,
+                        color = color,
+                        includeContacts = includeContacts ?: (existing?.includeContacts ?: false),
+                        includeNonContacts = includeNonContacts ?: (existing?.includeNonContacts ?: false),
+                        includeGroups = includeGroups ?: (existing?.includeGroups ?: false)
                     )
-                    currentList[index] = newFolder
-                    _folders.value = currentList
+                    folderDao.upsertFolder(updated)
                 }
-                loadFolders() 
+                loadFolders()
                 Result.success(Unit)
             } else {
                 Result.failure(Exception("Failed to update folder"))
@@ -138,9 +164,9 @@ class FolderRepository @Inject constructor(
         return try {
             val response = apiService.deleteFolder(folderId)
             if (response.isSuccessful) {
-                val currentList = _folders.value.toMutableList()
-                currentList.removeAll { it.id == folderId }
-                _folders.value = currentList
+                withContext(Dispatchers.IO) {
+                    folderDao.deleteFolder(folderId)
+                }
                 Result.success(Unit)
             } else {
                 Result.failure(Exception("Failed to delete folder"))
@@ -156,22 +182,17 @@ class FolderRepository @Inject constructor(
             val request = AddChatsToFolderRequest(chatIds = chatIds)
             val response = apiService.addChatsToFolder(folderId, request)
             if (response.isSuccessful) {
-                // Update local state immediately
-                val currentList = _folders.value.toMutableList()
-                val index = currentList.indexOfFirst { it.id == folderId }
-                if (index != -1) {
-                    val oldFolder = currentList[index]
-                    val currentChats = oldFolder.includedChatIds?.toMutableList() ?: mutableListOf()
-                    // Add new chats that are not already there
-                    val newChats = chatIds.filter { !currentChats.contains(it) }
-                    currentChats.addAll(newChats)
-                    
-                    val newFolder = oldFolder.copy(includedChatIds = currentChats)
-                    currentList[index] = newFolder
-                    _folders.value = currentList
+                withContext(Dispatchers.IO) {
+                    val entity = folderDao.getFolderById(folderId)
+                    if (entity != null) {
+                        val currentChats = entity.includedChatIds?.toMutableList() ?: mutableListOf()
+                        val newChats = chatIds.filter { !currentChats.contains(it) }
+                        if (newChats.isNotEmpty()) {
+                            currentChats.addAll(newChats)
+                            folderDao.upsertFolder(entity.copy(includedChatIds = currentChats))
+                        }
+                    }
                 }
-
-                // Reload to get updated chats list in folder
                 loadFolders()
                 Result.success(Unit)
             } else {
@@ -188,20 +209,15 @@ class FolderRepository @Inject constructor(
         return try {
             val response = apiService.removeChatFromFolder(folderId, chatId)
             if (response.isSuccessful) {
-                // Update local state immediately
-                val currentList = _folders.value.toMutableList()
-                val index = currentList.indexOfFirst { it.id == folderId }
-                if (index != -1) {
-                    val oldFolder = currentList[index]
-                    val currentChats = oldFolder.includedChatIds?.toMutableList() ?: mutableListOf()
-                    currentChats.remove(chatId)
-                    
-                    val newFolder = oldFolder.copy(includedChatIds = currentChats)
-                    currentList[index] = newFolder
-                    _folders.value = currentList
+                withContext(Dispatchers.IO) {
+                    val entity = folderDao.getFolderById(folderId)
+                    if (entity != null) {
+                        val currentChats = entity.includedChatIds?.toMutableList() ?: mutableListOf()
+                        if (currentChats.remove(chatId)) {
+                            folderDao.upsertFolder(entity.copy(includedChatIds = currentChats))
+                        }
+                    }
                 }
-
-                // Reload to get updated chats list in folder
                 loadFolders()
                 Result.success(Unit)
             } else {
@@ -238,12 +254,11 @@ class FolderRepository @Inject constructor(
             android.util.Log.d("FolderRepository", "reorderFolders response: ${response.code()}")
             
             if (response.isSuccessful) {
-                // Update local state with new order
-                val currentFolders = _folders.value
-                val reorderedFolders = folderIds.mapNotNull { id ->
-                    currentFolders.find { it.id == id }?.copy(position = folderIds.indexOf(id))
+                withContext(Dispatchers.IO) {
+                    folderIds.forEachIndexed { index, folderId ->
+                        folderDao.updateFolderPosition(folderId, index)
+                    }
                 }
-                _folders.value = reorderedFolders
                 Result.success(Unit)
             } else {
                 android.util.Log.e("FolderRepository", "reorderFolders failed: ${response.errorBody()?.string()}")
@@ -257,11 +272,51 @@ class FolderRepository @Inject constructor(
 
     // Move folder from one position to another (for drag-and-drop)
     fun moveFolderLocally(fromIndex: Int, toIndex: Int) {
-        val currentList = _folders.value.toMutableList()
-        if (fromIndex in currentList.indices && toIndex in currentList.indices) {
-            val item = currentList.removeAt(fromIndex)
-            currentList.add(toIndex, item)
-            _folders.value = currentList
+        applicationScope.launch {
+            val folders = folderDao.getFoldersOnce().toMutableList()
+            if (fromIndex in folders.indices && toIndex in folders.indices) {
+                val item = folders.removeAt(fromIndex)
+                folders.add(toIndex, item)
+                folders.forEachIndexed { index, entity ->
+                    folderDao.updateFolderPosition(entity.id, index)
+                }
+            }
         }
     }
+
+    private fun ChatFolderEntity.toModel() = ChatFolder(
+        id = id,
+        userId = userId,
+        name = name,
+        icon = icon,
+        color = color,
+        position = position,
+        includeContacts = includeContacts,
+        includeNonContacts = includeNonContacts,
+        includeGroups = includeGroups,
+        includeChannels = includeChannels,
+        includeBots = includeBots,
+        includedChatIds = includedChatIds,
+        excludedChatIds = excludedChatIds,
+        createdAt = createdAt,
+        updatedAt = updatedAt
+    )
+
+    private fun ChatFolder.toEntity() = ChatFolderEntity(
+        id = id,
+        userId = userId,
+        name = name,
+        icon = icon,
+        color = color,
+        position = position,
+        includeContacts = includeContacts,
+        includeNonContacts = includeNonContacts,
+        includeGroups = includeGroups,
+        includeChannels = includeChannels,
+        includeBots = includeBots,
+        includedChatIds = includedChatIds,
+        excludedChatIds = excludedChatIds,
+        createdAt = createdAt,
+        updatedAt = updatedAt
+    )
 }

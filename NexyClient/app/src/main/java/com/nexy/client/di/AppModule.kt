@@ -12,6 +12,7 @@ import com.nexy.client.data.api.TokenAuthenticator
 import com.nexy.client.data.local.AuthTokenManager
 import com.nexy.client.data.local.NexyDatabase
 import com.nexy.client.data.local.dao.ChatDao
+import com.nexy.client.data.local.dao.FolderDao
 import com.nexy.client.data.local.dao.MessageDao
 import com.nexy.client.data.local.dao.PendingMessageDao
 import com.nexy.client.data.local.dao.SearchHistoryDao
@@ -123,7 +124,9 @@ object AppModule {
             NexyDatabase.MIGRATION_7_8,
             NexyDatabase.MIGRATION_8_9,
             NexyDatabase.MIGRATION_9_10,
-            NexyDatabase.MIGRATION_10_11
+            NexyDatabase.MIGRATION_10_11,
+            NexyDatabase.MIGRATION_11_12,
+            NexyDatabase.MIGRATION_12_13
         )
         .fallbackToDestructiveMigration()
         .build()
@@ -157,6 +160,12 @@ object AppModule {
     @Singleton
     fun provideSearchHistoryDao(database: NexyDatabase): SearchHistoryDao {
         return database.searchHistoryDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideFolderDao(database: NexyDatabase): FolderDao {
+        return database.folderDao()
     }
     
     @Provides
