@@ -309,7 +309,7 @@ fun MessageList(
                         IconButton(onClick = { exitSelection() }) {
                             Icon(imageVector = Icons.Default.Close, contentDescription = "Close selection")
                         }
-                        Text(text = "${'$'}{selectedIds.size} selected")
+                        Text(text = "${selectedIds.size} selected")
                     }
 
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
