@@ -1,7 +1,9 @@
 package middleware
 
 import (
+	"bufio"
 	"log"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -129,6 +131,20 @@ func (rl *RateLimiter) Limit(next http.Handler) http.Handler {
 type responseWriterWrapper struct {
 	http.ResponseWriter
 	statusCode int
+}
+
+func (w *responseWriterWrapper) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hj, ok := w.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, http.ErrNotSupported
+	}
+	return hj.Hijack()
+}
+
+func (w *responseWriterWrapper) Flush() {
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
 }
 
 func (w *responseWriterWrapper) WriteHeader(statusCode int) {

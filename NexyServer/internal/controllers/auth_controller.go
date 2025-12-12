@@ -182,15 +182,30 @@ func (c *AuthController) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
+	if strings.TrimSpace(req.RefreshToken) == "" {
+		http.Error(w, "Missing refresh_token", http.StatusBadRequest)
+		return
+	}
 
-	accessToken, err := c.authService.RefreshAccessToken(r.Context(), req.RefreshToken)
+	accessToken, newRefreshToken, oldRefreshTokenID, newRefreshTokenID, user, err := c.authService.RefreshAuth(r.Context(), req.RefreshToken)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	response := map[string]string{
-		"access_token": accessToken,
+	// Update session mapping if we can find the session by old refresh token.
+	if oldRefreshTokenID != 0 && newRefreshTokenID != 0 {
+		if s, serr := c.sessionRepo.GetByRefreshTokenID(r.Context(), oldRefreshTokenID); serr == nil && s != nil {
+			_ = c.sessionRepo.UpdateRefreshTokenID(r.Context(), s.ID, newRefreshTokenID)
+		}
+		// Best-effort cleanup: remove the old refresh token row.
+		_ = c.authService.LogoutTokenByID(r.Context(), oldRefreshTokenID)
+	}
+
+	response := AuthResponse{
+		AccessToken:  accessToken,
+		RefreshToken: newRefreshToken,
+		User:         user,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

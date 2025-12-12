@@ -214,6 +214,12 @@ func (r *SessionRepository) UpdateSettings(ctx context.Context, sessionID int, a
 	return err
 }
 
+func (r *SessionRepository) UpdateRefreshTokenID(ctx context.Context, sessionID int, refreshTokenID int) error {
+	query := `UPDATE user_sessions SET refresh_token_id = NULLIF($1, 0), last_active = NOW() WHERE id = $2`
+	_, err := r.db.ExecContext(ctx, query, refreshTokenID, sessionID)
+	return err
+}
+
 func (r *SessionRepository) GetByDeviceID(ctx context.Context, userID int, deviceID string) (*models.UserSession, error) {
 	query := `
 		SELECT id, user_id, refresh_token_id, device_id, device_name, device_type, ip_address, user_agent, last_active, created_at, is_current, COALESCE(accept_secret_chats, TRUE), COALESCE(accept_calls, TRUE)

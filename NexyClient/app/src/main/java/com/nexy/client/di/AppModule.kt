@@ -18,6 +18,7 @@ import com.nexy.client.data.local.dao.PendingMessageDao
 import com.nexy.client.data.local.dao.SearchHistoryDao
 import com.nexy.client.data.local.dao.UserDao
 import com.nexy.client.data.websocket.NexyWebSocketClient
+import dagger.Lazy
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -170,8 +171,12 @@ object AppModule {
     
     @Provides
     @Singleton
-    fun provideNexyWebSocketClient(gson: Gson): NexyWebSocketClient {
-        return NexyWebSocketClient(WS_URL, gson)
+    fun provideNexyWebSocketClient(
+        gson: Gson,
+        tokenManager: AuthTokenManager,
+        apiService: Lazy<NexyApiService>
+    ): NexyWebSocketClient {
+        return NexyWebSocketClient(WS_URL, gson, tokenManager, apiService)
     }
     
     @Provides

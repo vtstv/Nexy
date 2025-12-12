@@ -2,6 +2,9 @@ package com.nexy.client.data.websocket
 
 import android.util.Log
 import com.google.gson.Gson
+import com.nexy.client.data.api.NexyApiService
+import com.nexy.client.data.local.AuthTokenManager
+import com.nexy.client.data.models.RefreshTokenRequest
 import com.nexy.client.data.models.nexy.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -9,11 +12,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import okhttp3.*
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import dagger.Lazy
 import java.util.concurrent.TimeUnit
 
 class NexyWebSocketClient(
     private val serverUrl: String,
-    private val gson: Gson
+    private val gson: Gson,
+    private val tokenManager: AuthTokenManager,
+    private val apiService: Lazy<NexyApiService>
 ) {
     companion object {
         private const val TAG = "NexyWebSocket"
@@ -44,8 +51,15 @@ class NexyWebSocketClient(
     private var messagePreviewCallback: (() -> Unit)? = null
     private var authToken: String? = null
     private var deviceId: String? = null
+
+    private var authFailureUntilMs: Long = 0L
+    private var lastFailedAccessToken: String? = null
     
     fun connect(token: String, deviceId: String? = null) {
+        // Explicit connect should always clear any previous auth-failure backoff.
+        authFailureUntilMs = 0L
+        lastFailedAccessToken = null
+
         if (_connectionState.value == ConnectionState.CONNECTED && authToken == token) {
             Log.d(TAG, "Already connected with same token, skipping connect")
             return
@@ -55,16 +69,21 @@ class NexyWebSocketClient(
         authToken = token
         this.deviceId = deviceId
         disconnect()
-        
-        // Build URL with token and optional device_id
-        var wsUrl = "$serverUrl?token=$token"
-        if (deviceId != null) {
-            wsUrl += "&device_id=$deviceId"
+
+        val url = serverUrl.toHttpUrlOrNull()?.newBuilder()?.apply {
+            setQueryParameter("token", token)
+            if (deviceId != null) {
+                setQueryParameter("device_id", deviceId)
+            }
+        }?.build()
+
+        if (url == null) {
+            Log.e(TAG, "Invalid WebSocket URL: $serverUrl")
+            _connectionState.value = ConnectionState.FAILED
+            return
         }
-        
-        val request = Request.Builder()
-            .url(wsUrl)
-            .build()
+
+        val request = Request.Builder().url(url).build()
         
         _connectionState.value = ConnectionState.CONNECTING
         
@@ -84,7 +103,19 @@ class NexyWebSocketClient(
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 Log.e(TAG, "WebSocket failed: ${t.message}", t)
                 _connectionState.value = ConnectionState.FAILED
-                scheduleReconnect()
+                if (response?.code == 401) {
+                    Log.w(TAG, "WebSocket auth failed (401). Attempting token refresh...")
+                    scope.launch {
+                        val refreshed = tryRefreshTokens()
+                        if (refreshed) {
+                            connectWithLatestToken(this@NexyWebSocketClient.deviceId)
+                        } else {
+                            Log.e(TAG, "Token refresh failed; keeping user logged in locally and backing off reconnect")
+                        }
+                    }
+                } else {
+                    scheduleReconnect()
+                }
             }
             
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
@@ -97,6 +128,57 @@ class NexyWebSocketClient(
                 }
             }
         })
+    }
+
+    private fun connectWithLatestToken(deviceId: String?) {
+        scope.launch {
+			val now = System.currentTimeMillis()
+			if (now < authFailureUntilMs) {
+				Log.w(TAG, "Reconnect suppressed due to recent auth failure")
+				return@launch
+			}
+
+            val latestToken = tokenManager.getAccessToken()
+            if (latestToken.isNullOrBlank()) {
+                Log.e(TAG, "Cannot connect: access token is null")
+                disconnect()
+                return@launch
+            }
+
+			// If we already know this token fails auth, don't loop.
+			if (latestToken == lastFailedAccessToken) {
+				Log.w(TAG, "Reconnect suppressed: access token previously failed auth")
+				return@launch
+			}
+
+            connect(latestToken, deviceId)
+        }
+    }
+
+    private suspend fun tryRefreshTokens(): Boolean {
+		// If refresh is failing, don't hammer the server.
+		val now = System.currentTimeMillis()
+		if (now < authFailureUntilMs) return false
+
+        val refreshToken = tokenManager.getRefreshToken() ?: return false
+        val newTokenResponse = try {
+            apiService.get().refreshToken(RefreshTokenRequest(refreshToken))
+        } catch (e: Exception) {
+            null
+        }
+
+        if (newTokenResponse?.isSuccessful == true) {
+            val authResponse = newTokenResponse.body() ?: return false
+            tokenManager.saveTokens(authResponse.accessToken, authResponse.refreshToken)
+            authToken = authResponse.accessToken
+            return true
+        }
+
+        // Refresh failed (often 401). Keep tokens so UI remains "logged in",
+        // but stop reconnect loops for a while.
+        lastFailedAccessToken = tokenManager.getAccessToken()
+        authFailureUntilMs = System.currentTimeMillis() + 60_000L
+        return false
     }
     
     fun disconnect() {
@@ -276,10 +358,7 @@ class NexyWebSocketClient(
     private fun sendMessage(message: NexyMessage) {
         if (webSocket == null) {
             Log.e(TAG, "Cannot send message: WebSocket is null. Attempting to reconnect...")
-            if (authToken != null) {
-                connect(authToken!!)
-                // Queue message? For now just drop and let user retry or rely on reconnect
-            }
+            connectWithLatestToken(deviceId)
             return
         }
         
@@ -345,12 +424,8 @@ class NexyWebSocketClient(
         reconnectJob = scope.launch {
             Log.d(TAG, "Scheduling reconnect in 3 seconds...")
             delay(3_000)
-            if (authToken != null) {
-                Log.d(TAG, "Attempting to reconnect...")
-                connect(authToken!!, deviceId)
-            } else {
-                Log.e(TAG, "Cannot reconnect: Auth token is null")
-            }
+            Log.d(TAG, "Attempting to reconnect...")
+            connectWithLatestToken(deviceId)
         }
     }
     

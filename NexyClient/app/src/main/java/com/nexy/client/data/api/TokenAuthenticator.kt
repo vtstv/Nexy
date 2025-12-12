@@ -13,8 +13,27 @@ class TokenAuthenticator(
     private val tokenManager: AuthTokenManager,
     private val apiService: dagger.Lazy<NexyApiService>
 ) : Authenticator {
+
+	companion object {
+		private const val REFRESH_FAILURE_COOLDOWN_MS = 60_000L
+	}
+
+	@Volatile
+	private var refreshFailureUntilMs: Long = 0L
     
     override fun authenticate(route: Route?, response: Response): Request? {
+		// Avoid infinite loops: never try to refresh while we're already calling refresh.
+		val path = response.request.url.encodedPath
+		if (path.contains("/auth/refresh")) {
+			return null
+		}
+
+		// If refresh is failing, don't hammer the server on every request.
+		val now = System.currentTimeMillis()
+		if (now < refreshFailureUntilMs) {
+			return null
+		}
+
         if (response.code == 401) {
             val refreshToken = runBlocking { tokenManager.getRefreshToken() }
             
@@ -42,8 +61,10 @@ class TokenAuthenticator(
                             .build()
                     }
                 }
-                
-                runBlocking { tokenManager.clearTokens() }
+
+				// Keep user "logged in" locally: do NOT clear tokens here.
+				// Just back off to avoid spamming refresh requests.
+				refreshFailureUntilMs = System.currentTimeMillis() + REFRESH_FAILURE_COOLDOWN_MS
             }
         }
         

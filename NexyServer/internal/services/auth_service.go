@@ -114,6 +114,35 @@ func (s *AuthService) RefreshAccessToken(ctx context.Context, refreshTokenString
 	return s.GenerateAccessToken(refreshToken.UserID)
 }
 
+// RefreshAuth rotates the refresh token and returns a new access token + refresh token.
+// It also returns the old/new refresh token IDs so the controller can update the session mapping safely.
+func (s *AuthService) RefreshAuth(ctx context.Context, refreshTokenString string) (accessToken string, newRefreshToken string, oldRefreshTokenID int, newRefreshTokenID int, user *models.User, err error) {
+	refreshToken, err := s.refreshTokenRepo.GetByToken(ctx, refreshTokenString)
+	if err != nil {
+		return "", "", 0, 0, nil, fmt.Errorf("invalid refresh token")
+	}
+	if refreshToken == nil || refreshToken.ExpiresAt.Before(time.Now()) {
+		return "", "", 0, 0, nil, fmt.Errorf("refresh token expired")
+	}
+
+	user, err = s.userRepo.GetByID(ctx, refreshToken.UserID)
+	if err != nil {
+		return "", "", 0, 0, nil, fmt.Errorf("user not found")
+	}
+
+	accessToken, err = s.GenerateAccessToken(refreshToken.UserID)
+	if err != nil {
+		return "", "", 0, 0, nil, err
+	}
+
+	newRefreshToken, newRefreshTokenID, err = s.GenerateRefreshToken(ctx, refreshToken.UserID)
+	if err != nil {
+		return "", "", 0, 0, nil, err
+	}
+
+	return accessToken, newRefreshToken, refreshToken.ID, newRefreshTokenID, user, nil
+}
+
 func (s *AuthService) ValidateToken(tokenString string) (int, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -148,4 +177,13 @@ func (s *AuthService) ValidateToken(tokenString string) (int, error) {
 
 func (s *AuthService) Logout(ctx context.Context, userID int) error {
 	return s.refreshTokenRepo.DeleteByUserID(ctx, userID)
+}
+
+// LogoutTokenByID removes a single refresh token record.
+// This is used for refresh-token rotation cleanup.
+func (s *AuthService) LogoutTokenByID(ctx context.Context, refreshTokenID int) error {
+	if refreshTokenID == 0 {
+		return nil
+	}
+	return s.refreshTokenRepo.DeleteByID(ctx, refreshTokenID)
 }
