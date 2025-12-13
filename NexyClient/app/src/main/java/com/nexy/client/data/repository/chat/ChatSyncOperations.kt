@@ -8,6 +8,7 @@ import com.nexy.client.data.api.NexyApiService
 import com.nexy.client.data.local.dao.ChatDao
 import com.nexy.client.data.local.entity.ChatEntity
 import com.nexy.client.data.models.Chat
+import com.nexy.client.data.network.NetworkMonitor
 import com.nexy.client.data.repository.UserRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -24,7 +25,8 @@ class ChatSyncOperations @Inject constructor(
     private val apiService: NexyApiService,
     private val chatDao: ChatDao,
     private val chatMappers: ChatMappers,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val networkMonitor: NetworkMonitor
 ) {
     companion object {
         private const val TAG = "ChatSyncOperations"
@@ -38,6 +40,13 @@ class ChatSyncOperations @Inject constructor(
 
     suspend fun refreshChats(): Result<List<Chat>> {
         return withContext(Dispatchers.IO) {
+            // If offline, return local chats immediately without trying API
+            if (!networkMonitor.isConnected.value) {
+                Log.d(TAG, "refreshChats: offline, returning local chats")
+                val localChats = chatDao.getAllChatsSync().map { chatMappers.entityToModel(it) }
+                return@withContext Result.success(localChats)
+            }
+            
             try {
                 val response = apiService.getChats()
                 if (response.isSuccessful && response.body() != null) {
@@ -114,10 +123,16 @@ class ChatSyncOperations @Inject constructor(
 
                     Result.success(chats)
                 } else {
-                    Result.failure(Exception("Failed to fetch chats"))
+                    // API failed, return local chats
+                    Log.d(TAG, "refreshChats: API failed, returning local chats")
+                    val localChats = chatDao.getAllChatsSync().map { chatMappers.entityToModel(it) }
+                    Result.success(localChats)
                 }
             } catch (e: Exception) {
-                Result.failure(e)
+                // Network error, return local chats
+                Log.e(TAG, "refreshChats: exception, returning local chats", e)
+                val localChats = chatDao.getAllChatsSync().map { chatMappers.entityToModel(it) }
+                Result.success(localChats)
             }
         }
     }
@@ -125,9 +140,23 @@ class ChatSyncOperations @Inject constructor(
     suspend fun getChatById(chatId: Int): Result<Chat> {
         return withContext(Dispatchers.IO) {
             try {
-                Log.d(TAG, "getChatById: chatId=$chatId")
+                Log.d(TAG, "getChatById: chatId=$chatId, isOnline=${networkMonitor.isConnected.value}")
                 
-                // Try API first to get fresh data (especially participants and first_unread_message_id)
+                // Check local cache first
+                val localChat = chatDao.getChatById(chatId)
+                
+                // If offline, return local immediately
+                if (!networkMonitor.isConnected.value) {
+                    return@withContext if (localChat != null) {
+                        val chat = chatMappers.entityToModel(localChat)
+                        Log.d(TAG, "getChatById: returning cached chat (offline)")
+                        Result.success(chat)
+                    } else {
+                        Result.failure(Exception("Chat not found (offline)"))
+                    }
+                }
+                
+                // Online: Try API for fresh data
                 val response = apiService.getChatById(chatId)
                 if (response.isSuccessful && response.body() != null) {
                     val chat = response.body()!!
@@ -162,7 +191,6 @@ class ChatSyncOperations @Inject constructor(
                     Result.success(chat)
                 } else {
                     // Fallback to local if API fails
-                    val localChat = chatDao.getChatById(chatId)
                     if (localChat != null) {
                         val chat = chatMappers.entityToModel(localChat)
                         // Ensure participants are cached for avatars even if offline

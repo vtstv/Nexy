@@ -86,6 +86,12 @@ class MessageOperations @Inject constructor(
     
     suspend fun loadMessages(chatId: Int, limit: Int = 50, offset: Int = 0): Result<List<Message>> {
         return withContext(Dispatchers.IO) {
+            // If offline, skip API call - local messages are already available via Flow
+            if (!networkMonitor.isConnected.value) {
+                Log.d(TAG, "loadMessages: offline, skipping API call for chatId=$chatId")
+                return@withContext Result.success(emptyList())
+            }
+            
             try {
                 val response = apiService.getMessages(chatId, limit, offset)
                 if (response.isSuccessful && response.body() != null) {

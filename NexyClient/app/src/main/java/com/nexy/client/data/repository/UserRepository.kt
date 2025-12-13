@@ -7,6 +7,7 @@ import com.nexy.client.data.local.entity.UserEntity
 import com.nexy.client.data.models.User
 import com.nexy.client.data.models.UserStatus
 import com.nexy.client.data.models.UpdateProfileRequest
+import com.nexy.client.data.network.NetworkMonitor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -17,20 +18,34 @@ import javax.inject.Singleton
 @Singleton
 class UserRepository @Inject constructor(
     private val apiService: NexyApiService,
-    private val userDao: UserDao
+    private val userDao: UserDao,
+    private val networkMonitor: NetworkMonitor
 ) {
     
     suspend fun getUserById(userId: Int, forceRefresh: Boolean = false): Result<User> {
         return withContext(Dispatchers.IO) {
             try {
-                if (forceRefresh) {
+                // Always check cache first for faster response
+                val cachedUser = userDao.getUserById(userId)
+                
+                // If offline, return cache immediately (don't wait for network timeout)
+                if (!networkMonitor.isConnected.value) {
+                    return@withContext if (cachedUser != null) {
+                        Result.success(cachedUser.toModel())
+                    } else {
+                        Result.failure(Exception("User not found (offline)"))
+                    }
+                }
+                
+                // Online: decide based on forceRefresh and cache availability
+                if (forceRefresh || cachedUser == null) {
                     val response = apiService.getUserById(userId)
                     if (response.isSuccessful && response.body() != null) {
                         val user = response.body()!!
                         userDao.insertUser(user.toEntity())
                         Result.success(user)
                     } else {
-                        val cachedUser = userDao.getUserById(userId)
+                        // API failed, return cache if available
                         if (cachedUser != null) {
                             Result.success(cachedUser.toModel())
                         } else {
@@ -38,19 +53,8 @@ class UserRepository @Inject constructor(
                         }
                     }
                 } else {
-                    val cachedUser = userDao.getUserById(userId)
-                    if (cachedUser != null) {
-                        Result.success(cachedUser.toModel())
-                    } else {
-                        val response = apiService.getUserById(userId)
-                        if (response.isSuccessful && response.body() != null) {
-                            val user = response.body()!!
-                            userDao.insertUser(user.toEntity())
-                            Result.success(user)
-                        } else {
-                            Result.failure(Exception("User not found"))
-                        }
-                    }
+                    // Have cache and not forcing refresh - return cache
+                    Result.success(cachedUser.toModel())
                 }
             } catch (e: Exception) {
                 // Fallback to cache on network error
