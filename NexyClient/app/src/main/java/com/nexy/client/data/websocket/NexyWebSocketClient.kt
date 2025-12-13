@@ -70,20 +70,31 @@ class NexyWebSocketClient(
         this.deviceId = deviceId
         disconnect()
 
-        val url = serverUrl.toHttpUrlOrNull()?.newBuilder()?.apply {
+        // Build URL with query parameters. HttpUrl doesn't support ws:// scheme directly,
+        // so we temporarily convert ws->http for parsing, then build the final ws:// URL string.
+        val httpSchemeUrl = serverUrl
+            .replace("wss://", "https://")
+            .replace("ws://", "http://")
+        
+        val parsedUrl = httpSchemeUrl.toHttpUrlOrNull()?.newBuilder()?.apply {
             setQueryParameter("token", token)
             if (deviceId != null) {
                 setQueryParameter("device_id", deviceId)
             }
         }?.build()
 
-        if (url == null) {
+        if (parsedUrl == null) {
             Log.e(TAG, "Invalid WebSocket URL: $serverUrl")
             _connectionState.value = ConnectionState.FAILED
             return
         }
 
-        val request = Request.Builder().url(url).build()
+        // Convert back to ws:// or wss://
+        val finalWsUrl = parsedUrl.toString()
+            .replace("https://", "wss://")
+            .replace("http://", "ws://")
+
+        val request = Request.Builder().url(finalWsUrl).build()
         
         _connectionState.value = ConnectionState.CONNECTING
         
