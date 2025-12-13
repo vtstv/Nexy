@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.biometric.BiometricManager
 import com.nexy.client.R
@@ -79,6 +80,9 @@ fun SettingsScreen(
     val readReceiptsEnabled by viewModel.readReceiptsEnabled.collectAsState()
     val typingIndicatorsEnabled by viewModel.typingIndicatorsEnabled.collectAsState()
     val showOnlineStatus by viewModel.showOnlineStatus.collectAsState()
+    val phoneNumber by viewModel.phoneNumber.collectAsState()
+    val phonePrivacy by viewModel.phonePrivacy.collectAsState()
+    val allowPhoneDiscovery by viewModel.allowPhoneDiscovery.collectAsState()
     val showNotepad by viewModel.showNotepad.collectAsState()
     val sessions by viewModel.sessions.collectAsState()
     val isLoadingSessions by viewModel.isLoadingSessions.collectAsState()
@@ -87,6 +91,8 @@ fun SettingsScreen(
     var showCacheDialog by remember { mutableStateOf(false) }
     var showIncomingColorPicker by remember { mutableStateOf(false) }
     var showOutgoingColorPicker by remember { mutableStateOf(false) }
+    var showPhonePrivacyDialog by remember { mutableStateOf(false) }
+    var editingPhoneNumber by remember(phoneNumber) { mutableStateOf(phoneNumber) }
     
     val ringtoneLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -244,6 +250,73 @@ fun SettingsScreen(
                     )
                 }
                 SettingsCategory.PRIVACY -> {
+                    // Phone Number Section
+                    ListItem(
+                        headlineContent = { Text("Phone Number") },
+                        supportingContent = { 
+                            Text(if (phoneNumber.isNotEmpty()) phoneNumber else "Not set") 
+                        },
+                        modifier = Modifier.clickable { /* Could add edit dialog */ }
+                    )
+                    HorizontalDivider()
+                    
+                    OutlinedTextField(
+                        value = editingPhoneNumber,
+                        onValueChange = { editingPhoneNumber = it },
+                        label = { Text("Phone Number") },
+                        supportingText = { Text("Format: +1234567890") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        singleLine = true,
+                        trailingIcon = {
+                            if (editingPhoneNumber != phoneNumber) {
+                                TextButton(onClick = { 
+                                    viewModel.setPhoneNumber(editingPhoneNumber)
+                                }) {
+                                    Text("Save")
+                                }
+                            }
+                        }
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    HorizontalDivider()
+                    
+                    ListItem(
+                        headlineContent = { Text("Phone Discovery") },
+                        supportingContent = { Text("Allow others to find you by phone number") },
+                        trailingContent = {
+                            Switch(
+                                checked = allowPhoneDiscovery,
+                                onCheckedChange = { viewModel.setAllowPhoneDiscovery(it) }
+                            )
+                        }
+                    )
+                    HorizontalDivider()
+                    
+                    ListItem(
+                        headlineContent = { Text("Who can see my phone") },
+                        supportingContent = { 
+                            Text(when (phonePrivacy) {
+                                "everyone" -> "Everyone"
+                                "contacts" -> "My contacts"
+                                "nobody" -> "Nobody"
+                                else -> "My contacts"
+                            })
+                        },
+                        modifier = Modifier.clickable { showPhonePrivacyDialog = true }
+                    )
+                    HorizontalDivider()
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        "Activity Privacy",
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    
                     ListItem(
                         headlineContent = { Text("Read Receipts") },
                         supportingContent = { Text("Show when you read messages") },
@@ -328,6 +401,48 @@ fun SettingsScreen(
             onColorSelected = { color ->
                 themeViewModel.setOutgoingTextColor(color.toArgb().toLong())
                 showOutgoingColorPicker = false
+            }
+        )
+    }
+
+    if (showPhonePrivacyDialog) {
+        AlertDialog(
+            onDismissRequest = { showPhonePrivacyDialog = false },
+            title = { Text("Who can see my phone") },
+            text = {
+                Column {
+                    listOf(
+                        "everyone" to "Everyone",
+                        "contacts" to "My contacts",
+                        "nobody" to "Nobody"
+                    ).forEach { (value, label) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.setPhonePrivacy(value)
+                                    showPhonePrivacyDialog = false
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = phonePrivacy == value,
+                                onClick = {
+                                    viewModel.setPhonePrivacy(value)
+                                    showPhonePrivacyDialog = false
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(label)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showPhonePrivacyDialog = false }) {
+                    Text("Cancel")
+                }
             }
         )
     }

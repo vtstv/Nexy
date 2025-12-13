@@ -76,10 +76,26 @@ class SearchViewModel @Inject constructor(
                     val usersDeferred = async { userRepository.searchUsers(query) }
                     val groupsDeferred = async { chatRepository.searchPublicGroups(query) }
                     
+                    // If query looks like a phone number, also search by phone
+                    val phoneUserDeferred = if (query.matches(Regex("^\\+?[0-9]{7,15}$"))) {
+                        async { userRepository.searchUserByPhone(query) }
+                    } else {
+                        null
+                    }
+                    
                     val usersResult = usersDeferred.await()
                     val groupsResult = groupsDeferred.await()
+                    val phoneUserResult = phoneUserDeferred?.await()
                     
-                    val users = usersResult.getOrNull() ?: emptyList()
+                    val users = usersResult.getOrNull()?.toMutableList() ?: mutableListOf()
+                    
+                    // Add phone search result if found and not already in list
+                    phoneUserResult?.getOrNull()?.let { phoneUser ->
+                        if (users.none { it.id == phoneUser.id }) {
+                            users.add(0, phoneUser) // Add to top of list
+                        }
+                    }
+                    
                     val groups = groupsResult.getOrNull() ?: emptyList()
                     
                     Log.d("SearchViewModel", "Search complete. Users: ${users.size}, Groups: ${groups.size}")

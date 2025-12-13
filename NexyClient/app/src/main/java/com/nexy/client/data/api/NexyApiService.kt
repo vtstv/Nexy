@@ -28,7 +28,13 @@ interface NexyApiService {
     
     @GET("users/search")
     suspend fun searchUsers(@Query("query") query: String): Response<List<User>>
-    
+
+    @GET("users/search/phone")
+    suspend fun searchUserByPhone(@Query("phone") phone: String): Response<User>
+
+    @POST("users/contacts/sync")
+    suspend fun syncContacts(@Body request: SyncContactsRequest): Response<List<User>>
+
     @PUT("users/me")
     suspend fun updateProfile(@Body request: UpdateProfileRequest): Response<User>
     

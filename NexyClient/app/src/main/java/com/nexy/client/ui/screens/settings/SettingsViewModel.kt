@@ -91,6 +91,15 @@ class SettingsViewModel @Inject constructor(
     private val _showOnlineStatus = MutableStateFlow(true)
     val showOnlineStatus: StateFlow<Boolean> = _showOnlineStatus.asStateFlow()
 
+    private val _phoneNumber = MutableStateFlow("")
+    val phoneNumber: StateFlow<String> = _phoneNumber.asStateFlow()
+
+    private val _phonePrivacy = MutableStateFlow("contacts")
+    val phonePrivacy: StateFlow<String> = _phonePrivacy.asStateFlow()
+
+    private val _allowPhoneDiscovery = MutableStateFlow(true)
+    val allowPhoneDiscovery: StateFlow<Boolean> = _allowPhoneDiscovery.asStateFlow()
+
     private val _showNotepad = MutableStateFlow(false)
     val showNotepad: StateFlow<Boolean> = _showNotepad.asStateFlow()
     
@@ -137,6 +146,9 @@ class SettingsViewModel @Inject constructor(
                     _readReceiptsEnabled.value = user.readReceiptsEnabled
                     _typingIndicatorsEnabled.value = user.typingIndicatorsEnabled
                     _showOnlineStatus.value = user.showOnlineStatus
+                    _phoneNumber.value = user.phoneNumber ?: ""
+                    _phonePrivacy.value = user.phonePrivacy ?: "contacts"
+                    _allowPhoneDiscovery.value = user.allowPhoneDiscovery
                 }
             }
         }
@@ -158,6 +170,78 @@ class SettingsViewModel @Inject constructor(
                          typingIndicatorsEnabled = null,
                          showOnlineStatus = null
                      )
+                }
+            }
+        }
+    }
+
+    fun setPhoneNumber(phone: String) {
+        _phoneNumber.value = phone
+        viewModelScope.launch {
+            val userId = stateManager.loadCurrentUserId()
+            if (userId != null && userId > 0) {
+                userRepository.getUserById(userId).onSuccess { user ->
+                    userRepository.updateProfile(
+                        displayName = user.displayName ?: "",
+                        bio = user.bio ?: "",
+                        avatarUrl = user.avatarUrl,
+                        email = user.email,
+                        password = null,
+                        phoneNumber = phone.takeIf { it.isNotEmpty() },
+                        phonePrivacy = null,
+                        allowPhoneDiscovery = null,
+                        readReceiptsEnabled = null,
+                        typingIndicatorsEnabled = null,
+                        showOnlineStatus = null
+                    )
+                }
+            }
+        }
+    }
+
+    fun setPhonePrivacy(privacy: String) {
+        _phonePrivacy.value = privacy
+        viewModelScope.launch {
+            val userId = stateManager.loadCurrentUserId()
+            if (userId != null && userId > 0) {
+                userRepository.getUserById(userId).onSuccess { user ->
+                    userRepository.updateProfile(
+                        displayName = user.displayName ?: "",
+                        bio = user.bio ?: "",
+                        avatarUrl = user.avatarUrl,
+                        email = user.email,
+                        password = null,
+                        phoneNumber = null,
+                        phonePrivacy = privacy,
+                        allowPhoneDiscovery = null,
+                        readReceiptsEnabled = null,
+                        typingIndicatorsEnabled = null,
+                        showOnlineStatus = null
+                    )
+                }
+            }
+        }
+    }
+
+    fun setAllowPhoneDiscovery(allow: Boolean) {
+        _allowPhoneDiscovery.value = allow
+        viewModelScope.launch {
+            val userId = stateManager.loadCurrentUserId()
+            if (userId != null && userId > 0) {
+                userRepository.getUserById(userId).onSuccess { user ->
+                    userRepository.updateProfile(
+                        displayName = user.displayName ?: "",
+                        bio = user.bio ?: "",
+                        avatarUrl = user.avatarUrl,
+                        email = user.email,
+                        password = null,
+                        phoneNumber = null,
+                        phonePrivacy = null,
+                        allowPhoneDiscovery = allow,
+                        readReceiptsEnabled = null,
+                        typingIndicatorsEnabled = null,
+                        showOnlineStatus = null
+                    )
                 }
             }
         }

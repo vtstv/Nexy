@@ -25,8 +25,8 @@ android {
         applicationId = "com.nexy.client"
         minSdk = 26
         targetSdk = 34
-        versionCode = 15
-        versionName = "1.20.0"
+        versionCode = 16
+        versionName = "1.25.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

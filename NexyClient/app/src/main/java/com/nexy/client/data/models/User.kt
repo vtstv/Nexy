@@ -24,6 +24,15 @@ data class User(
     @SerializedName("bio")
     val bio: String? = null,
 
+    @SerializedName("phone_number")
+    val phoneNumber: String? = null,
+
+    @SerializedName("phone_privacy")
+    val phonePrivacy: String? = "contacts",
+
+    @SerializedName("allow_phone_discovery")
+    val allowPhoneDiscovery: Boolean = true,
+
     @SerializedName("read_receipts_enabled")
     val readReceiptsEnabled: Boolean = true,
 

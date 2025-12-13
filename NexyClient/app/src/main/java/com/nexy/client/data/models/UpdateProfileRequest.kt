@@ -18,6 +18,15 @@ data class UpdateProfileRequest(
     @SerializedName("password")
     val password: String?,
 
+    @SerializedName("phone_number")
+    val phoneNumber: String? = null,
+
+    @SerializedName("phone_privacy")
+    val phonePrivacy: String? = null,
+
+    @SerializedName("allow_phone_discovery")
+    val allowPhoneDiscovery: Boolean? = null,
+
     @SerializedName("read_receipts_enabled")
     val readReceiptsEnabled: Boolean? = null,
 

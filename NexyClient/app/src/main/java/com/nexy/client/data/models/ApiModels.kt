@@ -21,7 +21,10 @@ data class RegisterRequest(
     val password: String,
     
     @SerializedName("display_name")
-    val displayName: String
+    val displayName: String,
+    
+    @SerializedName("phone_number")
+    val phoneNumber: String? = null
 )
 
 data class AuthResponse(

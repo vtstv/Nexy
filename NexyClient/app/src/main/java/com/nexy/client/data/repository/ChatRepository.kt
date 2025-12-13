@@ -22,6 +22,8 @@ class ChatRepository @Inject constructor(
     
     fun getAllChats(): Flow<List<Chat>> = chatOperations.getAllChats()
     
+    suspend fun hasLocalChats(): Boolean = chatOperations.hasLocalChats()
+    
     suspend fun refreshChats(): Result<List<Chat>> = chatOperations.refreshChats()
     
     suspend fun getChatById(chatId: Int): Result<Chat> = chatOperations.getChatById(chatId)

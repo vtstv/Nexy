@@ -98,6 +98,8 @@ func (rt *Router) Setup() *mux.Router {
 	users.HandleFunc("/me", rt.userController.UpdateProfile).Methods("PUT")
 	users.HandleFunc("/me/qr", rt.userController.GetMyQRCode).Methods("GET")
 	users.HandleFunc("/search", rt.userController.SearchUsers).Methods("GET")
+	users.HandleFunc("/search/phone", rt.userController.SearchByPhone).Methods("GET")
+	users.HandleFunc("/contacts/sync", rt.userController.SyncContacts).Methods("POST")
 	users.HandleFunc("/{id:[0-9]+}", rt.userController.GetUserByID).Methods("GET")
 
 	// FCM token management

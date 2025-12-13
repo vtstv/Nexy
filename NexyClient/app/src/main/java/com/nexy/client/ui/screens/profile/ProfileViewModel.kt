@@ -93,7 +93,20 @@ class ProfileViewModel @Inject constructor(
             }
 
             // Update profile with new data
-            userRepository.updateProfile(displayName, bio, avatarUrl, email, password, readReceiptsEnabled).fold(
+            userRepository.updateProfile(
+                displayName = displayName,
+                bio = bio,
+                avatarUrl = avatarUrl,
+                email = email,
+                password = password,
+                phoneNumber = null,
+                phonePrivacy = null,
+                allowPhoneDiscovery = null,
+                readReceiptsEnabled = readReceiptsEnabled,
+                typingIndicatorsEnabled = null,
+                voiceMessagesEnabled = null,
+                showOnlineStatus = null
+            ).fold(
                 onSuccess = { updatedUser ->
                     _uiState.value = _uiState.value.copy(
                         user = updatedUser,

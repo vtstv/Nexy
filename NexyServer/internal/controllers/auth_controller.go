@@ -35,6 +35,7 @@ type RegisterRequest struct {
 	Email       string `json:"email"`
 	Password    string `json:"password"`
 	DisplayName string `json:"display_name"`
+	PhoneNumber string `json:"phone_number,omitempty"`
 }
 
 type LoginRequest struct {
@@ -64,7 +65,7 @@ func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := c.authService.Register(r.Context(), req.Username, req.Email, req.Password, req.DisplayName)
+	user, err := c.authService.Register(r.Context(), req.Username, req.Email, req.Password, req.DisplayName, req.PhoneNumber)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

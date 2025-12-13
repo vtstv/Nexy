@@ -125,8 +125,9 @@ class MessageDelegate @Inject constructor(
     }
 
     fun loadMessages() {
+        // show local messages immediately via Flow, sync in background
         scope.launch {
-            uiState.value = uiState.value.copy(isLoading = true)
+            // Don't set isLoading = true - we want to show cached messages immediately
             messageOps.observeMessages(getChatId()).collect { messages ->
                 val newestMessage = messages.filter { it.timestamp != null }
                     .maxByOrNull { it.timestamp!! }
@@ -134,9 +135,11 @@ class MessageDelegate @Inject constructor(
 
                 updateParticipantsWithReactors(messages)
 
+                // Only show loading if we have NO messages yet
+                val wasLoading = uiState.value.isLoading && uiState.value.messages.isEmpty()
                 uiState.value = uiState.value.copy(
                     messages = messages,
-                    isLoading = false
+                    isLoading = if (messages.isEmpty()) uiState.value.isLoading else false
                 )
 
                 if (!readReceiptHandler.isChatActive()) {
@@ -149,11 +152,12 @@ class MessageDelegate @Inject constructor(
             }
         }
 
+        // Background sync from server
         scope.launch {
             try {
                 messageOps.loadMessages(getChatId())
             } catch (_: Exception) {
-                // Error handled in repository
+                // Error handled in repository, local messages still displayed
             }
         }
     }

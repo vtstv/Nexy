@@ -31,7 +31,7 @@ func NewAuthService(userRepo *repositories.UserRepository, refreshTokenRepo *rep
 	}
 }
 
-func (s *AuthService) Register(ctx context.Context, username, email, password, displayName string) (*models.User, error) {
+func (s *AuthService) Register(ctx context.Context, username, email, password, displayName, phoneNumber string) (*models.User, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash password: %w", err)
@@ -42,6 +42,7 @@ func (s *AuthService) Register(ctx context.Context, username, email, password, d
 		Email:        email,
 		PasswordHash: string(hashedPassword),
 		DisplayName:  displayName,
+		PhoneNumber:  phoneNumber,
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {

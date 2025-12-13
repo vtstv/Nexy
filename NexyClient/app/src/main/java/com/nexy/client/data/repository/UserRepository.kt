@@ -7,6 +7,7 @@ import com.nexy.client.data.local.entity.UserEntity
 import com.nexy.client.data.models.User
 import com.nexy.client.data.models.UserStatus
 import com.nexy.client.data.models.UpdateProfileRequest
+import com.nexy.client.data.models.SyncContactsRequest
 import com.nexy.client.data.network.NetworkMonitor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -135,10 +136,10 @@ class UserRepository @Inject constructor(
         }
     }
 
-    suspend fun updateProfile(displayName: String, bio: String, avatarUrl: String?, email: String?, password: String?, readReceiptsEnabled: Boolean? = null, typingIndicatorsEnabled: Boolean? = null, voiceMessagesEnabled: Boolean? = null, showOnlineStatus: Boolean? = null): Result<User> {
+    suspend fun updateProfile(displayName: String, bio: String, avatarUrl: String?, email: String?, password: String?, phoneNumber: String? = null, phonePrivacy: String? = null, allowPhoneDiscovery: Boolean? = null, readReceiptsEnabled: Boolean? = null, typingIndicatorsEnabled: Boolean? = null, voiceMessagesEnabled: Boolean? = null, showOnlineStatus: Boolean? = null): Result<User> {
         return withContext(Dispatchers.IO) {
             try {
-                val request = UpdateProfileRequest(displayName, bio, avatarUrl, email, password, readReceiptsEnabled, typingIndicatorsEnabled, voiceMessagesEnabled, showOnlineStatus)
+                val request = UpdateProfileRequest(displayName, bio, avatarUrl, email, password, phoneNumber, phonePrivacy, allowPhoneDiscovery, readReceiptsEnabled, typingIndicatorsEnabled, voiceMessagesEnabled, showOnlineStatus)
                 val response = apiService.updateProfile(request)
                 if (response.isSuccessful && response.body() != null) {
                     val updatedUser = response.body()!!
@@ -146,6 +147,37 @@ class UserRepository @Inject constructor(
                     Result.success(updatedUser)
                 } else {
                     Result.failure(Exception("Failed to update profile"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
+    suspend fun searchUserByPhone(phoneNumber: String): Result<User> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.searchUserByPhone(phoneNumber)
+                if (response.isSuccessful && response.body() != null) {
+                    Result.success(response.body()!!)
+                } else {
+                    Result.failure(Exception("User not found"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
+    suspend fun syncContacts(phoneNumbers: List<String>): Result<List<User>> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val request = SyncContactsRequest(phoneNumbers)
+                val response = apiService.syncContacts(request)
+                if (response.isSuccessful && response.body() != null) {
+                    Result.success(response.body()!!)
+                } else {
+                    Result.failure(Exception("Failed to sync contacts"))
                 }
             } catch (e: Exception) {
                 Result.failure(e)
@@ -167,6 +199,9 @@ class UserRepository @Inject constructor(
         avatarUrl = avatarUrl,
         status = status?.name ?: UserStatus.OFFLINE.name,
         bio = bio,
+        phoneNumber = phoneNumber,
+        phonePrivacy = phonePrivacy,
+        allowPhoneDiscovery = allowPhoneDiscovery,
         readReceiptsEnabled = readReceiptsEnabled,
         voiceMessagesEnabled = voiceMessagesEnabled,
         showOnlineStatus = showOnlineStatus,
@@ -183,6 +218,9 @@ class UserRepository @Inject constructor(
         avatarUrl = avatarUrl,
         status = UserStatus.valueOf(status),
         bio = bio,
+        phoneNumber = phoneNumber,
+        phonePrivacy = phonePrivacy,
+        allowPhoneDiscovery = allowPhoneDiscovery,
         readReceiptsEnabled = readReceiptsEnabled,
         voiceMessagesEnabled = voiceMessagesEnabled,
         showOnlineStatus = showOnlineStatus,

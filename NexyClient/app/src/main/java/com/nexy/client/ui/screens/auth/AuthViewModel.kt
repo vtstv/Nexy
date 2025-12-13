@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nexy.client.data.repository.AuthRepository
 import com.nexy.client.data.websocket.WebSocketMessageHandler
+import com.nexy.client.utils.ValidationUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,11 +20,17 @@ data class AuthUiState(
     val email: String = "",
     val password: String = "",
     val displayName: String = "",
+    val phoneNumber: String = "",
     val rememberMe: Boolean = false,
     val isLoading: Boolean = false,
     val isAuthenticated: Boolean = false,
     val error: String? = null,
-    val sessionTerminatedReason: String? = null
+    val sessionTerminatedReason: String? = null,
+    // Validation errors for each field
+    val usernameError: String? = null,
+    val emailError: String? = null,
+    val passwordError: String? = null,
+    val phoneError: String? = null
 )
 
 @HiltViewModel
@@ -90,19 +97,47 @@ class AuthViewModel @Inject constructor(
     }
     
     fun onUsernameChange(username: String) {
-        _uiState.value = _uiState.value.copy(username = username, error = null)
+        val validation = ValidationUtils.validateUsername(username)
+        _uiState.value = _uiState.value.copy(
+            username = username, 
+            usernameError = if (username.isNotEmpty()) validation.errorMessage else null,
+            error = null
+        )
     }
     
     fun onEmailChange(email: String) {
-        _uiState.value = _uiState.value.copy(email = email, error = null)
+        val validation = ValidationUtils.validateEmail(email)
+        _uiState.value = _uiState.value.copy(
+            email = email, 
+            emailError = if (email.isNotEmpty()) validation.errorMessage else null,
+            error = null
+        )
     }
     
     fun onPasswordChange(password: String) {
-        _uiState.value = _uiState.value.copy(password = password, error = null)
+        val validation = ValidationUtils.validatePassword(password)
+        _uiState.value = _uiState.value.copy(
+            password = password, 
+            passwordError = if (password.isNotEmpty()) validation.errorMessage else null,
+            error = null
+        )
     }
     
     fun onDisplayNameChange(displayName: String) {
         _uiState.value = _uiState.value.copy(displayName = displayName, error = null)
+    }
+    
+    fun onPhoneNumberChange(phoneNumber: String) {
+        val validation = if (phoneNumber.isNotEmpty()) {
+            ValidationUtils.validatePhone(phoneNumber)
+        } else {
+            ValidationUtils.ValidationResult(true, null)
+        }
+        _uiState.value = _uiState.value.copy(
+            phoneNumber = phoneNumber,
+            phoneError = validation.errorMessage,
+            error = null
+        )
     }
     
     fun onRememberMeChange(rememberMe: Boolean) {
@@ -144,6 +179,28 @@ class AuthViewModel @Inject constructor(
     }
     
     fun register() {
+        // Validate all fields first
+        val usernameValidation = ValidationUtils.validateUsername(_uiState.value.username)
+        val emailValidation = ValidationUtils.validateEmail(_uiState.value.email)
+        val passwordValidation = ValidationUtils.validatePassword(_uiState.value.password)
+        val phoneValidation = if (_uiState.value.phoneNumber.isNotEmpty()) {
+            ValidationUtils.validatePhone(_uiState.value.phoneNumber)
+        } else {
+            ValidationUtils.ValidationResult(true, null)
+        }
+        
+        _uiState.value = _uiState.value.copy(
+            usernameError = usernameValidation.errorMessage,
+            emailError = emailValidation.errorMessage,
+            passwordError = passwordValidation.errorMessage,
+            phoneError = phoneValidation.errorMessage
+        )
+        
+        // Stop if validation fails
+        if (!usernameValidation.isValid || !emailValidation.isValid || !passwordValidation.isValid || !phoneValidation.isValid) {
+            return
+        }
+        
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             
@@ -151,7 +208,8 @@ class AuthViewModel @Inject constructor(
                 _uiState.value.username,
                 _uiState.value.email,
                 _uiState.value.password,
-                _uiState.value.displayName.ifBlank { _uiState.value.username }
+                _uiState.value.displayName.ifBlank { _uiState.value.username },
+                _uiState.value.phoneNumber.takeIf { it.isNotBlank() }
             )
             
             result.fold(

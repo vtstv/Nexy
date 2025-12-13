@@ -18,6 +18,9 @@ type UpdateProfileRequest struct {
 	AvatarURL               string `json:"avatar_url"`
 	Email                   string `json:"email"`
 	Password                string `json:"password"`
+	PhoneNumber             string `json:"phone_number"`
+	PhonePrivacy            string `json:"phone_privacy"`
+	AllowPhoneDiscovery     *bool  `json:"allow_phone_discovery"`
 	ReadReceiptsEnabled     *bool  `json:"read_receipts_enabled"`
 	TypingIndicatorsEnabled *bool  `json:"typing_indicators_enabled"`
 	VoiceMessagesEnabled    *bool  `json:"voice_messages_enabled"`
@@ -78,7 +81,12 @@ func (c *UserController) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := c.userService.UpdateProfile(r.Context(), userID, req.DisplayName, req.Bio, req.AvatarURL, req.Email, req.Password, req.ReadReceiptsEnabled, req.TypingIndicatorsEnabled, req.VoiceMessagesEnabled, req.ShowOnlineStatus)
+	user, err := c.userService.UpdateProfile(
+		r.Context(), userID,
+		req.DisplayName, req.Bio, req.AvatarURL, req.Email, req.Password,
+		req.PhoneNumber, req.PhonePrivacy, req.AllowPhoneDiscovery,
+		req.ReadReceiptsEnabled, req.TypingIndicatorsEnabled, req.VoiceMessagesEnabled, req.ShowOnlineStatus,
+	)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -135,4 +143,59 @@ func (c *UserController) GetMyQRCode(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+// SearchByPhone searches for user by phone number
+func (c *UserController) SearchByPhone(w http.ResponseWriter, r *http.Request) {
+	phone := r.URL.Query().Get("phone")
+	if phone == "" {
+		http.Error(w, "Missing phone parameter", http.StatusBadRequest)
+		return
+	}
+
+	requestingUserID, _ := middleware.GetUserID(r)
+
+	user, err := c.userService.SearchByPhone(r.Context(), phone, requestingUserID)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
+// SyncContactsRequest represents request to sync contacts
+type SyncContactsRequest struct {
+	PhoneNumbers []string `json:"phone_numbers"`
+}
+
+// SyncContacts finds Nexy users from contact phone numbers
+func (c *UserController) SyncContacts(w http.ResponseWriter, r *http.Request) {
+	_, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var req SyncContactsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	if len(req.PhoneNumbers) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]*struct{}{})
+		return
+	}
+
+	users, err := c.userService.SyncContacts(r.Context(), req.PhoneNumbers)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(users)
 }

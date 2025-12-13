@@ -45,7 +45,7 @@ func (s *UserService) SearchUsers(ctx context.Context, query string, limit int) 
 }
 
 // UpdateProfile updates user profile information
-func (s *UserService) UpdateProfile(ctx context.Context, userID int, displayName, bio, avatarURL, email, password string, readReceiptsEnabled, typingIndicatorsEnabled, voiceMessagesEnabled, showOnlineStatus *bool) (*models.User, error) {
+func (s *UserService) UpdateProfile(ctx context.Context, userID int, displayName, bio, avatarURL, email, password, phoneNumber, phonePrivacy string, allowPhoneDiscovery, readReceiptsEnabled, typingIndicatorsEnabled, voiceMessagesEnabled, showOnlineStatus *bool) (*models.User, error) {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -58,6 +58,15 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID int, displayName
 	}
 	if email != "" {
 		user.Email = email
+	}
+	if phoneNumber != "" {
+		user.PhoneNumber = phoneNumber
+	}
+	if phonePrivacy != "" {
+		user.PhonePrivacy = phonePrivacy
+	}
+	if allowPhoneDiscovery != nil {
+		user.AllowPhoneDiscovery = *allowPhoneDiscovery
 	}
 	passwordChanged := false
 	if password != "" {
@@ -95,4 +104,14 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID int, displayName
 // UpdateAvatar updates user avatar URL
 func (s *UserService) UpdateAvatar(ctx context.Context, userID int, avatarURL string) error {
 	return s.userRepo.UpdateAvatar(ctx, userID, avatarURL)
+}
+
+// SearchByPhone searches for user by phone number
+func (s *UserService) SearchByPhone(ctx context.Context, phoneNumber string, requestingUserID int) (*models.User, error) {
+	return s.userRepo.GetByPhoneNumber(ctx, phoneNumber, requestingUserID)
+}
+
+// SyncContacts finds Nexy users from a list of phone numbers
+func (s *UserService) SyncContacts(ctx context.Context, phoneNumbers []string) ([]*models.User, error) {
+	return s.userRepo.SearchByPhoneNumbers(ctx, phoneNumbers)
 }

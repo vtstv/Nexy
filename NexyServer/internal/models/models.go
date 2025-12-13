@@ -13,6 +13,9 @@ type User struct {
 	DisplayName             string     `json:"display_name"`
 	AvatarURL               string     `json:"avatar_url"`
 	Bio                     string     `json:"bio"`
+	PhoneNumber             string     `json:"phone_number,omitempty"`
+	PhonePrivacy            string     `json:"phone_privacy,omitempty"`
+	AllowPhoneDiscovery     bool       `json:"allow_phone_discovery"`
 	FcmToken                string     `json:"-"`
 	ReadReceiptsEnabled     bool       `json:"read_receipts_enabled"`
 	TypingIndicatorsEnabled bool       `json:"typing_indicators_enabled"`

@@ -47,6 +47,14 @@ class ChatSyncOperations @Inject constructor(
         }
     }
     
+    /**
+     * Check if there are any chats in local database (synchronous).
+     * Used to determine whether to show loading indicator.
+     */
+    suspend fun hasLocalChats(): Boolean {
+        return chatDao.getAllChatsSync().isNotEmpty()
+    }
+    
     private fun isServerLikelyAvailable(): Boolean {
         // 1. Check if we have network connectivity
         if (!networkMonitor.isConnected.value) {

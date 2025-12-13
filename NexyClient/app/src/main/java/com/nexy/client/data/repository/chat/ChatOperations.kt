@@ -19,6 +19,7 @@ class ChatOperations @Inject constructor(
 ) {
     // region Sync Operations - delegated
     fun getAllChats(): Flow<List<Chat>> = chatSyncOperations.getAllChats()
+    suspend fun hasLocalChats(): Boolean = chatSyncOperations.hasLocalChats()
     suspend fun refreshChats(): Result<List<Chat>> = chatSyncOperations.refreshChats()
     suspend fun getChatById(chatId: Int): Result<Chat> = chatSyncOperations.getChatById(chatId)
     // endregion

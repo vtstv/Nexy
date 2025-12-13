@@ -93,28 +93,48 @@ fun ReactionFloatingPanel(
                     shadowElevation = 8.dp
                 ) {
                     Column(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        // Top row with arrow
+                        // Top row with arrow - use LazyRow for scrolling on smaller screens
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center,
+                            horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            quickReactions.forEach { emoji ->
-                                ReactionCircle(emoji = emoji) {
-                                    onReactionSelected(emoji)
-                                    onDismiss()
+                            // Reactions row - takes available space minus arrow button
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                horizontalArrangement = Arrangement.SpaceEvenly,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                quickReactions.forEach { emoji ->
+                                    ReactionCircle(emoji = emoji, size = 42.dp, fontSize = 24.sp) {
+                                        onReactionSelected(emoji)
+                                        onDismiss()
+                                    }
                                 }
                             }
-
-                            IconButton(onClick = { expanded = !expanded }) {
-                                Icon(
-                                    imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                                    contentDescription = "More reactions",
-                                    tint = MaterialTheme.colorScheme.onSurface
-                                )
+                            
+                            // Arrow button with fixed size - always visible
+                            Surface(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clickable { expanded = !expanded },
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    Icon(
+                                        imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                                        contentDescription = "More reactions",
+                                        tint = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
                             }
                         }
 

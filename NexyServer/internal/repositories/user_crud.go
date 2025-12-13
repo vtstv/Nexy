@@ -33,6 +33,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id int) (*models.User, err
 	user := &models.User{}
 	query := `
 		SELECT id, username, email, password_hash, display_name, avatar_url, bio, 
+		       phone_number, phone_privacy, allow_phone_discovery,
 		       read_receipts_enabled, typing_indicators_enabled, voice_messages_enabled, show_online_status, last_seen, 
 		       created_at, updated_at
 		FROM users
@@ -40,6 +41,8 @@ func (r *UserRepository) GetByID(ctx context.Context, id int) (*models.User, err
 
 	var avatarURL sql.NullString
 	var bio sql.NullString
+	var phoneNumber sql.NullString
+	var phonePrivacy sql.NullString
 	var lastSeen sql.NullTime
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&user.ID,
@@ -49,6 +52,9 @@ func (r *UserRepository) GetByID(ctx context.Context, id int) (*models.User, err
 		&user.DisplayName,
 		&avatarURL,
 		&bio,
+		&phoneNumber,
+		&phonePrivacy,
+		&user.AllowPhoneDiscovery,
 		&user.ReadReceiptsEnabled,
 		&user.TypingIndicatorsEnabled,
 		&user.VoiceMessagesEnabled,
@@ -66,6 +72,14 @@ func (r *UserRepository) GetByID(ctx context.Context, id int) (*models.User, err
 	if bio.Valid {
 		user.Bio = bio.String
 	}
+	if phoneNumber.Valid {
+		user.PhoneNumber = phoneNumber.String
+	}
+	if phonePrivacy.Valid {
+		user.PhonePrivacy = phonePrivacy.String
+	} else {
+		user.PhonePrivacy = "contacts"
+	}
 	if lastSeen.Valid {
 		user.LastSeen = &lastSeen.Time
 	}
@@ -77,8 +91,10 @@ func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
 	query := `
 		UPDATE users
 		SET display_name = $1, avatar_url = $2, bio = $3, read_receipts_enabled = $4, 
-		    typing_indicators_enabled = $5, voice_messages_enabled = $6, show_online_status = $7, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $8
+		    typing_indicators_enabled = $5, voice_messages_enabled = $6, show_online_status = $7,
+		    phone_number = $8, phone_privacy = $9, allow_phone_discovery = $10,
+		    updated_at = CURRENT_TIMESTAMP
+		WHERE id = $11
 		RETURNING updated_at`
 
 	return r.db.QueryRowContext(ctx, query,
@@ -89,6 +105,9 @@ func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
 		user.TypingIndicatorsEnabled,
 		user.VoiceMessagesEnabled,
 		user.ShowOnlineStatus,
+		user.PhoneNumber,
+		user.PhonePrivacy,
+		user.AllowPhoneDiscovery,
 		user.ID,
 	).Scan(&user.UpdatedAt)
 }
@@ -105,4 +124,130 @@ func (r *UserRepository) UpdateAvatar(ctx context.Context, userID int, avatarURL
 	query := `UPDATE users SET avatar_url = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`
 	_, err := r.db.ExecContext(ctx, query, avatarURL, userID)
 	return err
+}
+
+// GetByPhoneNumber retrieves users by phone number (respecting privacy settings)
+func (r *UserRepository) GetByPhoneNumber(ctx context.Context, phoneNumber string, requestingUserID int) (*models.User, error) {
+	user := &models.User{}
+	// Only return user if they allow phone discovery
+	query := `
+		SELECT id, username, email, display_name, avatar_url, bio,
+		       phone_number, phone_privacy, allow_phone_discovery,
+		       read_receipts_enabled, typing_indicators_enabled, voice_messages_enabled, show_online_status, last_seen,
+		       created_at, updated_at
+		FROM users
+		WHERE phone_number = $1 AND allow_phone_discovery = TRUE`
+
+	var avatarURL sql.NullString
+	var bio sql.NullString
+	var phoneNum sql.NullString
+	var phonePrivacy sql.NullString
+	var lastSeen sql.NullTime
+	err := r.db.QueryRowContext(ctx, query, phoneNumber).Scan(
+		&user.ID,
+		&user.Username,
+		&user.Email,
+		&user.DisplayName,
+		&avatarURL,
+		&bio,
+		&phoneNum,
+		&phonePrivacy,
+		&user.AllowPhoneDiscovery,
+		&user.ReadReceiptsEnabled,
+		&user.TypingIndicatorsEnabled,
+		&user.VoiceMessagesEnabled,
+		&user.ShowOnlineStatus,
+		&lastSeen,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("user not found")
+	}
+	if avatarURL.Valid {
+		user.AvatarURL = avatarURL.String
+	}
+	if bio.Valid {
+		user.Bio = bio.String
+	}
+	if phoneNum.Valid {
+		user.PhoneNumber = phoneNum.String
+	}
+	if phonePrivacy.Valid {
+		user.PhonePrivacy = phonePrivacy.String
+	}
+	if lastSeen.Valid {
+		user.LastSeen = &lastSeen.Time
+	}
+	return user, err
+}
+
+// SearchByPhoneNumbers finds users by multiple phone numbers (for contact sync)
+func (r *UserRepository) SearchByPhoneNumbers(ctx context.Context, phoneNumbers []string) ([]*models.User, error) {
+	if len(phoneNumbers) == 0 {
+		return []*models.User{}, nil
+	}
+
+	// Build query with phone numbers list
+	query := `
+		SELECT id, username, email, display_name, avatar_url, bio,
+		       phone_number, phone_privacy, allow_phone_discovery,
+		       read_receipts_enabled, typing_indicators_enabled, voice_messages_enabled, show_online_status, last_seen,
+		       created_at, updated_at
+		FROM users
+		WHERE phone_number = ANY($1) AND allow_phone_discovery = TRUE`
+
+	rows, err := r.db.QueryContext(ctx, query, phoneNumbers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []*models.User
+	for rows.Next() {
+		user := &models.User{}
+		var avatarURL sql.NullString
+		var bio sql.NullString
+		var phoneNum sql.NullString
+		var phonePrivacy sql.NullString
+		var lastSeen sql.NullTime
+		err := rows.Scan(
+			&user.ID,
+			&user.Username,
+			&user.Email,
+			&user.DisplayName,
+			&avatarURL,
+			&bio,
+			&phoneNum,
+			&phonePrivacy,
+			&user.AllowPhoneDiscovery,
+			&user.ReadReceiptsEnabled,
+			&user.TypingIndicatorsEnabled,
+			&user.VoiceMessagesEnabled,
+			&user.ShowOnlineStatus,
+			&lastSeen,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if avatarURL.Valid {
+			user.AvatarURL = avatarURL.String
+		}
+		if bio.Valid {
+			user.Bio = bio.String
+		}
+		if phoneNum.Valid {
+			user.PhoneNumber = phoneNum.String
+		}
+		if phonePrivacy.Valid {
+			user.PhonePrivacy = phonePrivacy.String
+		}
+		if lastSeen.Valid {
+			user.LastSeen = &lastSeen.Time
+		}
+		users = append(users, user)
+	}
+	return users, rows.Err()
 }

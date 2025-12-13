@@ -122,16 +122,29 @@ class ChatListLoadingDelegate @Inject constructor(
                 }
         }
 
-        refreshChats()
+        // Start background sync without blocking UI 
+        refreshChatsInBackground()
     }
 
+    /**
+     * Refresh: sync in background without blocking UI.
+     * Local data is already displayed via Flow, this just updates from server.
+     */
     fun refreshChats() {
+        refreshChatsInBackground()
+    }
+    
+    private fun refreshChatsInBackground() {
         scope.launch {
-            uiState.value = uiState.value.copy(isLoading = true, error = null)
+            // Check local database directly for chats (not UI state which might be empty initially)
+            val hasLocalChats = chatRepository.hasLocalChats()
+            if (!hasLocalChats) {
+                uiState.value = uiState.value.copy(isLoading = true, error = null)
+            }
 
             chatRepository.refreshChats().fold(
                 onSuccess = { chats ->
-                    uiState.value = uiState.value.copy(isLoading = false)
+                    uiState.value = uiState.value.copy(isLoading = false, error = null)
                     refreshTrigger.value = System.currentTimeMillis()
 
                     chats.forEach { chat ->
@@ -165,10 +178,16 @@ class ChatListLoadingDelegate @Inject constructor(
                     }
                 },
                 onFailure = { error ->
-                    uiState.value = uiState.value.copy(
-                        isLoading = false,
-                        error = error.message
-                    )
+                    // Only show error if we have no local data to display
+                    if (!hasLocalChats) {
+                        uiState.value = uiState.value.copy(
+                            isLoading = false,
+                            error = error.message
+                        )
+                    } else {
+                        // Have local data - just clear loading, don't show error
+                        uiState.value = uiState.value.copy(isLoading = false)
+                    }
                 }
             )
         }

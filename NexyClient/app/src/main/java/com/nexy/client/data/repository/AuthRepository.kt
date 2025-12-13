@@ -18,11 +18,11 @@ class AuthRepository @Inject constructor(
     private val database: NexyDatabase
 ) {
     
-    suspend fun register(username: String, email: String, password: String, displayName: String): Result<AuthResponse> {
+    suspend fun register(username: String, email: String, password: String, displayName: String, phoneNumber: String? = null): Result<AuthResponse> {
         return withContext(Dispatchers.IO) {
             try {
                 val response = apiService.register(
-                    RegisterRequest(username, email, password, displayName)
+                    RegisterRequest(username, email, password, displayName, phoneNumber)
                 )
                 
                 if (response.isSuccessful && response.body() != null) {

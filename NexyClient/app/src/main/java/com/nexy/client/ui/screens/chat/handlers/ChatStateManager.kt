@@ -34,7 +34,8 @@ class ChatStateManager @Inject constructor(
         val name = if (chat.type == ChatType.PRIVATE) {
             if (chat.participantIds != null && currentUserId != null) {
                 val otherUserId = chat.participantIds.firstOrNull { it != currentUserId } ?: currentUserId
-                val userResult = userRepository.getUserById(otherUserId, forceRefresh = true)
+                // Use cache-first for instant display
+                val userResult = userRepository.getUserById(otherUserId, forceRefresh = false)
                 val otherUser = userResult.getOrNull()
                 if (otherUser != null) {
                     participantsMap[otherUser.id] = otherUser
