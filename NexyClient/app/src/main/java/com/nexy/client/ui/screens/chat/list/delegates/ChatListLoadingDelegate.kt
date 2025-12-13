@@ -38,13 +38,22 @@ class ChatListLoadingDelegate @Inject constructor(
     fun loadCurrentUser() {
         scope.launch {
             tokenManager.getUserId()?.let { userId ->
+                // OFFLINE-FIRST: Subscribe to local DB flow immediately
+                // This will emit cached user data instantly if available
                 launch {
-                    userRepository.getUserById(userId, forceRefresh = true)
+                    userRepository.getUserByIdFlow(userId).collect { user ->
+                        if (user != null) {
+                            uiState.update { it.copy(currentUser = user) }
+                        }
+                    }
                 }
-
-                userRepository.getUserByIdFlow(userId).collect { user ->
-                    if (user != null) {
-                        uiState.update { it.copy(currentUser = user) }
+                
+                // Background refresh - don't block UI, just update DB which triggers Flow
+                launch {
+                    try {
+                        userRepository.getUserById(userId, forceRefresh = true)
+                    } catch (e: Exception) {
+                        android.util.Log.w("ChatListLoadingDelegate", "Background user refresh failed: ${e.message}")
                     }
                 }
             }
@@ -52,12 +61,20 @@ class ChatListLoadingDelegate @Inject constructor(
     }
 
     fun loadChats() {
+        // OFFLINE-FIRST: Show cached data immediately, sync in background
+        var isInitialLoad = true
+        
         scope.launch {
             combine(
                 chatRepository.getAllChats(),
                 refreshTrigger
             ) { chats, _ -> chats }
                 .collect { chats ->
+                    // On first emission, mark as loaded immediately (even if empty)
+                    if (isInitialLoad) {
+                        isInitialLoad = false
+                        uiState.value = uiState.value.copy(isLoading = false)
+                    }
                     val chatsWithInfo = ArrayList<ChatWithInfo>()
                     for (chat in chats) {
                         val (displayName, avatarUrl, isSelfChat) = when (chat.type) {

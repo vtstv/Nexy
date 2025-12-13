@@ -34,7 +34,7 @@ class ChatSyncOperations @Inject constructor(
     companion object {
         private const val TAG = "ChatSyncOperations"
         // If server was unreachable, skip API calls for this duration
-        private const val SERVER_UNREACHABLE_BACKOFF_MS = 30_000L
+        private const val SERVER_UNREACHABLE_BACKOFF_MS = 15_000L
     }
     
     // Track when server became unreachable to avoid repeated timeout waits
@@ -58,21 +58,29 @@ class ChatSyncOperations @Inject constructor(
     private fun isServerLikelyAvailable(): Boolean {
         // 1. Check if we have network connectivity
         if (!networkMonitor.isConnected.value) {
+            Log.d(TAG, "No network connectivity, server unavailable")
             return false
         }
         // 2. Check if WebSocket is connected (best indicator of server availability)
-        if (webSocketClient.connectionState.value == ConnectionState.CONNECTED) {
+        val wsState = webSocketClient.connectionState.value
+        if (wsState == ConnectionState.CONNECTED) {
             // Server is definitely reachable, clear any backoff
             serverUnreachableUntil = 0L
             return true
         }
         // 3. Check if we're in backoff period from previous failure
         if (System.currentTimeMillis() < serverUnreachableUntil) {
-            Log.w(TAG, "Server unreachable backoff active, skipping API")
+            Log.d(TAG, "Server unreachable backoff active (${(serverUnreachableUntil - System.currentTimeMillis())/1000}s remaining)")
             return false
         }
-        // 4. Network available but WebSocket not connected - server might be available
-        return true
+        // 4. If WebSocket is connecting, server might be available soon
+        if (wsState == ConnectionState.CONNECTING) {
+            Log.d(TAG, "WebSocket connecting, will try API")
+            return true
+        }
+        // 5. WebSocket disconnected but network available - likely server down
+        Log.d(TAG, "WebSocket disconnected, assuming server unavailable")
+        return false
     }
     
     private fun markServerUnreachable() {

@@ -80,9 +80,11 @@ object ServerConfig {
     const val HEARTBEAT_INTERVAL_MS = 20_000L // 20 seconds
     const val RECONNECT_DELAY_MS = 5_000L // 5 seconds
     
-    // API Timeouts (reduced for faster offline fallback)
-    // Connect timeout is low to quickly detect unreachable server
-    const val CONNECT_TIMEOUT_SECONDS = 5L
-    const val READ_TIMEOUT_SECONDS = 15L
-    const val WRITE_TIMEOUT_SECONDS = 15L
+    // API Timeouts - kept low for fast offline fallback
+    // Connect timeout: detect unreachable server quickly
+    const val CONNECT_TIMEOUT_SECONDS = 3L
+    // Read/Write timeouts: allow slightly longer for actual data transfer
+    // but not too long to avoid blocking UI
+    const val READ_TIMEOUT_SECONDS = 8L
+    const val WRITE_TIMEOUT_SECONDS = 8L
 }
