@@ -68,6 +68,16 @@ class UserRepository @Inject constructor(
         }
     }
     
+    /**
+     * Get user from local cache only, without making any network requests.
+     * Used for fast UI rendering when offline or when we just need cached data.
+     */
+    suspend fun getUserFromCacheOnly(userId: Int): User? {
+        return withContext(Dispatchers.IO) {
+            userDao.getUserById(userId)?.toModel()
+        }
+    }
+    
     fun getUserByIdFlow(userId: Int): Flow<User?> {
         return userDao.getUserByIdFlow(userId).map { it?.toModel() }
     }

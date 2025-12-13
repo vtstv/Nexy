@@ -10,6 +10,8 @@ import com.nexy.client.data.local.entity.ChatEntity
 import com.nexy.client.data.models.Chat
 import com.nexy.client.data.network.NetworkMonitor
 import com.nexy.client.data.repository.UserRepository
+import com.nexy.client.data.websocket.ConnectionState
+import com.nexy.client.data.websocket.NexyWebSocketClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -26,23 +28,55 @@ class ChatSyncOperations @Inject constructor(
     private val chatDao: ChatDao,
     private val chatMappers: ChatMappers,
     private val userRepository: UserRepository,
-    private val networkMonitor: NetworkMonitor
+    private val networkMonitor: NetworkMonitor,
+    private val webSocketClient: NexyWebSocketClient
 ) {
     companion object {
         private const val TAG = "ChatSyncOperations"
+        // If server was unreachable, skip API calls for this duration
+        private const val SERVER_UNREACHABLE_BACKOFF_MS = 30_000L
     }
+    
+    // Track when server became unreachable to avoid repeated timeout waits
+    @Volatile
+    private var serverUnreachableUntil: Long = 0L
 
     fun getAllChats(): Flow<List<Chat>> {
         return chatDao.getAllChats().map { entities ->
             entities.map { chatMappers.entityToModel(it) }
         }
     }
+    
+    private fun isServerLikelyAvailable(): Boolean {
+        // 1. Check if we have network connectivity
+        if (!networkMonitor.isConnected.value) {
+            return false
+        }
+        // 2. Check if WebSocket is connected (best indicator of server availability)
+        if (webSocketClient.connectionState.value == ConnectionState.CONNECTED) {
+            // Server is definitely reachable, clear any backoff
+            serverUnreachableUntil = 0L
+            return true
+        }
+        // 3. Check if we're in backoff period from previous failure
+        if (System.currentTimeMillis() < serverUnreachableUntil) {
+            Log.w(TAG, "Server unreachable backoff active, skipping API")
+            return false
+        }
+        // 4. Network available but WebSocket not connected - server might be available
+        return true
+    }
+    
+    private fun markServerUnreachable() {
+        serverUnreachableUntil = System.currentTimeMillis() + SERVER_UNREACHABLE_BACKOFF_MS
+        Log.w(TAG, "Marked server as unreachable for ${SERVER_UNREACHABLE_BACKOFF_MS/1000}s")
+    }
 
     suspend fun refreshChats(): Result<List<Chat>> {
         return withContext(Dispatchers.IO) {
-            // If offline, return local chats immediately without trying API
-            if (!networkMonitor.isConnected.value) {
-                Log.d(TAG, "refreshChats: offline, returning local chats")
+            // Quick check if server is likely available
+            if (!isServerLikelyAvailable()) {
+                Log.w(TAG, "refreshChats: server likely unavailable, returning local chats")
                 val localChats = chatDao.getAllChatsSync().map { chatMappers.entityToModel(it) }
                 return@withContext Result.success(localChats)
             }
@@ -72,7 +106,7 @@ class ChatSyncOperations @Inject constructor(
                         if (existingEntity != null) {
                             val mergedLastMessageId = chat.lastMessage?.id ?: existingEntity.lastMessageId
                             // Use server's values - they are the source of truth
-                            Log.d(TAG, "refreshChats: chat ${chat.id} server unreadCount=${chat.unreadCount}, isPinned=${chat.isPinned}, firstUnreadMessageId=${chat.firstUnreadMessageId}")
+                            Log.w(TAG, "refreshChats: chat ${chat.id} server unreadCount=${chat.unreadCount}, isPinned=${chat.isPinned}, firstUnreadMessageId=${chat.firstUnreadMessageId}")
                             
                             updates.add(newEntity.copy(
                                 lastMessageId = mergedLastMessageId,
@@ -124,12 +158,15 @@ class ChatSyncOperations @Inject constructor(
                     Result.success(chats)
                 } else {
                     // API failed, return local chats
-                    Log.d(TAG, "refreshChats: API failed, returning local chats")
+                    Log.w(TAG, "refreshChats: API failed, returning local chats")
                     val localChats = chatDao.getAllChatsSync().map { chatMappers.entityToModel(it) }
                     Result.success(localChats)
                 }
             } catch (e: Exception) {
-                // Network error, return local chats
+                // Network error - mark server as unreachable and return local chats
+                if (e is java.net.SocketTimeoutException || e is java.net.ConnectException) {
+                    markServerUnreachable()
+                }
                 Log.e(TAG, "refreshChats: exception, returning local chats", e)
                 val localChats = chatDao.getAllChatsSync().map { chatMappers.entityToModel(it) }
                 Result.success(localChats)
@@ -140,16 +177,16 @@ class ChatSyncOperations @Inject constructor(
     suspend fun getChatById(chatId: Int): Result<Chat> {
         return withContext(Dispatchers.IO) {
             try {
-                Log.d(TAG, "getChatById: chatId=$chatId, isOnline=${networkMonitor.isConnected.value}")
+                Log.w(TAG, "getChatById: chatId=$chatId, serverAvailable=${isServerLikelyAvailable()}")
                 
                 // Check local cache first
                 val localChat = chatDao.getChatById(chatId)
                 
-                // If offline, return local immediately
-                if (!networkMonitor.isConnected.value) {
+                // If server likely unavailable, return local immediately
+                if (!isServerLikelyAvailable()) {
                     return@withContext if (localChat != null) {
                         val chat = chatMappers.entityToModel(localChat)
-                        Log.d(TAG, "getChatById: returning cached chat (offline)")
+                        Log.w(TAG, "getChatById: returning cached chat (server unavailable)")
                         Result.success(chat)
                     } else {
                         Result.failure(Exception("Chat not found (offline)"))
@@ -171,7 +208,7 @@ class ChatSyncOperations @Inject constructor(
                     }
                     
                     // Use server values - they are the source of truth
-                    Log.d(TAG, "getChatById: serverUnreadCount=${chat.unreadCount}, isPinned=${chat.isPinned}, firstUnreadMessageId=${chat.firstUnreadMessageId}")
+                    Log.w(TAG, "getChatById: serverUnreadCount=${chat.unreadCount}, isPinned=${chat.isPinned}, firstUnreadMessageId=${chat.firstUnreadMessageId}")
                     
                     val existingChat = chatDao.getChatById(chatId)
                     val updatedEntity = chatMappers.modelToEntity(chat, existingChat).copy(
@@ -187,7 +224,7 @@ class ChatSyncOperations @Inject constructor(
                         chatDao.insertChat(updatedEntity)
                     }
                     
-                    Log.d(TAG, "getChatById: returning chat with unreadCount=${chat.unreadCount}, firstUnreadMessageId=${chat.firstUnreadMessageId}")
+                    Log.w(TAG, "getChatById: returning chat with unreadCount=${chat.unreadCount}, firstUnreadMessageId=${chat.firstUnreadMessageId}")
                     Result.success(chat)
                 } else {
                     // Fallback to local if API fails

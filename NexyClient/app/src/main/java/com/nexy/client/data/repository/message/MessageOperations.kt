@@ -88,7 +88,7 @@ class MessageOperations @Inject constructor(
         return withContext(Dispatchers.IO) {
             // If offline, skip API call - local messages are already available via Flow
             if (!networkMonitor.isConnected.value) {
-                Log.d(TAG, "loadMessages: offline, skipping API call for chatId=$chatId")
+                Log.w(TAG, "loadMessages: offline, skipping API call for chatId=$chatId")
                 return@withContext Result.success(emptyList())
             }
             

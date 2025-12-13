@@ -66,8 +66,8 @@ class ChatListLoadingDelegate @Inject constructor(
                                 val otherUserId = chat.participantIds?.firstOrNull { it != currentUserId }
 
                                 if (otherUserId != null) {
-                                    val userResult = userRepository.getUserById(otherUserId)
-                                    val user = userResult.getOrNull()
+                                    // Use cache-only for fast display, network fetch happens in background
+                                    val user = userRepository.getUserFromCacheOnly(otherUserId)
                                     val name = user?.displayName?.takeIf { it.isNotBlank() }
                                         ?: user?.username?.takeIf { it.isNotBlank() }
                                         ?: "User $otherUserId"
