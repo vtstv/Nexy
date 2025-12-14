@@ -15,7 +15,8 @@ func (h *Hub) sendToUser(userID int, message *NexyMessage, unregisterFunc func(*
 		log.Printf("User %d not connected, will send FCM notification", userID)
 
 		// Send FCM notification for chat messages when user is offline
-		if message.Header.Type == TypeChatMessage {
+		// Skip if this is the sender (they shouldn't get notification for their own message)
+		if message.Header.Type == TypeChatMessage && userID != message.Header.SenderID {
 			go h.sendFcmForMessage(userID, message)
 		}
 		return
@@ -91,6 +92,11 @@ func (h *Hub) broadcastToChatMembers(chatID int, message *NexyMessage) {
 	h.mu.RUnlock()
 
 	for _, memberID := range memberIDs {
+		// Skip the sender - they don't need notification for their own message
+		if memberID == message.Header.SenderID {
+			continue
+		}
+		
 		if clients, ok := onlineClients[memberID]; ok && len(clients) > 0 {
 			// Member is online, send via WebSocket to all their devices
 			for _, client := range clients {
