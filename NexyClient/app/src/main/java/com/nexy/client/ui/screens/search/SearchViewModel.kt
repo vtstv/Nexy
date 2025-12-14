@@ -54,6 +54,19 @@ class SearchViewModel @Inject constructor(
         }
     }
     
+    private fun normalizePhoneNumber(phone: String): String {
+        val cleaned = phone.replace(Regex("[^0-9+]"), "")
+        if (cleaned.isEmpty()) return ""
+        
+        // Handle Russian format: 8XXXXXXXXXX -> +7XXXXXXXXXX
+        if (cleaned.length == 11 && cleaned.startsWith("8")) {
+            return "+7" + cleaned.substring(1)
+        }
+        
+        // Add + if not present for international format
+        return if (cleaned.startsWith("+")) cleaned else "+$cleaned"
+    }
+    
     fun onQueryChange(query: String) {
         Log.d("SearchViewModel", "Query changed: '$query'")
         _uiState.value = _uiState.value.copy(query = query, error = null, successMessage = null)
@@ -76,9 +89,11 @@ class SearchViewModel @Inject constructor(
                     val usersDeferred = async { userRepository.searchUsers(query) }
                     val groupsDeferred = async { chatRepository.searchPublicGroups(query) }
                     
-                    // If query looks like a phone number, also search by phone
-                    val phoneUserDeferred = if (query.matches(Regex("^\\+?[0-9]{7,15}$"))) {
-                        async { userRepository.searchUserByPhone(query) }
+                    // If query looks like a phone number, also search by phone with normalization
+                    val cleanedQuery = query.replace(Regex("[^0-9+]"), "")
+                    val phoneUserDeferred = if (cleanedQuery.matches(Regex("^\\+?[0-9]{7,15}$"))) {
+                        val normalizedPhone = normalizePhoneNumber(query)
+                        async { userRepository.searchUserByPhone(normalizedPhone) }
                     } else {
                         null
                     }

@@ -7,17 +7,54 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
+	"unicode"
 
+	"github.com/lib/pq"
 	"github.com/vtstv/nexy/internal/models"
 )
+
+// normalizePhoneNumber removes all non-digit characters and converts to standard format
+func normalizePhoneNumber(phone string) string {
+	if phone == "" {
+		return ""
+	}
+
+	var result strings.Builder
+	hasPlus := strings.HasPrefix(phone, "+")
+
+	for _, r := range phone {
+		if unicode.IsDigit(r) {
+			result.WriteRune(r)
+		}
+	}
+
+	normalized := result.String()
+	if normalized == "" {
+		return ""
+	}
+
+	// Handle Russian format: 8XXXXXXXXXX -> 7XXXXXXXXXX
+	if len(normalized) == 11 && strings.HasPrefix(normalized, "8") {
+		normalized = "7" + normalized[1:]
+	}
+
+	// Add + prefix for international format
+	if hasPlus || len(normalized) >= 10 {
+		return "+" + normalized
+	}
+
+	return normalized
+}
 
 // Create creates a new user
 func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 	query := `
-		INSERT INTO users (username, email, password_hash, display_name, avatar_url, bio)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO users (username, email, password_hash, display_name, avatar_url, bio, phone_number)
+		VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, ''))
 		RETURNING id, read_receipts_enabled, typing_indicators_enabled, voice_messages_enabled, show_online_status, created_at, updated_at`
 
+	normalizedPhone := normalizePhoneNumber(user.PhoneNumber)
 	return r.db.QueryRowContext(ctx, query,
 		user.Username,
 		user.Email,
@@ -25,6 +62,7 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 		user.DisplayName,
 		user.AvatarURL,
 		user.Bio,
+		normalizedPhone,
 	).Scan(&user.ID, &user.ReadReceiptsEnabled, &user.TypingIndicatorsEnabled, &user.VoiceMessagesEnabled, &user.ShowOnlineStatus, &user.CreatedAt, &user.UpdatedAt)
 }
 
@@ -92,11 +130,12 @@ func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
 		UPDATE users
 		SET display_name = $1, avatar_url = $2, bio = $3, read_receipts_enabled = $4, 
 		    typing_indicators_enabled = $5, voice_messages_enabled = $6, show_online_status = $7,
-		    phone_number = $8, phone_privacy = $9, allow_phone_discovery = $10,
+		    phone_number = NULLIF($8, ''), phone_privacy = $9, allow_phone_discovery = $10,
 		    updated_at = CURRENT_TIMESTAMP
 		WHERE id = $11
 		RETURNING updated_at`
 
+	normalizedPhone := normalizePhoneNumber(user.PhoneNumber)
 	return r.db.QueryRowContext(ctx, query,
 		user.DisplayName,
 		user.AvatarURL,
@@ -105,7 +144,7 @@ func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
 		user.TypingIndicatorsEnabled,
 		user.VoiceMessagesEnabled,
 		user.ShowOnlineStatus,
-		user.PhoneNumber,
+		normalizedPhone,
 		user.PhonePrivacy,
 		user.AllowPhoneDiscovery,
 		user.ID,
@@ -129,6 +168,11 @@ func (r *UserRepository) UpdateAvatar(ctx context.Context, userID int, avatarURL
 // GetByPhoneNumber retrieves users by phone number (respecting privacy settings)
 func (r *UserRepository) GetByPhoneNumber(ctx context.Context, phoneNumber string, requestingUserID int) (*models.User, error) {
 	user := &models.User{}
+	normalizedPhone := normalizePhoneNumber(phoneNumber)
+	if normalizedPhone == "" {
+		return nil, fmt.Errorf("invalid phone number")
+	}
+
 	// Only return user if they allow phone discovery
 	query := `
 		SELECT id, username, email, display_name, avatar_url, bio,
@@ -143,7 +187,7 @@ func (r *UserRepository) GetByPhoneNumber(ctx context.Context, phoneNumber strin
 	var phoneNum sql.NullString
 	var phonePrivacy sql.NullString
 	var lastSeen sql.NullTime
-	err := r.db.QueryRowContext(ctx, query, phoneNumber).Scan(
+	err := r.db.QueryRowContext(ctx, query, normalizedPhone).Scan(
 		&user.ID,
 		&user.Username,
 		&user.Email,
@@ -188,7 +232,18 @@ func (r *UserRepository) SearchByPhoneNumbers(ctx context.Context, phoneNumbers 
 		return []*models.User{}, nil
 	}
 
-	// Build query with phone numbers list
+	// Normalize all phone numbers
+	normalizedPhones := make([]string, 0, len(phoneNumbers))
+	for _, phone := range phoneNumbers {
+		if normalized := normalizePhoneNumber(phone); normalized != "" {
+			normalizedPhones = append(normalizedPhones, normalized)
+		}
+	}
+
+	if len(normalizedPhones) == 0 {
+		return []*models.User{}, nil
+	}
+
 	query := `
 		SELECT id, username, email, display_name, avatar_url, bio,
 		       phone_number, phone_privacy, allow_phone_discovery,
@@ -197,7 +252,7 @@ func (r *UserRepository) SearchByPhoneNumbers(ctx context.Context, phoneNumbers 
 		FROM users
 		WHERE phone_number = ANY($1) AND allow_phone_discovery = TRUE`
 
-	rows, err := r.db.QueryContext(ctx, query, phoneNumbers)
+	rows, err := r.db.QueryContext(ctx, query, pq.Array(normalizedPhones))
 	if err != nil {
 		return nil, err
 	}

@@ -142,7 +142,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val userId = stateManager.loadCurrentUserId()
             if (userId != null && userId > 0) {
-                userRepository.getUserById(userId).onSuccess { user ->
+                userRepository.getUserById(userId, forceRefresh = true).onSuccess { user ->
                     _readReceiptsEnabled.value = user.readReceiptsEnabled
                     _typingIndicatorsEnabled.value = user.typingIndicatorsEnabled
                     _showOnlineStatus.value = user.showOnlineStatus

@@ -1,5 +1,8 @@
 package com.nexy.client.ui.screens.contacts
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -33,7 +36,38 @@ fun ContactsScreen(
     viewModel: ContactsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val needsContactsPermission by viewModel.needsContactsPermission.collectAsState()
     var contactToDelete by remember { mutableStateOf<ContactWithUser?>(null) }
+    var permissionRequested by remember { mutableStateOf(false) }
+    
+    // Permission launcher for contacts
+    val contactsPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        android.util.Log.d("ContactsScreen", "Permission result: $permissions")
+        val readGranted = permissions[Manifest.permission.READ_CONTACTS] == true
+        val writeGranted = permissions[Manifest.permission.WRITE_CONTACTS] == true
+        if (readGranted && writeGranted) {
+            viewModel.onContactsPermissionGranted()
+        } else {
+            viewModel.onContactsPermissionDenied()
+        }
+    }
+    
+    // Request permissions on first composition if needed
+    LaunchedEffect(Unit) {
+        android.util.Log.d("ContactsScreen", "LaunchedEffect: needsContactsPermission=$needsContactsPermission, permissionRequested=$permissionRequested")
+        if (needsContactsPermission && !permissionRequested) {
+            permissionRequested = true
+            android.util.Log.d("ContactsScreen", "Launching permission request")
+            contactsPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.READ_CONTACTS,
+                    Manifest.permission.WRITE_CONTACTS
+                )
+            )
+        }
+    }
     
     Scaffold(
         topBar = {

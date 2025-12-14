@@ -1,7 +1,9 @@
 package com.nexy.client.ui.screens.contacts
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nexy.client.data.contacts.ContactsSyncManager
 import com.nexy.client.data.models.ContactStatus
 import com.nexy.client.data.models.ContactWithUser
 import com.nexy.client.data.repository.ContactRepository
@@ -14,14 +16,25 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ContactsViewModel @Inject constructor(
-    private val contactRepository: ContactRepository
+    private val contactRepository: ContactRepository,
+    private val contactsSyncManager: ContactsSyncManager
 ) : ViewModel() {
+    
+    companion object {
+        private const val TAG = "ContactsViewModel"
+    }
     
     private val _uiState = MutableStateFlow<ContactsUiState>(ContactsUiState.Loading)
     val uiState: StateFlow<ContactsUiState> = _uiState.asStateFlow()
     
+    private val _needsContactsPermission = MutableStateFlow(!contactsSyncManager.hasContactsPermission())
+    val needsContactsPermission: StateFlow<Boolean> = _needsContactsPermission.asStateFlow()
+    
     init {
         loadContacts()
+        if (contactsSyncManager.hasContactsPermission()) {
+            syncDeviceContacts()
+        }
         
         // Listen for contact updates
         viewModelScope.launch {
@@ -46,6 +59,25 @@ class ContactsViewModel @Inject constructor(
                 .onFailure { error ->
                     _uiState.value = ContactsUiState.Error(error.message ?: "Failed to load contacts")
                 }
+        }
+    }
+    
+    fun onContactsPermissionGranted() {
+        Log.d(TAG, "Contacts permission granted, starting sync")
+        _needsContactsPermission.value = false
+        syncDeviceContacts()
+    }
+    
+    fun onContactsPermissionDenied() {
+        Log.d(TAG, "Contacts permission denied")
+        _needsContactsPermission.value = false
+    }
+    
+    private fun syncDeviceContacts() {
+        viewModelScope.launch {
+            Log.d(TAG, "Starting device contacts sync")
+            val result = contactsSyncManager.syncDeviceContactsWithNexy()
+            Log.d(TAG, "Sync result: $result")
         }
     }
     
