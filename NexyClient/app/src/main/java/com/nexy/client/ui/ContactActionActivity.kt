@@ -11,7 +11,7 @@ class ContactActionActivity : ComponentActivity() {
     
     companion object {
         private const val TAG = "ContactActionActivity"
-        private const val MIME_TYPE_PROFILE = "vnd.android.cursor.item/com.nexy.client.profile"
+        private const val MIME_TYPE_PROFILE = "vnd.android.cursor.item/im"
     }
     
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,7 +70,7 @@ class ContactActionActivity : ComponentActivity() {
         return try {
             contentResolver.query(
                 data,
-                arrayOf(ContactsContract.Data.DATA4),  // user ID stored in DATA4
+                arrayOf(ContactsContract.Data.DATA1),  // user ID stored in DATA1
                 null,
                 null,
                 null

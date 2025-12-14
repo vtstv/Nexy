@@ -67,6 +67,8 @@ class MainActivity : AppCompatActivity() {
         permissionsManager.requestRequiredPermissions(this)
         ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
 
+        val openChatUserId = intent?.getIntExtra("open_chat_with_user_id", -1)?.takeIf { it != -1 }
+
         setContent {
             val themeViewModel: ThemeViewModel = viewModel()
             val settingsViewModel: SettingsViewModel = viewModel()
@@ -114,7 +116,7 @@ class MainActivity : AppCompatActivity() {
                         )
                     } else {
                         Box(modifier = Modifier.fillMaxSize()) {
-                            NexyApp()
+                            NexyApp(openChatUserId = openChatUserId)
                             
                             if (callState !is CallState.Idle && currentUserId != null) {
                                 CallScreen(

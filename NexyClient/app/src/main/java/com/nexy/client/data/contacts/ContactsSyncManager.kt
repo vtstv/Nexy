@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.provider.ContactsContract
 import android.util.Log
 import androidx.core.content.ContextCompat
+import com.nexy.client.data.repository.ContactRepository
 import com.nexy.client.data.repository.UserRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -20,7 +21,8 @@ import javax.inject.Singleton
 class ContactsSyncManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val contactsSyncService: ContactsSyncService,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val contactRepository: ContactRepository
 ) {
     companion object {
         private const val TAG = "ContactsSyncManager"
@@ -63,28 +65,39 @@ class ContactsSyncManager @Inject constructor(
             val cleared = contactsSyncService.removeAllNexyIndicators()
             Log.d(TAG, "Cleared $cleared old Nexy entries")
             
+            // Get device contact phone numbers
             val devicePhoneNumbers = contactsSyncService.getDeviceContactPhoneNumbers()
             Log.d(TAG, "Found ${devicePhoneNumbers.size} device contacts with phone numbers")
-            
-            if (devicePhoneNumbers.isEmpty()) {
-                return@withContext SyncResult.Success(0)
-            }
-            
-            val nexyUsersResult = userRepository.syncContacts(devicePhoneNumbers)
-            nexyUsersResult.fold(
-                onSuccess = { nexyUsers ->
-                    Log.d(TAG, "Found ${nexyUsers.size} Nexy users matching device contacts")
-                    if (nexyUsers.isEmpty()) {
-                        SyncResult.Success(0)
-                    } else {
-                        val syncedCount = contactsSyncService.syncNexyUsersWithContacts(nexyUsers)
-                        Log.d(TAG, "Synced $syncedCount contacts with Nexy indicator")
-                        SyncResult.Success(syncedCount)
+
+            if (devicePhoneNumbers.isNotEmpty()) {
+                // Find Nexy users matching device contacts
+                val nexyUsersResult = userRepository.syncContacts(devicePhoneNumbers)
+                nexyUsersResult.fold(
+                    onSuccess = { nexyUsers ->
+                        Log.d(TAG, "Found ${nexyUsers.size} Nexy users matching device contacts")
+                        if (nexyUsers.isNotEmpty()) {
+                            val syncedMatching = contactsSyncService.syncNexyUsersWithContacts(nexyUsers)
+                            Log.d(TAG, "Synced $syncedMatching matching users with indicators")
+                        }
+                    },
+                    onFailure = { error ->
+                        Log.e(TAG, "Sync contacts API failed", error)
                     }
+                )
+            }
+
+            // Sync all user's Nexy contacts with system contacts
+            val allContactsResult = contactRepository.getContacts()
+            allContactsResult.fold(
+                onSuccess = { contacts ->
+                    val allUsers = contacts.map { it.contactUser }
+                    val syncedAll = contactsSyncService.syncNexyUsersWithContacts(allUsers)
+                    Log.d(TAG, "Synced $syncedAll user's contacts")
+                    SyncResult.Success(syncedAll)
                 },
                 onFailure = { error ->
-                    Log.e(TAG, "Sync contacts API failed", error)
-                    SyncResult.Error(error.message ?: "Sync failed")
+                    Log.e(TAG, "Failed to load contacts", error)
+                    SyncResult.Error(error.message ?: "Failed to load contacts")
                 }
             )
         } catch (e: Exception) {

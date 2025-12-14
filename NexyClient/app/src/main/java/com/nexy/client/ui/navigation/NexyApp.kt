@@ -44,7 +44,7 @@ private fun NavController.safePopBackStack() {
 }
 
 @Composable
-fun NexyApp() {
+fun NexyApp(openChatUserId: Int? = null) {
     val navController = rememberNavController()
     val authViewModel: AuthViewModel = viewModel()
     val navigationViewModel: NavigationViewModel = viewModel()

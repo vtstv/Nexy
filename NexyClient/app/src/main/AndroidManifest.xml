@@ -123,7 +123,7 @@
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="vnd.android.cursor.item/com.nexy.client.profile" />
+                <data android:mimeType="vnd.android.cursor.item/im" />
             </intent-filter>
         </activity>
             

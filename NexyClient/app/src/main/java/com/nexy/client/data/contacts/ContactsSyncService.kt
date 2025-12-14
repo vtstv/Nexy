@@ -21,7 +21,7 @@ class ContactsSyncService @Inject constructor(
         private const val TAG = "ContactsSyncService"
         private const val NEXY_ACCOUNT_TYPE = "com.nexy.client"
         private const val NEXY_ACCOUNT_NAME = "Nexy"
-        private const val NEXY_MIME_TYPE = "vnd.android.cursor.item/com.nexy.client.profile"
+        private const val NEXY_MIME_TYPE = ContactsContract.CommonDataKinds.Im.CONTENT_ITEM_TYPE
     }
 
     suspend fun getDeviceContactPhoneNumbers(): List<String> = withContext(Dispatchers.IO) {
@@ -61,6 +61,7 @@ class ContactsSyncService @Inject constructor(
         return if (cleaned.startsWith("+")) cleaned else "+$cleaned"
     }
 
+    @androidx.compose.runtime.NoLiveLiterals
     suspend fun addNexyIndicatorToContact(user: User): Boolean = withContext(Dispatchers.IO) {
         if (user.phoneNumber.isNullOrEmpty()) {
             Log.d(TAG, "User ${user.username} has no phone number")
@@ -78,46 +79,34 @@ class ContactsSyncService @Inject constructor(
             val (contactId, existingRawContactId) = contactInfo
             Log.d(TAG, "Found contact $contactId (rawContact $existingRawContactId) for user ${user.username}")
             
-            // Check if we already have a Nexy raw contact for this contact
-            val existingNexyRawContact = findNexyRawContactForContact(contactId)
-            if (existingNexyRawContact != null) {
-                Log.d(TAG, "Nexy entry already exists for contact $contactId (nexyRawContact $existingNexyRawContact)")
+            // Check if we already have Nexy data for this raw contact
+            if (hasNexyData(existingRawContactId)) {
+                Log.d(TAG, "Nexy data already exists for raw contact $existingRawContactId")
                 return@withContext true
             }
             
-            // Create a new Nexy raw contact with aggregation
-            val nexyAccount = Account(NEXY_ACCOUNT_NAME, NEXY_ACCOUNT_TYPE)
+            // Add Nexy data to the existing raw contact
             val operations = ArrayList<ContentProviderOperation>()
             
-            // 1. Create new raw contact for Nexy
-            operations.add(
-                ContentProviderOperation.newInsert(ContactsContract.RawContacts.CONTENT_URI)
-                    .withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, NEXY_ACCOUNT_TYPE)
-                    .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, NEXY_ACCOUNT_NAME)
-                    .build()
-            )
-            
-            // 2. Add Nexy profile data
             operations.add(
                 ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                    .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+                    .withValue(ContactsContract.Data.RAW_CONTACT_ID, existingRawContactId)
                     .withValue(ContactsContract.Data.MIMETYPE, NEXY_MIME_TYPE)
-                    .withValue(ContactsContract.Data.DATA1, user.phoneNumber)
-                    .withValue(ContactsContract.Data.DATA2, "Nexy")
-                    .withValue(ContactsContract.Data.DATA3, "Open in Nexy")
-                    .withValue(ContactsContract.Data.DATA4, user.id.toString())
-                    .withValue(ContactsContract.Data.DATA5, user.username)
+                    .withValue(ContactsContract.CommonDataKinds.Im.DATA, user.id.toString())
+                    .withValue(ContactsContract.CommonDataKinds.Im.PROTOCOL, ContactsContract.CommonDataKinds.Im.PROTOCOL_CUSTOM)
+                    .withValue(ContactsContract.CommonDataKinds.Im.CUSTOM_PROTOCOL, "Nexy")
+                    .withValue(ContactsContract.CommonDataKinds.Im.TYPE, ContactsContract.CommonDataKinds.Im.TYPE_WORK)
+                    .withValue(ContactsContract.CommonDataKinds.Im.LABEL, user.username)
                     .build()
             )
             
-            val results = context.contentResolver.applyBatch(ContactsContract.AUTHORITY, operations)
-            val newNexyRawContactId = results[0].uri?.lastPathSegment?.toLongOrNull()
-            Log.d(TAG, "Created Nexy raw contact $newNexyRawContactId for user ${user.username}")
+            context.contentResolver.applyBatch(ContactsContract.AUTHORITY, operations)
+            Log.d(TAG, "Added Nexy data to existing raw contact $existingRawContactId for user ${user.username}")
             
-            // 4. Aggregate the new Nexy raw contact with the existing contact
-            if (newNexyRawContactId != null) {
-                aggregateContacts(existingRawContactId, newNexyRawContactId)
-            }
+            // Notify contacts changed
+            context.contentResolver.notifyChange(ContactsContract.Contacts.CONTENT_URI, null)
+            
+            true
             
             true
         } catch (e: Exception) {
@@ -139,6 +128,17 @@ class ContactsSyncService @Inject constructor(
                 it.getLong(0)
             } else null
         }
+    }
+    
+    private fun hasNexyData(rawContactId: Long): Boolean {
+        val cursor = context.contentResolver.query(
+            ContactsContract.Data.CONTENT_URI,
+            arrayOf(ContactsContract.Data._ID),
+            "${ContactsContract.Data.RAW_CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ? AND ${ContactsContract.Data.DATA6} = ?",
+            arrayOf(rawContactId.toString(), NEXY_MIME_TYPE, "Nexy"),
+            null
+        )
+        return cursor?.use { it.count > 0 } ?: false
     }
     
     private fun aggregateContacts(rawContactId1: Long, rawContactId2: Long) {
@@ -168,14 +168,20 @@ class ContactsSyncService @Inject constructor(
             )
             
             // Also clean up any orphaned Nexy Data entries
-            val deletedData = context.contentResolver.delete(
+            val deletedDataIm = context.contentResolver.delete(
                 ContactsContract.Data.CONTENT_URI,
                 "${ContactsContract.Data.MIMETYPE} = ?",
-                arrayOf(NEXY_MIME_TYPE)
+                arrayOf(ContactsContract.CommonDataKinds.Im.CONTENT_ITEM_TYPE)
             )
             
-            val total = deletedRawContacts + deletedData
-            Log.d(TAG, "Removed Nexy data: $deletedRawContacts raw contacts, $deletedData data entries")
+            val deletedDataCustom = context.contentResolver.delete(
+                ContactsContract.Data.CONTENT_URI,
+                "${ContactsContract.Data.MIMETYPE} = ?",
+                arrayOf("vnd.android.cursor.item/vnd.com.nexy.profile")
+            )
+            
+            val total = deletedRawContacts + deletedDataIm + deletedDataCustom
+            Log.d(TAG, "Removed Nexy data: $deletedRawContacts raw contacts, $deletedDataIm IM data entries, $deletedDataCustom custom data entries")
             total
         } catch (e: Exception) {
             Log.e(TAG, "Error removing Nexy indicators", e)
@@ -183,10 +189,79 @@ class ContactsSyncService @Inject constructor(
         }
     }
 
+    suspend fun addOrUpdateNexyContact(user: User): Boolean = withContext(Dispatchers.IO) {
+        val phoneToUse = user.phoneNumber ?: "nexy${user.id}"
+        
+        val existingContact = findContactByPhone(phoneToUse)
+        if (existingContact != null) {
+            // Add indicator to existing contact
+            addNexyIndicatorToContact(user)
+        } else {
+            // Create new full contact
+            createNewNexyContact(user, phoneToUse)
+        }
+    }
+
+    private suspend fun createNewNexyContact(user: User, phoneNumber: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val operations = ArrayList<ContentProviderOperation>()
+            val nexyAccount = Account(NEXY_ACCOUNT_NAME, NEXY_ACCOUNT_TYPE)
+
+            // 1. Create raw contact
+            operations.add(
+                ContentProviderOperation.newInsert(ContactsContract.RawContacts.CONTENT_URI)
+                    .withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, NEXY_ACCOUNT_TYPE)
+                    .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, NEXY_ACCOUNT_NAME)
+                    .build()
+            )
+
+            // 2. Add name
+            operations.add(
+                ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                    .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+                    .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
+                    .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, user.username)
+                    .build()
+            )
+
+            // 3. Add phone
+            operations.add(
+                ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                    .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+                    .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
+                    .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, phoneNumber)
+                    .withValue(ContactsContract.CommonDataKinds.Phone.TYPE, ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE)
+                    .build()
+            )
+
+            // 4. Add Nexy data
+            operations.add(
+                ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                    .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+                    .withValue(ContactsContract.Data.MIMETYPE, NEXY_MIME_TYPE)
+                    .withValue(ContactsContract.CommonDataKinds.Im.DATA, user.id.toString())
+                    .withValue(ContactsContract.CommonDataKinds.Im.PROTOCOL, ContactsContract.CommonDataKinds.Im.PROTOCOL_CUSTOM)
+                    .withValue(ContactsContract.CommonDataKinds.Im.CUSTOM_PROTOCOL, "Nexy")
+                    .withValue(ContactsContract.CommonDataKinds.Im.TYPE, ContactsContract.CommonDataKinds.Im.TYPE_WORK)
+                    .withValue(ContactsContract.CommonDataKinds.Im.LABEL, user.username)
+                    .build()
+            )
+
+            context.contentResolver.applyBatch(ContactsContract.AUTHORITY, operations)
+            Log.d(TAG, "Created new Nexy contact for ${user.username} with phone $phoneNumber")
+            // Notify contacts changed
+            context.contentResolver.notifyChange(ContactsContract.Contacts.CONTENT_URI, null)
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating Nexy contact for ${user.username}", e)
+            false
+        }
+    }
+
     suspend fun syncNexyUsersWithContacts(nexyUsers: List<User>): Int = withContext(Dispatchers.IO) {
         var syncedCount = 0
         nexyUsers.forEach { user ->
-            if (addNexyIndicatorToContact(user)) {
+            if (addOrUpdateNexyContact(user)) {
                 syncedCount++
             }
         }
