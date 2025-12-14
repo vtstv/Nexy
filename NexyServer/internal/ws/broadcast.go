@@ -96,7 +96,7 @@ func (h *Hub) broadcastToChatMembers(chatID int, message *NexyMessage) {
 		if memberID == message.Header.SenderID {
 			continue
 		}
-		
+
 		if clients, ok := onlineClients[memberID]; ok && len(clients) > 0 {
 			// Member is online, send via WebSocket to all their devices
 			for _, client := range clients {
