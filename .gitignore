@@ -26,6 +26,9 @@ logs/
 .env.local
 .env.*.local
 
+# Sensitive data
+contacts_data.txt
+
 # IDE
 *.iml
 .idea/
